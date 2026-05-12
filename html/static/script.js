@@ -2946,13 +2946,32 @@ function _buildExportColumns() {
     return cols;
 }
 
-function _buildExportRows(cifData) {
-    const columns = _buildExportColumns();
+function _exportCifFieldForGroup(groupLabel) {
+    const map = {
+        "Origin Warehouse": "Total Origin",
+        "Inland Logistics": "Total Transit",
+        Consolidation: "Total_Consol",
+        "Outbound Logistics": "Total_Out",
+        Documentation: "Total_Doc",
+        CIF: "Total_CIF",
+        "Total Terms": "Cash",
+    };
+    return map[groupLabel] || "";
+}
 
-    const cifByRegion = {};
-    if (cifData && cifData.rows) {
-        cifData.rows.forEach(r => { cifByRegion[r.Region] = r; });
-    }
+function _exportCellValueForGroupRegion(cifByRegion, group, abbr) {
+    const cifKey = _exportCifFieldForGroup(group);
+    const cifRegion = EXPORT_REGION_TO_CIF[abbr];
+    const cifRow = cifRegion ? cifByRegion[cifRegion] : null;
+    if (!cifRow || !cifKey) return "";
+    const raw = cifRow[cifKey];
+    if (raw === undefined || raw === null || raw === "") return "";
+    return String(raw);
+}
+
+function _buildExportRows(cifByRegion) {
+    const columns = _buildExportColumns();
+    const cif = cifByRegion || {};
 
     const rows = [];
     EXPORT_DATA.forEach(entry => {
@@ -2963,17 +2982,11 @@ function _buildExportRows(cifData) {
             row["Base"] = isFirst ? entry.base : "";
             row["CIF FE"] = port;
 
-            EXPORT_REGIONS.forEach(abbr => {
-                const cifRegion = EXPORT_REGION_TO_CIF[abbr];
-                const cifRow = cifByRegion[cifRegion];
-                if (cifRow) {
-                    const owKey = "Origin Warehouse|" + abbr;
-                    row[owKey] = cifRow["Total Origin"] ?? "";
-                    const ilKey = "Inland Logistics|" + abbr;
-                    row[ilKey] = cifRow["Total Transit"] ?? "";
-                    const consKey = "Consolidation|" + abbr;
-                    row[consKey] = cifRow["Total_Consol"] ?? "";
-                }
+            EXPORT_CIF_GROUP_LABELS.forEach(group => {
+                EXPORT_REGIONS.forEach(abbr => {
+                    const key = group + "|" + abbr;
+                    row[key] = _exportCellValueForGroupRegion(cif, group, abbr);
+                });
             });
 
             rows.push(row);
@@ -2991,8 +3004,12 @@ async function renderExportTable() {
         const resp = await fetch("/api/cif");
         if (resp.ok) cifData = await resp.json();
     } catch (e) { /* proceed without CIF data */ }
+    const cifByRegion = {};
+    if (cifData && cifData.rows) {
+        cifData.rows.forEach(r => { cifByRegion[r.Region] = r; });
+    }
     const columns = _buildExportColumns();
-    const rows = _buildExportRows(cifData);
+    const rows = _buildExportRows(cifByRegion);
     const regionCount = EXPORT_REGIONS.length;
 
     const table = document.createElement("table");
@@ -3035,12 +3052,23 @@ async function renderExportTable() {
     });
     thead.appendChild(r2);
 
-    // Row 3: Base | CIF FE | (empty cells)
+    // Row 3: Base | CIF FE | Base Rate row (CIF values per group × region)
     const r3 = document.createElement("tr");
     columns.forEach((col, i) => {
         const th = document.createElement("th");
-        th.textContent = i < 2 ? col : "";
         th.className = "usd-sub-header";
+        if (i < 2) {
+            th.textContent = col;
+        } else {
+            const pipe = col.indexOf("|");
+            if (pipe > 0) {
+                const group = col.slice(0, pipe);
+                const abbr = col.slice(pipe + 1);
+                const v = _exportCellValueForGroupRegion(cifByRegion, group, abbr);
+                th.textContent = v;
+                th.className = "usd-sub-header td-num";
+            }
+        }
         if (i > 1 && (i - 2) % regionCount === 0) th.style.borderLeft = dividerBorder;
         r3.appendChild(th);
     });
@@ -3054,8 +3082,10 @@ async function renderExportTable() {
         const tr = document.createElement("tr");
         columns.forEach((col, i) => {
             const td = document.createElement("td");
-            td.textContent = row[col] ?? "";
-            td.className = (typeof row[col] === "number") ? "td-num" : "td-text";
+            const val = row[col] ?? "";
+            td.textContent = val;
+            const isNumCol = col.indexOf("|") > 0 || typeof row[col] === "number";
+            td.className = isNumCol ? "td-num" : "td-text";
             if (i > 1 && (i - 2) % regionCount === 0) td.style.borderLeft = dividerBorder;
             tr.appendChild(td);
         });
