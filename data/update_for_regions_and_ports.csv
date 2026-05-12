@@ -1,0 +1,315 @@
+Warehouse,Name,City,State,Region,Export,Port
+111,Black Belt Gin Inc.,SELMA,AL,Eastern Rule 5,ER5,Savannah
+520,Moseley Intl. Inc.,Abbeville,AL,Eastern Rule 5,ER5,Savannah
+1100,Associated Growers Gin & Whse-Athens,Athens,AL,Eastern Rule 5,ER5,Savannah
+4004,Covington Gin Company,Andalusia,AL,Eastern Rule 5,ER5,Savannah
+11515,South Limestone Coop,Belle Mina,AL,Eastern Rule 5,ER5,Memphis
+22715,"Plaza Cotton Storage, LLC",Centre,AL,Eastern Rule 5,ER5,Savannah
+29010,Servico Warehouse,Courtland,AL,Eastern Rule 5,ER5,Memphis
+31400,5-Lock Gin,Dothan,AL,Eastern Rule 5,ER5,Savannah
+32035,Union Comp/Decatur,Decatur,AL,Eastern Rule 5,ER5,Memphis
+34512,Fuller Warehouse and Gin,Eclectic,AL,Eastern Rule 5,ER5,Savannah
+36016,Coffee Gin Co LLC Whse,Enterprise,AL,Eastern Rule 5,ER5,Savannah
+39720,Oakland Gin Co.,Florence,AL,Eastern Rule 5,ER5,Memphis
+39770,"Scruggs and Vaden Warehouse, LLC",Florence ,AL,Eastern Rule 5,ER5,Memphis
+51005,Sowega Cotton,Hartford,AL,Eastern Rule 5,ER5,Savannah
+52020,Henry County Gin,Headland,AL,Eastern Rule 5,ER5,Savannah
+52650,Hillsboro Gin Company Inc,Hillsboro,AL,Eastern Rule 5,ER5,Memphis
+54205,Holtville Gin and Warehouse,Deatsville,AL,Eastern Rule 5,ER5,Savannah
+62306,"Loxley Warehouses, LLC",Loxley,AL,Eastern Rule 5,ER5,Savannah
+63010,McCullough Bonded Warehouse,McCullough,AL,Eastern Rule 5,ER5,Savannah
+73073,Cotton Growers Coop Inc - New Market,New Market ,AL,Eastern Rule 5,ER5,Memphis
+96505,"Marengo Warehouse, Inc.",Sweet Water,AL,Eastern Rule 5,ER5,Savannah
+99010,Taylor Gin and Tallassee Whse.,Tallassee,AL,Eastern Rule 5,ER5,Savannah
+101020,Cotton Producers Coop Town Creek,Leighton,AL,Eastern Rule 5,ER5,Memphis
+120945,Anderson Clayton Warehouse,Eloy,AZ,Southwest,,Los Angeles
+122007,Calcot LTD Warehouse ,Glendale,AZ,Southwest,,Los Angeles
+122530,Federal Compress Pichaco,Eloy,AZ,Southwest,,Los Angeles
+122531,Updike Distribution Logistics,Phoenix ,AZ,Southwest,,Los Angeles
+129004,Caruthersville Cotton Warehouse,Blytheville,AR,Memphis Rule 5,MR5,Memphis
+129010,FCW- Blytheville,Blytheville,AR,Memphis Rule 5,MR5,Memphis
+129129,Staplcotn Compress and Warehouse-Blytheville,Blytheville ,AR,Memphis Rule 5,MR5,Memphis
+134900,"The Gin House, LLC (TGH)",Dermott,AR,Memphis Rule 5,MR5,Memphis
+136015,Farmers First Gin Company,Dell,AR,Memphis Rule 5,MR5,Memphis
+137001,Dumas Cotton Warehouse Inc,Dumas,AR,Memphis Rule 5,MR5,Memphis
+140300,"Marianna Warehousing, LLC",Caldwell,AR,Memphis Rule 5,MR5,Memphis
+140301,Marianna Warehousing LLC,Forrest City,AR,Memphis Rule 5,MR5,Memphis
+149500,"Rabbit Ridge Gin and Warehouse, LLC",Dyess,AR,Memphis Rule 5,MR5,Memphis
+151005,Federal Compress McGhee,McGehee,AR,Memphis Rule 5,MR5,Memphis
+152705,Federal Warehouse,Manila,AR,Memphis Rule 5,MR5,Memphis
+153005,Marianna Warehouse,Marianna,AR,Memphis Rule 5,MR5,Memphis
+153505,Crittenden Gin Bonded Warehouse,Crawfordsville,AR,Memphis Rule 5,MR5,Memphis
+156002,Childress Warehouse,Monette,AR,Memphis Rule 5,MR5,Memphis
+156006,"Marianna Warehousing, LLC-Plant No. 2",Marianna,AR,Memphis Rule 5,MR5,Memphis
+160006,GPS Bonded Warehouse,Portland,AR,Memphis Rule 5,MR5,Memphis
+160008,"Portland Compress and Warehouse, Inc.",Portland,AR,Memphis Rule 5,MR5,Memphis
+160009,"Portland Gin  and Warehouse, Inc.",Portland,AR,Memphis Rule 5,MR5,Memphis
+166150,Marion Distribution Center,West Memphis,AR,Memphis Rule 5,MR5,Memphis
+167003,Union Comp/W Memphis,West Memphis,AR,Memphis Rule 5,MR5,Memphis
+167025,Staplcotn/W. Memphis,West Memphis,AR,Memphis Rule 5,MR5,Memphis
+167035,Riverbend Warehouse,West Memphis,AR,Memphis Rule 5,MR5,Memphis
+176000,Bakersfield Cotton Warehouse,Bakersfield,CA,Southwest,,Los Angeles
+176001,Calcot LTD Warehouse,Bakersfield,CA,Southwest,,Los Angeles
+176006,Prime West Shipping Inc,Bakersfield,CA,Southwest,,Los Angeles
+177501,Fambro Warehouse Company,Fresno,CA,Southwest,,Los Angeles
+178580,Duncot Warehouse,McFarland,CA,Southwest,,Los Angeles
+201501,Burkhead Warehouse,Jay,FL,Eastern Rule 5,ER5,Savannah
+201505,Golden Gin and Warehouse,Jay,FL,Eastern Rule 5,ER5,Savannah
+208710,West Florida Gin and Warehouse,Walnut Hill,FL,Eastern Rule 5,ER5,Savannah
+213008,McCleskey Cotton Company,Albany,GA,GA 30 Day,ER5,Savannah
+217517,Sunshine Warehouse,Arlington,GA,GA 30 Day,ER5,Savannah
+220586,Sumter County Producers Gin Warehouse,Americus,GA,GA 30 Day,ER5,Savannah
+221010,Decatur Gin Warehouse,Bainbridge,GA,GA 30 Day,ER5,Savannah
+222010,"Bryant's, Inc.",Bartow,GA,GA 30 Day,ER5,Savannah
+224505,Early County Gin Company,Blakely,GA,GA 30 Day,ER5,Savannah
+225625,Boston Gin Company,Boston,GA,GA 30 Day,ER5,Savannah
+227500,"McCleskey Cotton Company, LLC",Bronwood,GA,GA 30 Day,ER5,Savannah
+228002,Bulloch Gin Inc,Brooklet,GA,GA 30 Day,ER5,Savannah
+232400,Cotton Fortunes Inc,Cuthbert,GA,GA 30 Day,ER5,Savannah
+232401,The Peoples Warehouse-Cuthbert,Cuthbert,GA,GA 30 Day,ER5,Savannah
+240124,"Sowega Cotton, Inc.",Climax,GA,GA 30 Day,ER5,Savannah
+242020,"Miller County Warehouse Company, Inc.",Colquitt,GA,GA 30 Day,ER5,Savannah
+245509,"McCay Gin and Warehouse Co., Inc.",Cordele,GA,GA 30 Day,ER5,Savannah
+245545,Union Comp/Cordele,Cordele,GA,GA 30 Day,ER5,Savannah
+253005,Dexter Bonded Warehouse,Dexter,GA,GA 30 Day,ER5,Savannah
+253506,Mobley Gin Company,Doerun,GA,GA 30 Day,ER5,Savannah
+254002,Cloverleaf Warehouse Inc,Donalsonville,GA,GA 30 Day,ER5,Savannah
+255005,Coffee County Gin Whse,Douglas ,GA,GA 30 Day,ER5,Savannah
+255025,Tri County Gin Inc,Douglas,GA,GA 30 Day,ER5,Savannah
+256030,Roche Farm and Garden Warehouse,Dublin,GA,GA 30 Day,ER5,Savannah
+266405,Funston Gin Co,Funston,GA,GA 30 Day,ER5,Savannah
+266861,"Supply Chain Management, LLC-Savannah Whse",Pooler,GA,GA 30 Day,ER5,Savannah
+270800,South Ga Coton -Hazelhurst,Hazelhurst,GA,GA 30 Day,ER5,Savannah
+273518,Heart of Georgia Gin,Hawkinsville,GA,GA 30 Day,ER5,Savannah
+274301,"South Georgia Cotton Whse., Inc.",Hazlehurst,GA,GA 30 Day,ER5,Savannah
+282100,Dooly County Gin LLC,Buena Vista,GA,GA 30 Day,ER5,Savannah
+282101,"Irwin County Warehouse, LLC- Lenox",Lenox,GA,GA 30 Day,ER5,Savannah
+291000,Moultrie Warehouse and Storage LLC,Moultrie,GA,GA 30 Day,ER5,Savannah
+297005,Four Corners Gin Co Inc,Meigs,GA,GA 30 Day,ER5,Savannah
+297507,Candler Gin and Warehouse,Metter,GA,GA 30 Day,ER5,Savannah
+297509,"Growers Cotton Warehouse, Inc.",Metter,GA,GA 30 Day,ER5,Savannah
+298007,"Midville Warehouse, Inc.",Midville,GA,GA 30 Day,ER5,Savannah
+298008,Riverside Gin and Storage,Midville,GA,GA 30 Day,ER5,Savannah
+301535,Trico Gin and Peanut Inc,Unadilla,GA,GA 30 Day,ER5,Savannah
+304495,B.C.T. Gin Company Inc,Moultrie,GA,GA 30 Day,ER5,Savannah
+304500,Doerun Gin Company Warehouse,Doerun,GA,GA 30 Day,ER5,Savannah
+304501,Farmers Gin and Peanut Warehouse,Moultrie,GA,GA 30 Day,ER5,Savannah
+304552,"Mundy, Inc.",Millen,GA,GA 30 Day,ER5,Savannah
+304553,Bostwick Gin Warehouse,Madison,GA,GA 30 Day,ER5,Savannah
+306310,Dixon Gin Company,Enigma,GA,GA 30 Day,ER5,Savannah
+306316,"South Central GA Warehouse, Inc.",Enigma ,GA,GA 30 Day,ER5,Savannah
+308005,Norman Park Gin and Warehouse,Norman Park,GA,GA 30 Day,ER5,Savannah
+309100,Osceola Cotton Company LLC E 1st st,Ocilla,GA,GA 30 Day,ER5,Savannah
+309509,"Irwin County Warehouse, LLC- Omega",Omega ,GA,GA 30 Day,ER5,Savannah
+310516,Osceola Cotton Warehouse,Ocilla ,GA,GA 30 Day,ER5,Savannah
+311000,Savannah Distribution Center,Port Wentworth,GA,GA 30 Day,ER5,Savannah
+313010,Pinecliff Planters Warehouse,Camilla,GA,GA 30 Day,ER5,Savannah
+313023,"The Southern Gin Co, Inc",Pelham,GA,GA 30 Day,ER5,Savannah
+313510,Planters Warehouse/Pinehurst,Pinehurst,GA,GA 30 Day,ER5,Savannah
+314006,Pinecliff Peanut and Grain Inc,Pelham,GA,GA 30 Day,ER5,Savannah
+316751,Supply chain Management-Rincon,Rincon,GA,GA 30 Day,ER5,Savannah
+326202,Coffee County Gin co -Statesboro,Statesboro,GA,GA 30 Day,ER5,Savannah
+331015,The Peoples Warehouse,Shellman,GA,GA 30 Day,ER5,Savannah
+333503,Southern States Coop,Statesboro,GA,GA 30 Day,ER5,Savannah
+335533,Tri County Gin Company,Taylorsville,GA,GA 30 Day,ER5,Savannah
+337525,"Southeastern Gin, Inc.",Surrency,GA,GA 30 Day,ER5,Savannah
+339007,Sconyers Gin and Warehouse,Sycamore,GA,GA 30 Day,ER5,Savannah
+339733,Screven Gin Co.,Sylvania,GA,GA 30 Day,ER5,Savannah
+340015,"Worth Gin & Whse, Inc",Sylvester,GA,GA 30 Day,ER5,Savannah
+340017,Staplcotn/Savannah,Savannah,GA,GA 30 Day,ER5,Savannah
+340100,"Irwin County Whse, LLC - Tifton",Tifton,GA,GA 30 Day,ER5,Savannah
+345008,"Collins Bonded Warehouse, Inc.",Waynesboro,GA,GA 30 Day,ER5,Savannah
+347750,Planters Warehouse-Vienna,Vienna,GA,GA 30 Day,ER5,Savannah
+349526,Vienna Cotton Co Inc,Vienna,GA,GA 30 Day,ER5,Savannah
+349527,West Bonded Warehouse/Dooly Gin,Vienna,GA,GA 30 Day,ER5,Savannah
+349529,WSB Gin and Warehouse,Byromville,GA,GA 30 Day,ER5,Savannah
+350503,Farmers Gin and Stg Co,Wadley,GA,GA 30 Day,ER5,Savannah
+385000,Plains Cotton Cooperative Association,Liberal,KS,WTX,WTX,Dallas
+385001,Plains Cotton Cooperative Association,Clearwater,KS,WTX,WTX,Dallas
+400510,Cotton Storage Inc,Alexandria,LA,Memphis Rule 5,MR5,Houston
+406505,Cotton Warehouse of Concordia,Ferriday,LA,Memphis Rule 5,MR5,Houston
+410020,Hollybrook Warehouse,Lake Providence,LA,Memphis Rule 5,MR5,Houston
+413550,"The Kearney Companies, Inc.",New Orleans,LA,Memphis Rule 5,MR5,Houston
+413551,The Kearney Company,New Orleans,LA,Memphis Rule 5,MR5,Houston
+416010,Staplcotn/Rayville,Rayville,LA,Memphis Rule 5,MR5,Houston
+417205,"Tensas Warehouse, Inc.",St. Joseph,LA,Memphis Rule 5,MR5,Houston
+418515,Staplcotn/Tallulah Comp Warehouse,Tallulah,LA,Memphis Rule 5,MR5,Houston
+420002,Franklin Cotton Warehouse,Winnsboro,LA,Memphis Rule 5,MR5,Houston
+466466,Scruggs Farm Warehouse,Saltillo,MS,Memphis Rule 5,MR5,Memphis
+467005,FCW- Belzoni,Belzoni,MS,Memphis Rule 5,MR5,Memphis
+470012,North Delta Compress and Warehouse Company,Clarksdale,MS,Memphis Rule 5,MR5,Memphis
+476505,FCW- Greenwood #1,Greenwood,MS,Memphis Rule 5,MR5,Memphis
+476510,Federal Compress Greenwood #2,Greenwood ,MS,Memphis Rule 5,MR5,Memphis
+476512,Staplcotn/Rising Sun,Greenwood,MS,Memphis Rule 5,MR5,Memphis
+477005,Federal Compress Grenada,Grenada,MS,Memphis Rule 5,MR5,Memphis
+480505,Staplcotn/Indianola,Indianola,MS,Memphis Rule 5,MR5,Memphis
+481005,Federal Compress Inverness #1,Inverness,MS,Memphis Rule 5,MR5,Memphis
+481010,Federal Compress Inverness #2,Inverness,MS,Memphis Rule 5,MR5,Memphis
+490150,Anderson Clayton Desoto Warehouse,Olive Branch,MS,Memphis Rule 5,MR5,Memphis
+499502,Staplcotn/Tunica,Tunica,MS,Memphis Rule 5,MR5,Memphis
+516004,Caruthersville Cotton Warehouse,Caruthersville,MO,Memphis Rule 5,MR5,Memphis
+517010,Federal Compress Hayti,Hayti,MO,Memphis Rule 5,MR5,Memphis
+517813,Sandy Ridge Cotton Warehouse,Malden,MO,Memphis Rule 5,MR5,Memphis
+517814,Bernie Farmers Gin Warehouse,Malden,MO,Memphis Rule 5,MR5,Memphis
+518085,Bootheel Cotton Warehouse,New Madrid,MO,Memphis Rule 5,MR5,Memphis
+518505,Federal Compress Portageville,Portageville,MO,Memphis Rule 5,MR5,Memphis
+518510,Missouri Cotton Warehouse,Portageville,MO,Memphis Rule 5,MR5,Memphis
+536304,Deming Bonded Warehouse,Deming,NM,WTX,WTX,Los Angeles
+538013,Plains Cotton Cooperative Association,Lovington,NM,WTX,WTX,Los Angeles
+548900,Mesa Farmers Cooperative Inc,Vado,NM,WTX,WTX,Los Angeles
+555225,Rolling Hills Bonded Warehouse,New London,NC,Eastern Rule 5,ER5,Savannah
+558070,Pitt County Gin and Cotton Co.,Bethel,NC,Eastern Rule 5,ER5,Savannah
+562665,Cotton Growers Warehouses Inc,Chocowinity,NC,Eastern Rule 5,ER5,Savannah
+562865,Clarkton Bonded Warehouse,Clarkton,NC,Eastern Rule 5,ER5,Savannah
+565545,"Quality Bonded Warehouse, LLC",Dunn,NC,Eastern Rule 5,ER5,Savannah
+565803,Elm City Warehouse,Elm City,NC,Eastern Rule 5,ER5,Savannah
+565805,Silver Lake Bale Storage 1,Elm City,NC,Eastern Rule 5,ER5,Savannah
+565806,Davis Bonded Warehouse,Hobgood,NC,Eastern Rule 5,ER5,Savannah
+565807,Staplcotn- Edenton 2-3090,Edenton,NC,Eastern Rule 5,ER5,Savannah
+566501,Albemarle Cotton Growers,Edenton,NC,Eastern Rule 5,ER5,Savannah
+566505,Edenton Bonded Warehouse,Tyner,NC,Eastern Rule 5,ER5,Savannah
+568010,Enfield Bonded Warehouse,Enfield,NC,Eastern Rule 5,ER5,Savannah
+568016,Roanoke Tar Cotton Warehouse,Everetts,NC,Eastern Rule 5,ER5,Savannah
+568017,Staplcotn Compress Warehouse,Erwin,NC,Eastern Rule 5,ER5,Savannah
+570240,Stallings Farms Agribusiness,Herford,NC,Eastern Rule 5,ER5,Savannah
+570440,Gaston Cooperative Inc,Garysburg,NC,Eastern Rule 5,ER5,Savannah
+570505,P and M - Avon Bonded Warehouse,Gastonia,NC,Eastern Rule 5,ER5,Savannah
+570507,Broad Street Bonded Warehouse,Gastonia,NC,Eastern Rule 5,ER5,Savannah
+570620,Gates Cotton Gin Warehouse,Gates,NC,Eastern Rule 5,ER5,Savannah
+571536,Ward & Nixon Warehouse,Gatesville,NC,Eastern Rule 5,ER5,Savannah
+576503,Cotton Growers Warehouses Inc,Jackson,NC,Eastern Rule 5,ER5,Savannah
+577277,Jones County Cotton Gin Inc,Trenton,NC,Eastern Rule 5,ER5,Savannah
+578010,Harvey Gin and Cotton Company,Kinston,NC,Eastern Rule 5,ER5,Savannah
+582003,Cotton Growers Warehouses Inc,Lumberton,NC,Eastern Rule 5,ER5,Savannah
+587875,Producers Gin Bonded Warehouse,Murfreesboro,NC,Eastern Rule 5,ER5,Savannah
+589209,"Sampson Gin Company, Inc.",Newton Grove ,NC,Eastern Rule 5,ER5,Savannah
+590610,Coastal Carolina Gin,Pantego,NC,Eastern Rule 5,ER5,Savannah
+593005,Hoke Cotton Warehouse and Storage,Raeford,NC,Eastern Rule 5,ER5,Savannah
+596010,Rosemary Bonded Warehouse,Roanoke Rapids,NC,Eastern Rule 5,ER5,Savannah
+600505,Edwards Bonded Warehouse,Scotland Neck,NC,Eastern Rule 5,ER5,Savannah
+601004,Farmers Peanut Bonded Warehouse,Seaboard,NC,Eastern Rule 5,ER5,Savannah
+601006,Roanoke Ag Bonded Warehouse,Weldon,NC,Eastern Rule 5,ER5,Savannah
+602005,Royster PandM Warehouse,Shelby,NC,Eastern Rule 5,ER5,Savannah
+605515,Edgecombe Bond Warehouse,Tarboro,NC,Eastern Rule 5,ER5,Savannah
+607540,Roanoke Tar Cotton Warehouse-2-3083,Everetts,NC,Eastern Rule 5,ER5,Savannah
+607541,Paxton Bonded Storage Firestone,Wilson,NC,Eastern Rule 5,ER5,Savannah
+611030,Paxton Bonded Warehouse,Wilson,NC,Eastern Rule 5,ER5,Savannah
+631020,Plains Cotton Cooperative Association,Altus,OK,WTX,WTX,Dallas
+676592,General Warehouse and Storage Co,Bennettsville,SC,Eastern Rule 5,ER5,Savannah
+677503,Cotton Growers Warehouse Inc,Bishopville,SC,Eastern Rule 5,ER5,Savannah
+682505,Cameron Cotton and Seed Co,Cameron ,SC,Eastern Rule 5,ER5,Savannah
+689560,McInnis Bonded Warehouse,Clio,SC,Eastern Rule 5,ER5,Savannah
+702530,"Elloree Gin Company, Inc.",Elloree,SC,Eastern Rule 5,ER5,Savannah
+710530,Staple Cotton Cooperative Association,Greer,SC,Eastern Rule 5,ER5,Savannah
+712575,"Humphrey Coker Seed Co., Inc",Hartsville,SC,Eastern Rule 5,ER5,Savannah
+720600,Humphrey Coker Seed Co-lake City Whse,Lake City,SC,Eastern Rule 5,ER5,Savannah
+729020,United Bonded Warehouse,Manning,SC,Eastern Rule 5,ER5,Savannah
+731205,Minturn Bnd Cotton Warehouse,Dillion,SC,Eastern Rule 5,ER5,Savannah
+735030,Culler Holstein Gin,North,SC,Eastern Rule 5,ER5,Savannah
+754585,"Middling Cotton Co., Inc.",St. Matthews,SC,Eastern Rule 5,ER5,Savannah
+787010,Hughes Warehouse,Brownsville,TN,Memphis Rule 5,MR5,Memphis
+787097,Two Way Warehouse,Brownsville,TN,Memphis Rule 5,MR5,Memphis
+788008,Kelcot Warehouses LLC,Covington,TN,Memphis Rule 5,MR5,Memphis
+788020,Green Point Ag- was Tn Gin,Covington,TN,Memphis Rule 5,MR5,Memphis
+789505,Elora Gin Warehouse,Elora,TN,Memphis Rule 5,MR5,Memphis
+790990,Halls Gin Co Inc,Halls ,TN,Memphis Rule 5,MR5,Memphis
+791730,Humboldt Cotton Warehouse,Humboldt ,TN,Memphis Rule 5,MR5,Memphis
+792025,West Tennessee Warehouse,Jackson,TN,Memphis Rule 5,MR5,Memphis
+793960,Mallory Cotton Warehouse Division-Memphis,Memphis,TN,Memphis Rule 5,MR5,Memphis
+793961,Viterra USA-Cotton#1,Memphis,TN,Memphis Rule 5,MR5,Memphis
+793962,Viterra USA LLC Cotton #2,Memphis,TN,Memphis Rule 5,MR5,Memphis
+794205,Longtown Warehouse,Mason,TN,Memphis Rule 5,MR5,Memphis
+794505,Cotton Trade Warehouse (Cargill Whse-Memphis),Memphis,TN,Memphis Rule 5,MR5,Memphis
+794540,Memphis Compress Warehouse,Memphis,TN,Memphis Rule 5,MR5,Memphis
+794550,Producers Warehouse #1,Memphis,TN,Memphis Rule 5,MR5,Memphis
+794553,Producers Warehouse #3,Memphis,TN,Memphis Rule 5,MR5,Memphis
+794555,Producers Warehouse #2,Memphis,TN,Memphis Rule 5,MR5,Memphis
+794560,The Distribution Center,Memphis,TN,Memphis Rule 5,MR5,Memphis
+794598,River CityWarehouse,Memphis,TN,Memphis Rule 5,MR5,Memphis
+795005,Milan Compress Warehouse,Milan,TN,Memphis Rule 5,MR5,Memphis
+795007,Total Commodity Warehouse,Memphis,TN,Memphis Rule 5,MR5,Memphis
+795026,International Cotton Depots Plant 4,Memphis,TN,Memphis Rule 5,MR5,Memphis
+797660,Oak Grove Gin and Warehouse LLC,Somerville,TN,Memphis Rule 5,MR5,Memphis
+810001,FCC-High Plains Division Amarillo,Amarillo,TX,WTX,WTX,Dallas
+810002,Amarillo Cotton Warehouse,Amarillo,TX,WTX,WTX,Dallas
+810003,Amarillo Cotton Warehouse,Amarillo,TX,WTX,WTX,Dallas
+810535,Amarillo Cotton Warehouse,Amarillo,TX,WTX,WTX,Dallas
+810537,"City Gin Cotton Warehouse, LLC",Abernathy,TX,WTX,WTX,Dallas
+810538,Amarillo Cotton Warehouse,Amarillo,TX,WTX,WTX,Dallas
+819202,Cargill Cotton Baytown,Baytown,TX,STEX,STX,Houston
+820010,Ballinger Cotton Warehouse Co. ,Ballinger,TX,WTX,WTX,Dallas
+828031,Brownfield Compress,Brownfield,TX,WTX,WTX,Dallas
+829535,Taylor Compress #2 Bryan,Bryan,TX,STEX,STX,Houston
+829537,Plains Cotton Cooperative Assoc,Big Spring ,TX,WTX,WTX,Dallas
+840509,Gulf Compress - Sweetwater,Sweetwater,TX,WTX,WTX,Dallas
+840510,Gulf Compress Unit #4,Portland,TX,STEX,STX,Houston
+840512,Gulf Compress #1,Corpus Christi,TX,STEX,STX,Houston
+840513,Gulf Compress #2,Corpus Christi,TX,STEX,STX,Houston
+840515,"PPF Gin and Warehouse, LLC, Cooper, TX ",Cooper,TX,WTX,WTX,Dallas
+840516,Gulf Compress #10,Taylor,TX,STEX,STX,Houston
+843000,"Suncot Warehouse, LLC",Denver City,TX,WTX,WTX,Dallas
+843002,East Centre Park Cotton Warehouse,Desoto,TX,WTX,WTX,Dallas
+846847,Olam dba Anderson Clayton - Dallas TX Warehouse #1,Dallas,TX,WTX,WTX,Dallas
+848548,"United Agricultural Cooperative, Inc. Cotton Warehouse",El Campo,TX,STEX,STX,Houston
+853007,Ft Worth Commodity Warehouse,Ft Worth ,TX,WTX,WTX,Dallas
+858053,Moody Compress and Warehouse #1,Galveston,TX,STEX,STX,Houston
+858054,Moody Compress and Warehouse #2,Galveston,TX,STEX,STX,Houston
+858055,Moody Compress and Warehouse #3,Galveston,TX,STEX,STX,Houston
+858056,Moody Compress and Warehouse #4,Galveston,TX,STEX,STX,Houston
+858063,Moody Compress and Warehouse #6,Houston,TX,STEX,STX,Houston
+858065,Southern Comp and Warehouse Co.,Galveston,TX,STEX,STX,Houston
+858078,Glasscock County Co-Op Cotton Warehouses,Garden City ,TX,WTX,WTX,Dallas
+866503,Harlingen Compress Company,Harlingen,TX,STEX,STX,Houston
+866505,Valley Compress Company,Harlingen,TX,STEX,STX,Houston
+867017,Haskell Cotton Warehouse,Stamford,TX,WTX,WTX,Dallas
+871048,Houston Commodity Warehouse,Houston,TX,STEX,STX,Houston
+871049,Houston Commodity Warehouse #2,Houston,TX,STEX,STX,Houston
+875260,Supply Chain Management- Desoto,Desoto,TX,WTX,WTX,Dallas
+880533,Lamesa Warehouse,Lamesa,TX,WTX,WTX,Dallas
+882008,FCC-Levelland Plant,Levelland,TX,WTX,WTX,Dallas
+884033,HCC-Lockney Warehouse,Lockney,TX,WTX,WTX,Dallas
+886506,Farmers Cooperative Compress,Lubbock,TX,WTX,WTX,Dallas
+886509,Farmers Compress Coop #2,Lubbock,TX,WTX,WTX,Dallas
+886512,Farmers Coop Compress #3,Lubbock,TX,WTX,WTX,Dallas
+886517,Farmers Coop Compress #4,Lubbock,TX,WTX,WTX,Dallas
+886520,Farmers Coop Compress #5,Lubbock,TX,WTX,WTX,Dallas
+886533,Lubbock Compress,Lubbock,TX,WTX,WTX,Dallas
+886570,"Lov-Cot Warehouse, L.P.",Lubbock,TX,WTX,WTX,Dallas
+886623,Mallory Alexander International Logistics-Laredo,Laredo,TX,STEX,STX,Houston
+898030,CIL- Prev-Colimar Inc,Weslaco,TX,STEX,STX,Houston
+898030,CIL- Prev-Colimar Inc,Weslaco,TX,STEX,STX,Weslaco
+904033,O'Donnell Warehouse,O'donnell,TX,WTX,WTX,Dallas
+906015,Panhandle Compress Co.,Paducah,TX,WTX,WTX,Dallas
+911510,Panhandle Compress,Plainview,TX,WTX,WTX,Dallas
+911520,Plainview Cooperative Compress #7,Plainview,TX,WTX,WTX,Dallas
+911525,Plainview Cooperative Compress #6,Plainview,TX,WTX,WTX,Dallas
+911533,HCC-Plainview,Plainview,TX,WTX,WTX,Dallas
+913030,Panhandle Compress,Post ,TX,WTX,WTX,Dallas
+913054,Supply Chain Management LLC.,Pasadena,TX,STEX,STX,Houston
+913055,Amarillo Cotton Warehouse Tulia,Tulia,TX,WTX,WTX,Dallas
+914510,Panhandle Comp Quanah,Quanah ,TX,WTX,WTX,Dallas
+916501,Ralls Compress and Warehouse,Ralls,TX,WTX,WTX,Dallas
+916710,Gulf Compress #5,Raymondville,TX,STEX,STX,Houston
+916711,Gulf Compress #6,Raymondville,TX,STEX,STX,Houston
+916712,Gulf Compress (North Plant#7),Raymondville,TX,STEX,STX,Houston
+925011,"Dallas Warehouse Company, LLC",Grand Prairie,TX,WTX,WTX,Dallas
+925012,Plains Cotton Cooperative Association,Rule,TX,WTX,WTX,Dallas
+925013,CIL Warehouse,Willacy County,TX,STEX,STX,Houston
+926005,Ballinger Cotton Warehouse Co.,San Angelo ,TX,STEX,STX,Houston
+928532,Seagraves Compress,Seagraves,TX,WTX,WTX,Dallas
+928715,Willacy Cotton Warehouse,Sebastian,TX,STEX,STX,Houston
+935002,Stanton Compress and Warehouse,Stanton,TX,WTX,WTX,Dallas
+936006,FCC-Sudan,Sudan,TX,WTX,WTX,Dallas
+937530,Plains Cotton Cooperative Association,Sweetwater,TX,WTX,WTX,Dallas
+937534,Ballinger Cotton Warehouse Co. - Plant 3,Snyder,TX,WTX,WTX,Dallas
+937535,Oasis Warehouse LLC,Seminole,TX,WTX,WTX,Dallas
+939033,Tahoka Warehouse,Tahoka,TX,WTX,WTX,Dallas
+940015,Taylor Compress,Taylor,TX,STEX,STX,Houston
+940025,Taylor Compress Plant #3,Taylor,TX,STEX,STX,Houston
+944344,Valley Gin Company,Tornillo,TX,WTX,WTX,Dallas
+944708,Tulia Cotton Warehouse,Tulia,TX,WTX,WTX,Dallas
+947505,Vernon Compress Company,Vernon,TX,WTX,WTX,Dallas
+976503,Hawkins Bonded Warehouse,Emporia,VA,Eastern Rule 5,ER5,Savannah
+976505,Mid-Atlantic Warehouse and Gin,Emporia,VA,Eastern Rule 5,ER5,Savannah
+985505,Suffolk Cotton Gin Warehouse,Suffolk,VA,Eastern Rule 5,ER5,Savannah
+998008,Commonwealth Cotton Warehouse,Windsor,VA,Eastern Rule 5,ER5,Savannah

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mermaid demo</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    .mermaid {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mermaid diagram</h1>
+  <p>Edit the diagram text inside <code>&lt;div class="mermaid"&gt;</code> and refresh.</p>
+
+  <div class="mermaid">
+flowchart LR
+    A[Start] --> B{Choose}
+    B -->|Yes| C[Done]
+    B -->|No| D[Retry]
+    D --> B
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: "default" });
+  </script>
+</body>
+</html>

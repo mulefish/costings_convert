@@ -1,0 +1,18 @@
+{
+  "COO": 10.0,
+  "FHTO": 125.0,
+  "AVG_Shipment": "880.0",
+  "cif_regions": [
+    "WTX",
+    "WTXH",
+    "STEX",
+    "Memphis Rule 5",
+    "GA 30 Day",
+    "Eastern Rule 5",
+    "Dallas",
+    "Houston",
+    "BRZ",
+    "AUS"
+  ],
+  "TOTAL": 0.15
+}

@@ -1,0 +1,23 @@
+[
+    {"country":"China","code":"CN","LC":21,"INS":8,"CONT":13,"COM":92,"COF":31,"CIQ_QC":null},
+    {"country":"Vietnam","code":"VN","LC":41,"INS":8,"CONT":12,"COM":92,"COF":31,"CIQ_QC":null},
+    {"country":"Korea","code":"KO","LC":10,"INS":8,"CONT":13,"COM":92,"COF":31,"CIQ_QC":null},
+    {"country":"Japan","code":"JP","LC":0,"INS":8,"CONT":null,"COM":92,"COF":31,"CIQ_QC":null},
+    {"country":"Malaysia","code":"MA","LC":0,"INS":8,"CONT":16,"COM":92,"COF":31,"CIQ_QC":null},
+    {"country":"Taiwan","code":"TW","LC":14,"INS":8,"CONT":12,"COM":92,"COF":31,"CIQ_QC":null},
+    {"country":"Indonesia","code":"ID","LC":21,"INS":8,"CONT":14,"COM":92,"COF":31,"CIQ_QC":null},
+    {"country":"Thailand","code":"TH","LC":22,"INS":8,"CONT":11,"COM":92,"COF":31,"CIQ_QC":null},
+    {"country":"Bangladesh","code":"BD","LC":103,"INS":8,"CONT":7,"COM":92,"COF":44,"CIQ_QC":null},
+    {"country":"Pakistan","code":"PK","LC":177,"INS":8,"CONT":10,"COM":92,"COF":44,"CIQ_QC":null},
+    {"country":"India","code":"IN","LC":19,"INS":8,"CONT":9,"COM":92,"COF":44,"CIQ_QC":null},
+    {"country":"Turkey","code":"TR","LC":62,"INS":8,"CONT":12,"COM":92,"COF":51,"CIQ_QC":null},
+    {"country":"Mexico","code":"MX","LC":0,"INS":8,"CONT":null,"COM":92,"COF":20,"CIQ_QC":null},
+    {"country":"Peru","code":"PE","LC":8,"INS":8,"CONT":21,"COM":92,"COF":20,"CIQ_QC":null},
+    {"country":"Guatemala","code":"GU","LC":8,"INS":8,"CONT":19,"COM":92,"COF":20,"CIQ_QC":null},
+    {"country":"Honduras","code":"HO","LC":8,"INS":8,"CONT":19,"COM":92,"COF":20,"CIQ_QC":null},
+    {"country":"Columbia","code":"CO","LC":null,"INS":8,"CONT":null,"COM":92,"COF":20,"CIQ_QC":null},
+    {"country":"Ecuador","code":"EC","LC":null,"INS":8,"CONT":19,"COM":92,"COF":20,"CIQ_QC":null},
+    {"country":"Spain","code":"ES","LC":8,"INS":8,"CONT":0,"COM":92,"COF":20,"CIQ_QC":null},
+    {"country":"Italy","code":"IT","LC":8,"INS":8,"CONT":null,"COM":92,"COF":20,"CIQ_QC":null},
+    {"country":"Other","code":"OT","LC":null,"INS":8,"CONT":13,"COM":92,"COF":0,"CIQ_QC":null}
+  ]

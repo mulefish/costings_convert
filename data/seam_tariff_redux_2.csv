@@ -1,0 +1,317 @@
+Warehouse,City,State,Name,County,Terms,Verified,Points,Recv,Strg,Load,Compr,Class,Mark,EffDate,Bales,Rail,ICE Ref,Capacity,CertLoad,CertCompr,CertMark,CertRecv,CertStrg,CertClass,Min Storage,Basis Adj.
+111,Selma,AL,Black Belt Gin Inc.,Autauga              ,1,Yes,0.0285,4,3,6.25,0,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+520,Abbeville,AL,Moseley Intl. Inc.,Henry                ,1,Yes,0.022,0,3.5,7,0,0,0.5,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+1100,Athens,AL,Associated Growers Gin & Whse-Athens,Limestone            ,1,Yes,0.0383,2.15,3,6,7.5,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+4004,Andalusia,AL,Covington Gin Company,Covington            ,1,Yes,0.005,0,2.5,0,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+11515,Belle Mina,AL,South Limestone Coop,Limestone            ,1,Yes,0.0405,4,2,6.75,7,0,0.5,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+22715,Centre,AL,"Plaza Cotton Storage, LLC",Cherokee             ,1,Yes,0.0239,3.25,2.7,5,0,0,1,9/1/2025,2,no,,,0,0,0,0,0,0,0,
+29010,Courtland,AL,Servico Warehouse,Lawrence             ,1,Yes,0.0424,4,2.5,6.7,7.5,0,0.5,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+31400,Dothan,AL,5-Lock Gin,Houston              ,1,Yes,0.03,4.5,3.5,6.5,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+32035,Decatur,AL,Union Comp/Decatur,Morgan               ,1,Yes,0.0383,2.15,3,6,7.5,0,0.5,9/1/2025,0,no,,,6.5,0,0.5,2.5,4.5,0,0,
+34512,Eclectic,AL,Fuller Warehouse and Gin,Elmore               ,1,Yes,0.023,3.5,2.5,5,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+36016,Enterprise,AL,Coffee Gin Co LLC Whse,Coffee               ,1,Yes,0.006,0,2.5,0,0,0,0.5,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+39720,Florence,AL,Oakland Gin Co.,Lauderdale           ,1,Yes,0.0228,3.15,2.25,6,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+39770,Florence ,AL,"Scruggs and Vaden Warehouse, LLC",Lauderdale           ,1,Yes,0.0336,5,2.5,5,0,4.3,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+51005,Hartford,AL,Sowega Cotton,Geneva               ,1,Yes,0.006,0,3,0,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+52020,Headland,AL,Henry County Gin,Henry                ,1,Yes,0.0057,0,2.85,0,0,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+52650,Hillsboro,AL,Hillsboro Gin Company Inc,Lawrence             ,1,Yes,0.0383,2.65,3,6,7.5,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+54205,Deatsville,AL,Holtville Gin and Warehouse,Elmore               ,1,Yes,0.022,3,2,6,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+62306,Loxley,AL,"Loxley Warehouses, LLC",Baldwin              ,1,Yes,0.0234,3.45,2.25,5,0,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+63010,McCullough,AL,McCullough Bonded Warehouse,Escambia             ,1,Yes,0.023,3.75,2.75,5,0,0,0,8/1/2025,0,yes,,,0,0,0,0,0,0,0,
+73073,New Market ,AL,Cotton Growers Coop Inc - New Market,Madison              ,1,Yes,0.043,4,3,6,7.5,0,1,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+96505,Sweet Water,AL,"Marengo Warehouse, Inc.",Marengo and choctaw  ,1,Yes,0.0415,4,2.75,6,7,0,1,10/1/2025,0,no,,,0,0,0,0,0,0,0,
+99010,Tallassee,AL,Taylor Gin and Tallassee Whse.,Elmore               ,1,Yes,0.0269,3.2,1.75,8,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+101020,Leighton,AL,Cotton Producers Coop Town Creek,Lawrence             ,1,Yes,0.0472,7.6,2.5,6,7.5,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+120945,Eloy,AZ,Anderson Clayton Warehouse,Pinal                ,6,Yes,0.0424,0,0.14,8,9,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,2.8,
+122007,Glendale,AZ,Calcot LTD Warehouse ,Maricopa             ,6,Yes,0.0566,4,0.16,9,9.5,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+122530,Eloy,AZ,Federal Compress Pichaco,Pinal                ,6,Yes,0.0399,0,0.14,8,7.25,0,0.5,9/1/2025,0,yes,,,0,0,0,0,0,0,2.8,
+122531,Phoenix ,AZ,Updike Distribution Logistics,Maricopa             ,6,Yes,0.05,5.25,0.15,5.25,10,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,3,
+129004,Blytheville,AR,Caruthersville Cotton Warehouse,Mississippi          ,1,Yes,0.0491,3,3.3,10.25,8,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+129010,Blytheville,AR,FCW- Blytheville,Mississippi          ,1,Yes,0.0532,2.1,3.25,20.75,0,0,0.5,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+129129,Blytheville ,AR,Staplcotn Compress and Warehouse-Blytheville,Mississippi          ,1,Yes,0.0378,1.85,3,4,7,3.05,0,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+134900,Dermott,AR,"The Gin House, LLC (TGH)",Chicot               ,1,Yes,0.051,4,3.25,10.25,8,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+136015,Dell,AR,Farmers First Gin Company,Mississippi          ,1,Yes,0.0495,3.25,3.25,18.25,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+137001,Dumas,AR,Dumas Cotton Warehouse Inc,Desha                ,1,Yes,0.0531,0.65,3.35,19,0,3.05,0.5,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+140300,Caldwell,AR,"Marianna Warehousing, LLC",St francis           ,1,Yes,0.0531,1.75,3.5,18.25,0,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+140301,Forrest City,AR,Marianna Warehousing LLC,St francis           ,1,Yes,0.0531,1.75,3.5,18.25,0,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+149500,Dyess,AR,"Rabbit Ridge Gin and Warehouse, LLC",Mississippi          ,1,Yes,0.0453,1.5,2.9,18.25,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+151005,McGehee,AR,Federal Compress McGhee,Desha                ,1,Yes,0.0555,2.7,3.25,18.25,0,3.05,0.5,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+152705,Manila,AR,Federal Warehouse,Mississippi          ,1,Yes,0.049,1,3.5,19.5,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+153005,Marianna,AR,Marianna Warehouse,Lee                  ,1,Yes,0.0531,1.75,3.5,18.25,0,3.05,0,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+153505,Crawfordsville,AR,Crittenden Gin Bonded Warehouse,Crittenden           ,1,Yes,0.0541,5.05,4,10,8,0,0,8/1/2025,0,no,CRITTN,"92,000",6.5,0,0.5,2.5,4.5,0,0,
+156002,Monette,AR,Childress Warehouse,Craighead            ,1,Yes,0.0455,1.5,3,10.25,8,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+156006,Marianna,AR,"Marianna Warehousing, LLC-Plant No. 2",Lee                  ,1,Yes,0.0531,1.75,3.5,18.25,0,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+160006,Portland,AR,GPS Bonded Warehouse,Ashley               ,1,Yes,0.0536,4.8,3.25,9.75,9,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+160008,Portland,AR,"Portland Compress and Warehouse, Inc.",Ashley               ,1,Yes,0.0527,5.1,3.25,9,9,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+160009,Portland,AR,"Portland Gin  and Warehouse, Inc.",Ashley               ,1,Yes,0.0533,4.4,3.5,9.75,9,0,0,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+166150,West Memphis,AR,Marion Distribution Center,Crittenden           ,1,Yes,0.0521,2.75,3.75,16,0,3.05,0.5,9/1/2025,0,no,,"57,000",4.5,0,0.5,2.5,4.75,0,0,
+167003,West Memphis,AR,Union Comp/W Memphis,Crittenden           ,1,Yes,0.046,2.25,3.75,16.5,0,0,0.5,9/1/2025,0,yes,UNCOMP,"115,080",9.5,0,0.5,2.5,4.75,0,0,
+167025,West Memphis,AR,Staplcotn/W. Memphis,Crittenden           ,1,Yes,0.0378,1.85,3,4,7,3.05,0,9/1/2025,0,yes,STWHSE,"125,000",4,0,0,1.85,3.75,0,0,
+167035,West Memphis,AR,Riverbend Warehouse,Crittenden           ,1,Yes,0.0521,2.75,3.75,16,0,3.05,0.5,9/1/2025,0,yes,RIVBEN,"130,000",4.5,0,0.5,2.5,4.75,0,0,
+176000,Bakersfield,CA,Bakersfield Cotton Warehouse,Kern                 ,5,Yes,0.0302,0,0.17,10,0,0,0,10/1/2025,0,yes,,,0,0,0,0,0,0,5.1,
+176001,Bakersfield,CA,Calcot LTD Warehouse,Kern                 ,5,Yes,0.0566,4,0.16,9,9.5,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+176006,Bakersfield,CA,Prime West Shipping Inc,Kern                 ,5,Yes,0.0296,0,0.16,9.5,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+177501,Fresno,CA,Fambro Warehouse Company,Fresno               ,5,Yes,0.0296,0,0.16,9.5,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+178580,McFarland,CA,Duncot Warehouse,Kern                 ,5,Yes,0.0296,0,0.16,9.5,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+201501,Jay,FL,Burkhead Warehouse,Santa rosa           ,1,Yes,0.037,3,2.5,5.5,7,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+201505,Jay,FL,Golden Gin and Warehouse,Santa rosa           ,1,Yes,0.039,3.25,2.75,5.5,7,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+208710,Walnut Hill,FL,West Florida Gin and Warehouse,Escambia             ,1,Yes,0.036,2.75,2.5,4.75,7,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+213008,Albany,GA,McCleskey Cotton Company,Dougherty            ,4,Yes,0.0255,3.5,2.75,6.5,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+217517,Arlington,GA,Sunshine Warehouse,Calhoun              ,4,Yes,0.0235,3.25,3,5.5,0,0,0,7/1/2025,0,no,,,0,0,0,0,0,0,0,
+220586,Americus,GA,Sumter County Producers Gin Warehouse,Sumter               ,4,Yes,0.022,3.5,2,5,0,0,0.5,3/4/2025,0,yes,,,0,0,0,0,0,0,0,
+221010,Bainbridge,GA,Decatur Gin Warehouse,Decatur              ,4,Yes,0.005,0,2.5,0,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+222010,Bartow,GA,"Bryant's, Inc.",Jefferson            ,4,Yes,0.019,3,2,4.5,0,0,0,10/1/2025,0,no,,,0,0,0,0,0,0,0,
+224505,Blakely,GA,Early County Gin Company,Early                ,4,Yes,0.0053,0,2.65,0,0,0,0,4/3/2025,60,no,,,0,0,0,0,0,0,0,
+225625,Boston,GA,Boston Gin Company,Thomas               ,4,Yes,0.027,4,2.5,6,0,0,1,9/1/2025,13,no,,,0,0,0,0,0,0,0,
+227500,Bronwood,GA,"McCleskey Cotton Company, LLC",Terrell              ,4,Yes,0.0255,3.5,2.75,6.5,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+228002,Brooklet,GA,Bulloch Gin Inc,Bulloch              ,4,Yes,0.023,3.5,3,4.5,0,0,0.5,8/12/2025,0,no,,,0,0,0,0,0,0,0,
+232400,Cuthbert,GA,Cotton Fortunes Inc,Randolph             ,4,Yes,0.028,4,3,6,0,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+232401,Cuthbert,GA,The Peoples Warehouse-Cuthbert,Randolph             ,4,Yes,0.025,5,2.5,5,0,0,0,6/30/2025,0,no,,,0,0,0,0,0,0,0,
+240124,Climax,GA,"Sowega Cotton, Inc.",Decatur              ,4,Yes,0.006,0,3,0,0,0,0,9/1/2025,17,no,,,0,0,0,0,0,0,0,
+242020,Colquitt,GA,"Miller County Warehouse Company, Inc.",Miller               ,4,Yes,0.0053,0,2.65,0,0,0,0,4/3/2025,0,no,,,0,0,0,0,0,0,0,
+245509,Cordele,GA,"McCay Gin and Warehouse Co., Inc.",Crisp                ,4,Yes,0.039,3,2.5,5,8,0,1,7/12/2025,0,no,,,0,0,0,0,0,0,0,
+245545,Cordele,GA,Union Comp/Cordele,Crisp                ,4,Yes,0.0272,3.85,3.75,5,0,0,1,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+253005,Dexter,GA,Dexter Bonded Warehouse,Laurens              ,4,Yes,0.0405,4,2.75,5,8,0,0.5,8/26/2025,0,no,,,5,8,0,4,2.25,0,0,
+253506,Doerun,GA,Mobley Gin Company,Colquitt             ,4,Yes,0.0235,3,2.75,5,0,0,1,7/7/2025,0,no,,,0,0,0,0,0,0,0,
+254002,Donalsonville,GA,Cloverleaf Warehouse Inc,Seminole             ,1,Yes,0.0053,0,2.65,0,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+255005,Douglas ,GA,Coffee County Gin Whse,Coffee               ,4,Yes,0.039,3,3,5,7.5,0,1,9/1/2025,125,no,,,0,0,0,0,0,0,0,
+255025,Douglas,GA,Tri County Gin Inc,Coffee               ,4,Yes,0.043,4,3,6,7.5,0,1,8/13/2025,3290,no,,,0,0,0,0,0,0,0,
+256030,Dublin,GA,Roche Farm and Garden Warehouse,Laurens              ,4,Yes,0.0274,4,3.2,5,0,0,1.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+266405,Funston,GA,Funston Gin Co,Colquitt             ,1,Yes,0.028,4,3,6,0,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+266861,Pooler,GA,"Supply Chain Management, LLC-Savannah Whse",Chatham              ,4,Yes,0.0212,3,0.12,4,0,0,0,9/1/2025,0,no,,,7.5,0,1.5,2.5,5.5,0,0,
+270800,Hazelhurst,GA,South Ga Coton -Hazelhurst,Jeff davis           ,4,Yes,0.0219,2.95,3,5,0,0,0,7/30/2025,0,no,,,0,0,0,0,0,0,0,
+273518,Hawkinsville,GA,Heart of Georgia Gin,Pulaski              ,4,Yes,0.014,4,3,0,0,0,0,7/7/2025,0,no,,,0,0,0,0,0,0,0,
+274301,Hazelhurst,GA,"South Georgia Cotton Whse., Inc.",Jeff davis           ,4,Yes,0.0219,2.95,3,5,0,0,0,7/30/2025,0,no,,,0,0,0,0,0,0,0,
+282100,Buena Vista,GA,Dooly County Gin LLC,Marion               ,4,Yes,0.038,3,4,5.5,5,0,1.5,9/2/2024,0,no,,,0,0,0,0,0,0,0,
+282101,Lenox,GA,"Irwin County Warehouse, LLC- Lenox",Cook                 ,4,Yes,0.027,3.5,3.5,5.5,0,0,1,6/20/2025,0,no,,,0,0,0,0,0,0,0,
+291000,Moultrie,GA,Moultrie Warehouse and Storage LLC,Colquitt             ,4,Yes,0.0275,6,2.75,4,0,0,1,10/6/2025,0,no,,,0,0,0,0,0,0,2.75,
+297005,Meigs,GA,Four Corners Gin Co Inc,Thomas               ,4,Yes,0.024,3,3,5,0,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+297507,Metter,GA,Candler Gin and Warehouse,Candler              ,4,Yes,0.024,3,3,5,0,0,1,7/21/2025,31,no,,,0,0,0,0,0,0,0,
+297509,Metter,GA,"Growers Cotton Warehouse, Inc.",Candler              ,4,Yes,0.0233,3.5,2.65,4.5,0,0,1,8/26/2025,0,no,,,4.5,0,1,3.5,2.1,0,0,
+298007,Midville,GA,"Midville Warehouse, Inc.",Burke                ,4,Yes,0.018,2.5,2,4.5,0,0,0,6/29/2025,51,no,,,0,0,0,0,0,0,0,
+298008,Midville,GA,Riverside Gin and Storage,Burke                ,4,Yes,0.024,3,3,6,0,0,0,7/10/2025,71,no,,,0,0,0,0,0,0,0,
+301535,Unadilla,GA,Trico Gin and Peanut Inc,Macon                ,4,Yes,0.026,4,3,6,0,0,0,5/1/2025,0,no,,,0,0,0,0,0,0,0,
+304495,Moultrie,GA,B.C.T. Gin Company Inc,Colquitt             ,4,Yes,0.0065,0,2.5,0,0,0,0.75,6/12/2025,0,no,,,0,0,0,0,0,0,0,
+304500,Doerun,GA,Doerun Gin Company Warehouse,Colquitt             ,4,Yes,0.0252,3,2.6,5,0,0,2,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+304501,Moultrie,GA,Farmers Gin and Peanut Warehouse,Colquitt             ,4,Yes,0.026,3,0.1,5,0,0,2,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+304552,Millen,GA,"Mundy, Inc.",Jenkins              ,4,Yes,0.0269,3.5,3.85,5,0,0,1.1,6/5/2025,0,no,,,0,0,0,0,0,0,0,
+304553,Madison,GA,Bostwick Gin Warehouse,Morgan               ,4,Yes,0.022,3.5,2.25,5.25,0,0,0,5/1/2025,0,no,,,0,0,0,0,0,0,0,
+306310,Enigma,GA,Dixon Gin Company,Berrien              ,4,Yes,0.007,0,2.75,0,0,0,0.75,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+306316,Enigma ,GA,"South Central GA Warehouse, Inc.",Berrien              ,4,Yes,0.022,3,3,5,0,0,0,9/1/2025,28,no,,,0,0,0,0,0,0,0,
+308005,Norman Park,GA,Norman Park Gin and Warehouse,Colquitt             ,4,Yes,0.0255,4,2.75,6,0,0,0,7/30/2025,0,no,,,0,0,0,0,0,0,0,
+309100,Ocilla,GA,Osceola Cotton Company LLC E 1st st,Irwin                ,4,Yes,0.023,3,3,5,0,0,0.5,3/4/2025,0,no,,,5,0,0.5,3,2.26,0,0,
+309509,Omega ,GA,"Irwin County Warehouse, LLC- Omega",Tift                 ,4,Yes,0.027,3.5,3.5,5.5,0,0,1,7/8/2025,18,no,,,0,0,0,0,0,0,0,
+310516,Ocilla ,GA,Osceola Cotton Warehouse,Irwin                ,4,Yes,0.023,3,3,5,0,0,0.5,3/5/2025,13,no,,,5,0,0.5,3,2.26,0,0,
+311000,Port Wentworth,GA,Savannah Distribution Center,Chatham              ,1,Yes,0.0451,3,3,6,7,3.05,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+313010,Camilla,GA,Pinecliff Planters Warehouse,Mitchell             ,4,Yes,0.025,3.5,2.5,5.5,0,0,1,7/21/2025,0,no,,,0,0,0,0,0,0,0,
+313023,Pelham,GA,"The Southern Gin Co, Inc",Baker                ,4,Yes,0.026,4,2,6,0,0,1,9/1/2025,60,no,,,0,0,0,0,0,0,0,
+313510,Pinehurst,GA,Planters Warehouse/Pinehurst,Dooly                ,4,Yes,0.0105,0,4.25,0,0,0,1,7/23/2025,15,no,,,0,0,0,0,0,0,0,
+314006,Pelham,GA,Pinecliff Peanut and Grain Inc,Mitchell             ,4,Yes,0.025,3.5,2.5,5.5,0,0,1,7/21/2025,0,no,,,0,0,0,0,0,0,0,
+316751,Rincon,GA,Supply chain Management-Rincon,Effingham            ,4,Yes,0.0212,3,0.12,4,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+326202,Statesboro,GA,Coffee County Gin co -Statesboro,Bulloch              ,4,Yes,0.039,3,3,5,7.5,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+331015,Shellman,GA,The Peoples Warehouse,Randolph             ,4,Yes,0.025,5,2.5,5,0,0,0,6/30/2025,0,no,,,0,0,0,0,0,0,0,
+333503,Statesboro,GA,Southern States Coop,Bulloch              ,4,Yes,0.022,3.5,2.5,4.5,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+335533,Taylorsville,GA,Tri County Gin Company,Bartow               ,4,Yes,0.0239,3.25,2.7,5,0,0,1,3/17/2025,0,no,,,0,0,0,0,0,0,0,
+337525,Surrency,GA,"Southeastern Gin, Inc.",Appling              ,4,Yes,0.039,3,3,5,7.5,0,1,6/23/2025,0,no,,,0,0,0,0,0,0,0,
+339007,Sycamore,GA,Sconyers Gin and Warehouse,Turner               ,4,Yes,0.029,3.75,3.75,6,0,0,1,6/18/2025,0,no,,,0,0,0,0,0,0,0,
+339733,Sylvania,GA,Screven Gin Co.,Screven              ,4,Yes,0.021,2.5,2.5,4.5,0,0,1,7/7/2025,0,no,,,0,0,0,0,0,0,0,
+340015,Sylvester,GA,"Worth Gin & Whse, Inc",Worth                ,4,Yes,0.029,4,3,6,0,0,1.5,7/21/2025,0,no,,,0,0,0,0,0,0,0,
+340017,Savannah,GA,Staplcotn/Savannah,Chatham              ,4,Yes,0.0378,1.85,3,4,7,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+340100,Tifton,GA,"Irwin County Whse, LLC - Tifton",Tift                 ,4,Yes,0.027,3.5,3.5,5.5,0,0,1,7/8/2025,5,no,,,0,0,0,0,0,0,0,
+345008,Waynesboro,GA,"Collins Bonded Warehouse, Inc.",Burke                ,4,Yes,0.02,3,2,5,0,0,0,6/9/2025,0,no,,,0,0,0,3,1.85,0,0,
+347750,Vienna,GA,Planters Warehouse-Vienna,Dooly                ,4,Yes,0.0105,0,4.25,0,0,0,1,7/23/2025,0,no,,,0,0,0,0,0,0,0,
+349526,Vienna,GA,Vienna Cotton Co Inc,Dooly                ,4,Yes,0.025,3.5,3,5,0,0,1,9/1/2025,114,yes,,,0,0,0,0,0,0,0,
+349527,Vienna,GA,West Bonded Warehouse/Dooly Gin,Dooly                ,4,Yes,0.022,3.5,2,5,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+349529,Byromville,GA,WSB Gin and Warehouse,Dooly                ,4,Yes,0.025,3.5,2,5,0,0,2,11/19/2025,0,yes,,,0,0,0,0,0,0,0,
+350503,Wadley,GA,Farmers Gin and Stg Co,Jefferson            ,4,Yes,0.0192,2.5,1.6,4.5,0,0,1,3/7/2025,64,no,,,0,8.5,0,2.5,1.6,0,0,
+385000,Liberal,KS,Plains Cotton Cooperative Association,Seward               ,2,Yes,0.0507,5.15,0.065,6.25,12,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,1.95,-0.0328
+385001,Clearwater,KS,Plains Cotton Cooperative Association,Sedgwick             ,2,Yes,0.0507,5.15,0.065,6.25,12,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,1.95,-0.0107
+400510,Alexandria,LA,Cotton Storage Inc,Rapides              ,1,Yes,0.0527,5.35,3.5,9,8.5,0,0,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+406505,Ferriday,LA,Cotton Warehouse of Concordia,Concordia            ,1,Yes,0.0489,4.7,3,8.5,8.25,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+410020,Lake Providence,LA,Hollybrook Warehouse,East carroll         ,1,Yes,0.0518,2.35,3.5,9,8,3.05,0,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+413550,New Orleans,LA,"The Kearney Companies, Inc.",Orleans              ,1,Yes,0.0098,0,0.08,2.5,0,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+413551,New Orleans,LA,The Kearney Company,Orleans              ,1,Yes,0.0098,0,0.08,2.5,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+416010,Rayville,LA,Staplcotn/Rayville,Richland             ,1,Yes,0.0389,2.4,3,4,7,3.05,0,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+417205,St. Joseph,LA,"Tensas Warehouse, Inc.",Tensas               ,1,Yes,0.029,3.5,3,8,0,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+418515,Tallulah,LA,Staplcotn/Tallulah Comp Warehouse,Madison              ,1,Yes,0.0389,2.4,3,4,7,3.05,0,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+420002,Winnsboro,LA,Franklin Cotton Warehouse,Franklin             ,1,Yes,0.0516,5.3,3.5,9,8,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+466466,Saltillo,MS,Scruggs Farm Warehouse,Lee                  ,1,Yes,0.0329,5,2.5,5,0,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+467005,Belzoni,MS,FCW- Belzoni,Humphreys            ,1,Yes,0.0411,1.5,3.15,3.75,8,3.05,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+470012,Clarksdale,MS,North Delta Compress and Warehouse Company,Coahoma              ,1,Yes,0.0496,1.85,3.2,7.8,8,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+476505,Greenwood,MS,FCW- Greenwood #1,Leflore              ,1,Yes,0.0411,1.5,3.15,3.75,8,3.05,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+476510,Greenwood ,MS,Federal Compress Greenwood #2,Leflore              ,1,Yes,0.0411,1.5,3.15,3.75,8,3.05,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+476512,Greenwood,MS,Staplcotn/Rising Sun,Leflore              ,1,Yes,0.039,1.85,3,4,7,3.05,0,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+477005,Grenada,MS,Federal Compress Grenada,Grenada              ,1,Yes,0.0411,1.5,3.15,3.75,8,3.05,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+480505,Indianola,MS,Staplcotn/Indianola,Sunflower            ,1,Yes,0.039,1.85,3,4,7,3.05,0,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+481005,Inverness,MS,Federal Compress Inverness #1,Sunflower            ,1,Yes,0.0411,1.5,3.15,3.75,8,3.05,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+481010,Inverness,MS,Federal Compress Inverness #2,Adams                ,1,Yes,0.0411,1.5,3.15,3.75,8,3.05,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+490150,Olive Branch,MS,Anderson Clayton Desoto Warehouse,Desoto               ,1,Yes,0.0524,5,4,8,8,0,0,8/1/2025,0,no,,"250,000",9,0,0,2.25,5,0,4,
+499502,Tunica,MS,Staplcotn/Tunica,Tunica               ,1,Yes,0.039,1.85,3,4,7,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+516004,Caruthersville,MO,Caruthersville Cotton Warehouse,Pemiscot             ,1,Yes,0.0491,3,3.3,10.25,8,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+517010,Hayti,MO,Federal Compress Hayti,Pemiscot             ,1,Yes,0.0532,2.1,3.25,20.75,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+517813,Malden,MO,Sandy Ridge Cotton Warehouse,Dunklin              ,1,Yes,0.046,0,3.25,19.75,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+517814,Malden,MO,Bernie Farmers Gin Warehouse,Dunklin              ,1,Yes,0.0492,1.6,3.25,11.25,8,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+518085,New Madrid,MO,Bootheel Cotton Warehouse,New madrid        ,1,Yes,0.0482,1.6,3.25,11.25,8,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+518505,Portageville,MO,Federal Compress Portageville,New madrid        ,1,Yes,0.0532,2.1,3.25,20.75,0,0,0.5,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+518510,Portageville,MO,Missouri Cotton Warehouse,New madrid        ,1,Yes,0.045,1.5,2.75,10.25,8,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+536304,Deming,NM,Deming Bonded Warehouse,Luna                 ,1,Yes,0.0466,3.5,0.11,6.5,10,0,0,10/1/2025,0,no,,,0,0,0,0,0,0,3.3,
+538013,Lovington,NM,Plains Cotton Cooperative Association,Lea                  ,2,Yes,0.0507,5.15,0.065,6.25,12,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,1.95,
+548900,Vado,NM,Mesa Farmers Cooperative Inc,Dona ana             ,2,Yes,0.0423,3,0.13,6,8.25,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+555225,New London,NC,Rolling Hills Bonded Warehouse,Stanly               ,1,Yes,0.0197,3.35,2.5,4,0,0,0,10/1/2025,0,no,,,0,0,0,0,0,0,0,
+558070,Bethel,NC,Pitt County Gin and Cotton Co.,Pitt                 ,1,Yes,0.022,3.5,2,4.5,0,0,1,10/1/2025,0,no,,,0,0,0,0,0,0,0,
+562665,Chocowinity,NC,Cotton Growers Warehouses Inc,Beaufort             ,1,Yes,0.0215,3.75,2.5,4.25,0,0,0.25,8/1/2025,0,yes,,,0,0,0,0,0,0,0,
+562865,Clarkton,NC,Clarkton Bonded Warehouse,Bladen               ,1,Yes,0.034,5,3,5,0,3,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+565545,Dunn,NC,"Quality Bonded Warehouse, LLC",Harnet  ,1,Yes,0.0162,3,1.6,3.5,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+565803,Elm City,NC,Elm City Warehouse,Wilson               ,1,Yes,0.0225,4,2.25,4,0,0,1,12/10/2025,0,no,,,0,0,0,0,0,0,0,
+565805,Elm City,NC,Silver Lake Bale Storage 1,Wilson               ,1,Yes,0.0225,4.25,2.25,4.25,0,0,0.5,9/15/2025,0,no,,,0,0,0,4,1.7,0,0,
+565806,Hobgood,NC,Davis Bonded Warehouse,Halifax              ,1,Yes,0.0207,4,1.85,4.5,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+565807,Edenton,NC,Staplcotn- Edenton 2-3090,Chowan               ,1,Yes,0.0237,4,3,4.85,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+566501,Edenton,NC,Albemarle Cotton Growers,Chowan               ,1,Yes,0.0164,2,1.7,4,0,0,0.5,2/19/2025,0,no,,,0,0,0,0,0,0,0,
+566505,Tyner,NC,Edenton Bonded Warehouse,Chowan               ,1,Yes,0.0154,2,1.7,4,0,0,0,7/1/2025,0,no,,,0,0,0,0,0,0,0,
+568010,Enfield,NC,Enfield Bonded Warehouse,Halifax              ,1,Yes,0.0204,3.5,1.7,5,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+568016,Everetts,NC,Roanoke Tar Cotton Warehouse,Martin               ,1,Yes,0.02,3.75,2.5,3.75,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+568017,Erwin,NC,Staplcotn Compress Warehouse,Martin               ,1,Yes,0.0237,4,3,4.85,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+570240,Hertford,NC,Stallings Farms Agribusiness,Perquimans           ,1,Yes,0.0169,2,1.7,4,0,0,0.75,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+570440,Garysburg,NC,Gaston Cooperative Inc,Gaston and lincoln   ,1,Yes,0.024,4,2,5,0,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+570505,Gastonia,NC,P and M - Avon Bonded Warehouse,Gaston and lincoln   ,1,Yes,0.0157,2.35,2,3,0,0,0.5,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+570507,Gastonia,NC,Broad Street Bonded Warehouse,Gaston and lincoln   ,1,Yes,0.0159,2.75,1.7,3,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+570620,Gates,NC,Gates Cotton Gin Warehouse,Gates                ,1,Yes,0.0159,2,1.7,4,0,0,0.25,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+571536,Gatesville,NC,Ward & Nixon Warehouse,Gates                ,1,Yes,0.0169,2,1.7,4,0,0,0.75,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+576503,Jackson,NC,Cotton Growers Warehouses Inc,Northampton          ,1,Yes,0.0215,3.75,2.5,4.25,0,0,0.25,8/1/2025,0,yes,,,0,0,0,0,0,0,0,
+576820,Kinston,NC,Bohannon Warehouse,Lenoir               ,1,Yes,0.022,3.5,2,4.5,0,0,1,10/1/2025,0,no,,,0,0,0,0,0,0,0,
+577277,Trenton,NC,Jones County Cotton Gin Inc,Lenoir               ,1,Yes,0.02,4,2,4,0,0,0,10/1/2025,0,no,,,0,0,0,0,0,0,0,
+578010,Kinston,NC,Harvey Gin and Cotton Company,Lenoir               ,1,Yes,0.022,3.5,2,4.5,0,0,1,10/1/2025,0,no,,,0,0,0,0,0,0,0,
+582003,Lumberton,NC,Cotton Growers Warehouses Inc,Robeson              ,1,Yes,0.0215,3.75,2.5,4.25,0,0,0.25,8/1/2025,0,no,,,0,0,0,0,0,0,0,
+587875,Murfreesboro,NC,Producers Gin Bonded Warehouse,Hertford             ,1,Yes,0.0214,4,1.7,4.5,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+589209,Newton Grove ,NC,"Sampson Gin Company, Inc.",Sampson              ,1,Yes,0.025,4,2.5,5,0,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+590610,Pantego,NC,Coastal Carolina Gin,Beaufort             ,1,Yes,0.021,4.25,2,4.25,0,0,0,8/31/2025,0,no,,,0,0,0,0,0,0,0,
+593005,Raeford,NC,Hoke Cotton Warehouse and Storage,Hoke                 ,1,Yes,0.0237,4,3,4.85,0,0,0,7/24/2025,0,no,,,3,0,0,3,1.46,0,0,
+596010,Roanoke Rapids,NC,Rosemary Bonded Warehouse,Halifax              ,1,Yes,0.024,3.5,2.5,5,0,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+600505,Scotland Neck,NC,Edwards Bonded Warehouse,Halifax              ,1,Yes,0.023,4.25,2.5,4.25,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+601004,Seaboard,NC,Farmers Peanut Bonded Warehouse,Northampton          ,1,Yes,0.0215,3.75,2.5,4.25,0,0,0.25,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+601006,Weldon,NC,Roanoke Ag Bonded Warehouse,Northampton          ,1,Yes,0.0215,2.75,2.65,5,0,0,0.35,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+602005,Shelby,NC,Royster PandM Warehouse,Cleveland            ,1,Yes,0.0157,2.35,2,3,0,0,0.5,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+605515,Tarboro,NC,Edgecombe Bond Warehouse,Edgecombe            ,1,Yes,0.0227,4.05,2.25,4.05,0,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+607540,Everetts,NC,Roanoke Tar Cotton Warehouse-2-3083,Martin               ,1,Yes,0.02,3.75,2.5,3.75,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+607541,Wilson,NC,Paxton Bonded Storage Firestone,Wilson               ,1,Yes,0.024,4,2,5,0,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+611030,Wilson,NC,Paxton Bonded Warehouse,Wilson               ,1,Yes,0.024,4,2,5,0,0,1,9/1/2025,1,yes,,,0,0,0,0,0,0,0,
+631020,Altus,OK,Plains Cotton Cooperative Association,Jackson              ,2,Yes,0.0507,5.15,0.065,6.25,12,0,0,8/1/2025,1110,yes,,,0,0,0,0,0,0,1.95,-0.015
+676592,Bennettsville,SC,General Warehouse and Storage Co,Marlboro             ,1,Yes,0.0215,4,2,4.75,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+677503,Bishopville,SC,Cotton Growers Warehouse Inc,Lee                  ,1,Yes,0.0215,3.75,2.5,4.25,0,0,0.25,8/1/2025,0,yes,,,0,0,0,0,0,0,0,
+682505,Cameron ,SC,Cameron Cotton and Seed Co,Calhoun              ,1,Yes,0.0242,3,3,5.5,0,0,0.6,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+689560,Clio,SC,McInnis Bonded Warehouse,Marlboro             ,1,Yes,0.0265,5,2.5,5.75,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+702530,Elloree,SC,"Elloree Gin Company, Inc.",Orangeburg           ,1,Yes,0.0195,2.75,2,4,0,0,1,2/4/2025,0,no,,,0,0,0,0,0,0,0,
+710530,Greer,SC,Staple Cotton Cooperative Association,Greenville           ,1,Yes,0.0237,4,3,4.85,0,0,0,9/1/2025,0,no,,"55,000",4,0,0,1.85,3.75,0,0,
+712575,Hartsville,SC,"Humphrey Coker Seed Co., Inc",Darlington           ,1,Yes,0.0245,3,2.75,6,0,0,0.5,8/30/2025,0,no,,,0,0,0,0,0,0,0,
+720600,Lake City,SC,Humphrey Coker Seed Co-lake City Whse,Florence             ,1,Yes,0.0245,3,2.75,6,0,0,0.5,8/30/2025,0,no,,,0,0,0,0,0,0,0,
+729020,Manning,SC,United Bonded Warehouse,Clarendon            ,1,Yes,0.025,3.9,3,4.35,0,0,1.25,9/1/2025,29,no,,,0,0,0,0,0,0,0,
+731205,Dillon,SC,Minturn Bnd Cotton Warehouse,Dillon               ,1,Yes,0.0215,4,2,4.75,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+735030,North,SC,Culler Holstein Gin,Orangeburg           ,1,Yes,0.0184,2,2.7,4,0,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+754585,St. Matthews,SC,"Middling Cotton Co., Inc.",Calhoun              ,1,Yes,0.0219,3.5,0.082,4.5,0,0,0.5,9/15/2025,0,no,,,0,0,0,0,0,0,0,
+787010,Brownsville,TN,Hughes Warehouse,Haywood              ,1,Yes,0.0448,2.1,3.65,5.25,8.35,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+787097,Brownsville,TN,Two Way Warehouse,Haywood              ,1,Yes,0.0414,2.75,3.7,11.2,0,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+788008,Covington,TN,Kelcot Warehouses LLC,Tipton               ,1,Yes,0.0422,3.05,3.55,8.5,6,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+788020,Covington,TN,Green Point Ag- was Tn Gin,Tipton               ,1,Yes,0.0391,2,3.25,14,0,0.3,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+789505,Elora,TN,Elora Gin Warehouse,Lincoln              ,1,Yes,0.0491,4,2.25,6.75,8,3.05,0.5,9/2/2025,0,no,,,0,0,0,0,0,0,0,
+790990,Halls ,TN,Halls Gin Co Inc,Lauderdale           ,1,Yes,0.0415,0,3.7,14,0,3.05,0,9/15/2025,0,no,,,0,0,0,0,0,0,0,
+791730,Humboldt ,TN,Humboldt Cotton Warehouse,Gibson               ,1,Yes,0.043,0,4,14.45,0,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+792025,Jackson,TN,West Tennessee Warehouse,Madison              ,1,Yes,0.0413,0,3.8,13.8,0,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+793960,Memphis,TN,Mallory Cotton Warehouse Division-Memphis,Shelby               ,1,Yes,0.0235,2.25,4,5.5,0,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+793961,Memphis,TN,Viterra USA-Cotton#1,Shelby               ,1,Yes,0.0634,2.45,4,13.75,8,3,0.5,9/1/2025,0,no,,"116,480",13.75,0,0.5,2.45,4.5,0,0,
+793962,Memphis,TN,Viterra USA LLC Cotton #2,Anderson             ,1,Yes,0.0634,2.45,4,13.75,8,3,0.5,9/1/2025,19,no,,,13.75,0,0.5,2.45,4.5,0,0,
+794205,Mason,TN,Longtown Warehouse,Fayette              ,1,Yes,0.0411,0,3.75,13.75,0,3.05,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+794505,Memphis,TN,Cotton Trade Warehouse (Cargill Whse-Memphis),Shelby               ,1,Yes,0.0475,2.25,4.2,14.25,0,3.05,0,8/1/2025,0,yes,CTRWHE,"125,000",6.25,0,0.5,2.25,4.2,0,0,
+794540,Memphis,TN,Memphis Compress Warehouse,Shelby               ,1,Yes,0.0521,2.75,3.75,16,0,3.05,0.5,9/1/2025,0,yes,MEMCOM,"130,000",4.5,0,0.5,2.5,4.75,0,0,
+794550,Memphis,TN,Producers Warehouse #1,Shelby               ,1,Yes,0.0521,2.75,3.75,16,0,3.05,0.5,8/26/2025,0,no,PROD#1,"154,000",4.5,0,0.5,2.5,4.75,0,0,
+794553,Memphis,TN,Producers Warehouse #3,Shelby               ,1,Yes,0.0521,2.75,3.75,16,0,3.05,0.5,9/1/2025,0,yes,PROD#3,"48,000",4.5,0,0.5,2.5,4.75,0,0,
+794555,Memphis,TN,Producers Warehouse #2,Shelby               ,1,Yes,0.0521,2.75,3.75,16,0,3.05,0.5,9/1/2025,0,yes,PROD#2,"62,500",4.5,0,0.5,2.5,4.75,0,0,
+794560,Memphis,TN,The Distribution Center,Shelby               ,1,Yes,0.0521,2.75,3.75,16,0,3.05,0.5,9/1/2025,0,no,DIST#1,"70,000",4.5,0,0.5,2.5,4.75,0,0,
+794598,Memphis,TN,River CityWarehouse,Shelby               ,1,Yes,0.0544,3.6,3.5,8.6,8,3,0.5,9/1/2025,0,yes,,"110,000",4.25,0,0.5,2.25,4.15,0,0,
+795005,Milan,TN,Milan Compress Warehouse,Gibson               ,1,Yes,0.043,0,4,14.45,0,3.05,0,9/1/2025,0,yes,,,0,0,0,0,0,0,0,
+795007,Memphis,TN,Total Commodity Warehouse,Shelby               ,1,Yes,0.0545,3.6,3.5,8.6,8,3.05,0.5,9/1/2025,0,no,SUNBTC,"70,000",4.25,0,0.5,2.25,4.15,0,0,
+795026,Memphis,TN,International Cotton Depots Plant 4,Shelby               ,1,Yes,0.0402,2.5,4,13,0,0,0.6,8/1/2025,0,no,ICD # 4,"36,000",5,0,0.6,2.5,4,0,0,
+797660,Somerville,TN,Oak Grove Gin and Warehouse LLC,Fayette              ,1,Yes,0.0413,1.4,3.6,12.1,0,3.05,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+810001,Amarillo,TX,FCC-High Plains Division Amarillo,Randall              ,2,Yes,0.0472,4.35,0.075,5.75,11.25,0,0,9/1/2025,1340,no,,,0,0,0,0,0,0,2.25,-0.0028
+810002,Amarillo,TX,Amarillo Cotton Warehouse,Randall              ,2,Yes,0.0478,5,0.08,6.25,10.25,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,2.4,0.0014
+810003,Amarillo,TX,Amarillo Cotton Warehouse,Randall              ,2,Yes,0.0478,5,0.08,6.25,10.25,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,2.4,-0.005
+810535,Amarillo,TX,Amarillo Cotton Warehouse,Randall              ,2,Yes,0.0478,5,0.08,6.25,10.25,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,2.4,-0.006
+810537,Abernathy,TX,"City Gin Cotton Warehouse, LLC",Hale                 ,2,Yes,0.0465,4.75,2.5,6,10,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,0.0022
+810538,Amarillo,TX,Amarillo Cotton Warehouse,Randall              ,2,Yes,0.0478,5,0.08,6.25,10.25,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,2.4,-0.006
+819202,Baytown,TX,Cargill Cotton Baytown,Chambers             ,3,Yes,0.0589,4.5,4.25,7.5,10.15,3.05,0,8/1/2025,0,no,,"110,000",7.5,0,0.5,2.5,4.25,0,0,0.03
+820010,Ballinger,TX,Ballinger Cotton Warehouse Co. ,Runnels              ,2,Yes,0.0524,5.1,0.095,6.25,12,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,2.85,-0.0009
+828031,Brownfield,TX,Brownfield Compress,Terry                ,2,Yes,0.0467,4.75,0.08,5.45,9.75,0,1,9/1/2025,1723,yes,,,0,0,0,0,0,0,2.5,0.0032
+829535,Bryan,TX,Taylor Compress #2 Bryan,Brazos               ,3,Yes,0.0535,4.5,3.5,6.75,12,0,0,7/1/2025,0,no,,,0,0,0,0,0,0,0,-0.0112
+829537,Big Spring ,TX,Plains Cotton Cooperative Assoc,Howard               ,2,Yes,0.0507,5.15,0.065,6.25,12,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,1.95,-0.0075
+840509,Sweetwa-GULF,TX,Gulf Compress,Nolan                ,3,Yes,0.054,5.5,4,17.5,0,0,0,7/1/2025,0,no,,,0,0,0,0,0,0,0,-0.0057
+840510,Portland,TX,Gulf Compress Unit #4,San patricio         ,3,Yes,0.054,5.5,4,17.5,0,0,0,7/1/2025,12,yes,,,0,0,0,0,0,0,0,-0.01
+840512,Corpus Christi,TX,Gulf Compress #1,Nueces               ,3,Yes,0.054,5.5,4,17.5,0,0,0,7/1/2025,8,yes,,,0,0,0,0,0,0,0,-0.01
+840513,Corpus Christi,TX,Gulf Compress #2,Nueces               ,3,Yes,0.054,5.5,4,17.5,0,0,0,7/1/2025,8,yes,,,0,0,0,0,0,0,0,-0.01
+840516,Taylor,TX,Gulf Compress #10,Williamson           ,3,Yes,0.054,5.5,4,17.5,0,0,0,7/1/2025,0,no,,,0,0,0,0,0,0,0,-0.0157
+843000,Denver City,TX,"Suncot Warehouse, LLC",Yoakum               ,2,Yes,0.0452,4.74,0.08,5.7,9.74,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,2.55,-0.006
+843002,Desoto,TX,East Centre Park Cotton Warehouse,Dallas               ,3,Yes,0.029,2.75,5.25,6.5,0,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,0,0.0105
+843003,Desoto,TX,"Mariner Logistics, LLC",Dallas               ,2,Yes,0.03,2.75,5.5,6.75,0,0,0,10/1/2025,0,no,,,0,0,0,0,0,0,0,0.0005
+846847,Dallas,TX,Olam dba Anderson Clayton - Dallas TX Warehouse #1,Dallas               ,3,Yes,0.054,7,4,8,8,0,0,8/1/2025,0,no,,"170,000",9,0,0,2.25,5,0,4,
+848548,El Campo,TX,"United Agricultural Cooperative, Inc. Cotton Warehouse",Wharton              ,3,Yes,0.054,5.5,4,17.5,0,0,0,7/1/2025,0,no,,,0,0,0,0,0,0,0,-0.02
+853005,Kenedy,TX,Calcot LTD Warehouse,El paso              ,6,Yes,0.0566,4,0.16,9,9.5,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,-0.03
+853007,Ft Worth ,TX,Ft Worth Commodity Warehouse,Tarrant              ,2,Yes,0.068,5.5,3.5,6,18.5,0,0.5,7/1/2025,0,no,,"65,000",7.5,0,0.5,2.35,4.15,0,0,0
+857500,Grand Prairie,TX,"Dallas Warehouse Company, LLC",Tarrant              ,3,Yes,0.0572,4.75,4.25,7.5,10.5,0,1.6,7/1/2025,18,no,,"63,500",7.8,0,0.55,4.75,5,0,0,
+858053,Galveston,TX,Moody Compress and Warehouse #1,Galveston            ,3,Yes,0.0572,4.75,4.25,7.5,10.5,0,1.6,7/1/2025,0,yes,MOODCM,"77,200",7.5,0,1.6,4.75,5,0,0,-0.015
+858054,Galveston,TX,Moody Compress and Warehouse #2,Galveston            ,3,Yes,0.0572,4.75,4.25,7.5,10.5,0,1.6,7/1/2025,0,yes,MOOD#2,"37,180",7.5,0,1.6,4.75,5,0,0,-0.015
+858055,Galveston,TX,Moody Compress and Warehouse #3,Galveston            ,3,Yes,0.0572,4.75,4.25,7.5,10.5,0,1.6,7/1/2025,0,yes,MOOD#3,"20,000",7.5,0,1.6,4.75,5,0,0,-0.015
+858056,Galveston,TX,Moody Compress and Warehouse #4,Galveston            ,3,Yes,0.0572,4.75,4.25,7.5,10.5,0,1.6,7/1/2025,0,yes,MOOD#9,"19,120",7.5,0,1.6,4.75,5,0,0,-0.015
+858063,Houston,TX,Moody Compress and Warehouse #6,Harris               ,3,Yes,0.0572,4.75,4.25,7.5,10.5,0,1.6,7/1/2025,0,no,,"98,000",7.5,0,1.6,4.75,5,0,0,-0.015
+858065,Galveston,TX,Southern Comp and Warehouse Co.,Galveston            ,3,Yes,0.055,5.5,4,7.5,10,0,0.5,7/1/2025,0,yes,SOUTCM,"75,000",7.25,0,0.5,2.75,4.75,0,0,
+858078,Garden City ,TX,Glasscock County Co-Op Cotton Warehouses,Glasscock            ,2,Yes,0.0503,5.25,2.65,6.25,11,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,-0.015
+866503,Harlingen,TX,Harlingen Compress Company,Cameron              ,3,Yes,0.047,3,3,9.5,8,0,0,7/1/2025,0,yes,,,0,0,0,0,0,0,0,-0.0112
+866505,Harlingen,TX,Valley Compress Company,Cameron              ,3,Yes,0.0456,3,2.8,9,8,0,0,7/1/2025,0,no,,,0,0,0,0,0,0,0,-0.01
+867017,Stamford,TX,Haskell Cotton Warehouse,Haskell              ,2,Yes,0.0518,5.15,2.5,6.25,12,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+871048,Houston,TX,Houston Commodity Warehouse,Harris               ,3,Yes,0.052,5,4,7,9.5,0,0.5,7/1/2025,0,no,SUNBHO,"85,000",7.5,0,0.5,2.35,4.15,0,0,0
+871049,Houston,TX,Houston Commodity Warehouse #2,Harris               ,3,Yes,0.051,5,4,7,9.5,0,0,9/1/2025,0,no,,,7.5,0,0.5,2.5,4.25,0,0,0
+875260,Desoto,TX,Supply Chain Management- Desoto,Dallas               ,2,Yes,0.0212,3,0.12,4,0,0,0,9/1/2025,0,no,,"110,000",7.5,0,0.5,2.25,5.5,0,0,
+880533,Lamesa,TX,Lamesa Warehouse,Dawson               ,2,Yes,0.0467,4.75,0.08,5.45,9.75,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,2.5,0.0029
+882008,Levelland,TX,FCC-Levelland Plant,Hockley              ,2,Yes,0.0472,4.35,0.075,5.75,11.25,0,0,9/1/2025,844,yes,,,0,0,0,0,0,0,2.25,-0.0066
+884033,Lockney,TX,HCC-Lockney Warehouse,Floyd                ,2,Yes,0.0465,4.1,0.08,5,11.25,0,0.5,9/1/2025,0,no,,,0,0,0,0,0,0,2.4,
+886506,Lubbock,TX,Farmers Cooperative Compress,Lubbock              ,2,Yes,0.0472,4.35,0.075,5.75,11.25,0,0,9/1/2025,950,yes,,,0,0,0,0,0,0,2.25,-0.006
+886509,Lubbock,TX,Farmers Compress Coop #2,Lubbock              ,2,Yes,0.0472,4.35,0.075,5.75,11.25,0,0,9/1/2025,540,yes,,,0,0,0,0,0,0,2.25,-0.0014
+886512,Lubbock,TX,Farmers Coop Compress #3,Lubbock              ,2,Yes,0.0472,4.35,0.075,5.75,11.25,0,0,9/1/2025,185,yes,,,0,0,0,0,0,0,2.25,-0.0014
+886517,Lubbock,TX,Farmers Coop Compress #4,Lubbock              ,2,Yes,0.0472,4.35,0.075,5.75,11.25,0,0,9/1/2025,0,yes,,,0,0,0,0,0,0,2.25,-0.0014
+886520,Lubbock,TX,Farmers Coop Compress #5,Lubbock              ,2,Yes,0.0472,4.35,0.075,5.75,11.25,0,0,9/1/2025,704,yes,,,0,0,0,0,0,0,2.25,-0.0014
+886533,Lubbock,TX,Lubbock Compress,Lubbock              ,2,Yes,0.0467,4.75,0.08,5.45,9.75,0,1,9/1/2025,0,yes,,,0,0,0,0,0,0,2.5,0.0038
+886570,Lubbock,TX,"Lov-Cot Warehouse, L.P.",Lubbock              ,2,Yes,0.0465,4.1,0.08,5,11.25,0,0.5,9/1/2025,87,no,,,0,0,0,0,0,0,2.4,0.0008
+886623,Laredo,TX,Mallory Alexander International Logistics-Laredo,Webb                 ,3,Yes,0.033,4.75,4.25,7.5,0,0,0,9/1/2025,0,no,,,6.5,0,0.5,2.75,5.25,0,0,0
+898030,Weslaco,TX,CIL- Prev-Colimar Inc,Hidalgo              ,3,Yes,0.0588,6,3.4,8.25,11.75,0,0,7/1/2025,0,no,,,0,0,0,0,0,0,0,-0.015
+904033,O'donnell,TX,O'Donnell Warehouse,Lynn                 ,2,Yes,0.0467,4.75,0.08,5.45,9.75,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,2.5,-0.001
+906015,Paducah,TX,Panhandle Compress Co.,Cottle               ,2,Yes,0.0478,5,0.08,6.25,10.25,0,0,9/1/2025,0,yes,,,0,0,0,0,0,0,2.4,-0.0025
+911510,Plainview,TX,Panhandle Compress,Hale                 ,2,Yes,0.048,5.1,0.08,6.25,10.25,0,0,9/1/2025,0,yes,,,0,0,0,0,0,0,2.4,0.0011
+911520,Plainview,TX,Plainview Cooperative Compress #7,Hale                 ,2,Yes,0.0472,4.35,0.075,5.75,11.25,0,0,9/1/2025,875,yes,,,0,0,0,0,0,0,2.25,-0.0006
+911525,Plainview,TX,Plainview Cooperative Compress #6,Hale                 ,2,Yes,0.0472,4.35,0.075,5.75,11.25,0,0,9/1/2025,1645,yes,,,0,0,0,0,0,0,2.25,-0.006
+911533,Plainview,TX,HCC-Plainview,Hale                 ,2,Yes,0.0465,4.1,0.08,5,11.25,0,0.5,9/1/2025,154,yes,,,0,0,0,0,0,0,2.4,-0.0009
+913030,Post ,TX,Panhandle Compress,Garza                ,2,Yes,0.048,5.1,0.08,6.25,10.25,0,0,9/1/2025,360,no,,,0,0,0,0,0,0,2.4,0.0005
+913054,Pasadena,TX,Supply Chain Management LLC.,Harris               ,3,Yes,0.0212,3,0.12,4,0,0,0,9/1/2025,0,no,,"65,000",7.5,0,0.5,2.25,5.5,0,0,0
+913055,Tulia,TX,Amarillo Cotton Warehouse Tulia,Anderson             ,2,Yes,0.0478,5,0.08,6.25,10.25,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,2.4,0.0012
+914510,Quanah ,TX,Panhandle Comp Quanah,Hardeman             ,2,Yes,0.0478,5,0.08,6.25,10.25,0,0,9/1/2025,59,yes,,,0,0,0,0,0,0,2.4,-0.001
+916501,Ralls,TX,Ralls Compress and Warehouse,Crosby               ,2,Yes,0.0467,4.75,0.08,5.45,9.75,0,1,9/1/2024,0,no,,,0,0,0,0,0,0,2.5,0.0053
+916710,Raymondville,TX,Gulf Compress #5,Willacy              ,3,Yes,0.05,3.5,4,17.5,0,0,0,7/1/2025,0,yes,,,0,0,0,0,0,0,0,-0.016
+916711,Raymondville,TX,Gulf Compress #6,Willacy              ,3,Yes,0.05,3.5,4,17.5,0,0,0,7/1/2025,0,yes,,,0,0,0,0,0,0,0,-0.016
+916712,Raymondville,TX,Gulf Compress (North Plant#7),Cameron              ,3,Yes,0.054,5.5,4,17.5,0,0,0,7/1/2025,0,no,,,0,0,0,0,0,0,0,-0.012
+925011,Grand Prairie,TX,"Dallas Warehouse Company, LLC",Tarrant              ,2,Yes,0.0572,4.75,4.25,7.5,10.5,0,1.6,7/1/2025,0,no,,"130,000",7.8,0,0.55,4.75,5,0,0,
+925012,Rule,TX,Plains Cotton Cooperative Association,Haskell              ,2,Yes,0.0507,5.15,0.065,6.25,12,0,0,8/1/2025,121,no,,,0,0,0,0,0,0,1.95,-0.0075
+925013,Willacy County,TX,CIL Warehouse,Willacy              ,3,Yes,0.0588,6,3.4,8.25,11.75,0,0,7/1/2025,0,no,,,0,0,0,0,0,0,0,-0.015
+926005,San Angelo ,TX,Ballinger Cotton Warehouse Co.,Tom green            ,2,Yes,0.0524,5.1,0.095,6.25,12,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,2.85,-0.001
+928532,Seagraves,TX,Seagraves Compress,Gaines               ,2,Yes,0.0467,4.75,0.08,5.45,9.75,0,1,9/1/2025,1123,yes,,,0,0,0,0,0,0,2.5,0.0038
+928715,Sebastian,TX,Willacy Cotton Warehouse,Willacy              ,3,Yes,0.05,3.5,4,8,9.5,0,0,7/9/2025,0,no,,,0,0,0,0,0,0,0,-0.015
+935002,Stanton,TX,Stanton Compress and Warehouse,Martin               ,2,Yes,0.0472,4.35,0.075,5.75,11.25,0,0,9/1/2025,524,yes,,,0,0,0,0,0,0,2.25,0.0017
+936006,Sudan,TX,FCC-Sudan,Lamb                 ,2,Yes,0.0472,4.35,0.075,5.75,11.25,0,0,9/1/2025,0,yes,,,0,0,0,0,0,0,2.25,-0.006
+937530,Sweetwater,TX,Plains Cotton Cooperative Association,Nolan                ,2,Yes,0.0507,5.15,0.065,6.25,12,0,0,8/1/2025,1799,no,,,0,0,0,0,0,0,1.95,-0.006
+937534,Snyder,TX,Ballinger Cotton Warehouse Co. - Plant 3,Scurry               ,2,Yes,0.0524,5.1,0.095,6.25,12,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,2.85,-0.0009
+937535,Seminole,TX,Oasis Warehouse LLC,Gaines               ,2,Yes,0.0453,4.75,0.08,5.75,9.75,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,2.55,-0.0075
+939033,Tahoka,TX,Tahoka Warehouse,Lynn                 ,2,Yes,0.0467,4.75,0.08,5.45,9.75,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,2.5,0.0042
+940015,Taylor,TX,Taylor Compress,Williamson           ,3,Yes,0.0535,4.5,3.5,6.75,12,0,0,7/1/2025,3,no,,,0,0,0,0,0,0,0,-0.015
+940025,Taylor,TX,Taylor Compress Plant #3,Williamson           ,3,Yes,0.0535,4.5,3.5,6.75,12,0,0,7/1/2025,0,no,,,0,0,0,0,0,0,0,-0.015
+944344,Tornillo,TX,Valley Gin Company,El paso              ,3,Yes,0.0407,3.25,0.12,6.25,7.25,0,0,10/1/2025,5,no,,,0,0,0,0,0,0,0,-0.03
+944708,Tulia,TX,Tulia Cotton Warehouse,Swisher              ,2,Yes,0.0478,5,0.08,6.25,10.25,0,0,9/1/2025,0,no,,,0,0,0,0,0,0,2.4,-0.0075
+947505,Vernon,TX,Vernon Compress Company,Wilbarger            ,2,Yes,0.0447,4.5,2.1,6,9.75,0,0,8/1/2025,0,no,,,0,0,0,0,0,0,0,0
+976503,Emporia,VA,Hawkins Bonded Warehouse,Greensville          ,1,Yes,0.026,4.25,2.5,4.75,0,0,1.5,8/5/2025,0,no,,,0,0,0,0,0,0,0,
+976505,Emporia,VA,Mid-Atlantic Warehouse and Gin,Southampton          ,1,Yes,0.024,3.5,2.5,5,0,0,1,10/1/2025,0,no,,,0,0,0,0,0,0,0,
+985505,Suffolk,VA,Suffolk Cotton Gin Warehouse,Suffolk,1,Yes,0.0225,4,2.25,4,0,0,1,9/1/2025,0,no,,,0,0,0,0,0,0,0,
+998008,Windsor,VA,Commonwealth Cotton Warehouse,Isle of wight        ,1,Yes,0.0226,3.75,1.78,5,0,0,0.75,9/1/2025,0,no,,,0,0,0,0,0,0,0,

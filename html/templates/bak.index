@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Simple Flask App</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 13px; }
+        th, td { border: 1px solid #d9d9d9; padding: 6px 8px; text-align: left; white-space: nowrap; }
+        td.td-num { text-align: right; }
+        td.td-text { text-align: left; }
+        thead th { background: #2f5fa7; color: #ffffff; }
+        tbody tr:nth-child(odd) { background: #ffffff; }
+        tbody tr:nth-child(even) { background: #f2f2f2; }
+        thead th:hover { background: #234a82; }
+        input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; }
+        table.usd-table thead tr:first-child th.usd-group-header {
+            background: #1a73e8;
+            color: #ffffff;
+            text-align: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        table.usd-table thead tr:first-child th.usd-group-empty {
+            background: #e8eef7;
+            color: #333333;
+        }
+        table.usd-table thead tr:nth-child(2) th.usd-sub-header {
+            background: #d0dbf0;
+            color: #111111;
+            font-size: 11px;
+        }
+        table.usd-table thead tr:nth-child(2) th.usd-sub-header:hover {
+            background: #b8c9e8;
+        }
+    </style>
+</head>
+<body>
+
+	<select onchange='select_view()' id='select_view' >
+        <option>PICK</option>
+        <option>Jarvis</option>
+        <option>OTR</option>
+	<option>OCEAN</option>
+        <option>Seam Tariffs</option>
+        <option>Cert Tariffs</option>
+        <option>USD</option>
+        <option>PTS</option>
+        <option>CIF</option>
+        <option>Regions and Ports</option>
+	</select>
+    <p style="font-size:12px;color:#555;margin:6px 0 0 0;">Global rates and USD inputs: choose <strong>Jarvis</strong>, edit numbers, click <strong>Save</strong> (writes <code>data/control_panel.json</code>, plus <code>data/drayage.json</code>, <code>data/document_cif.json</code>, and <code>data/usa_forwarding_cost.json</code>). In the <strong>USD</strong> view, Outbound <strong>Ocean base</strong> is <strong>OceanBase ÷ 88</strong> from drayage by row <strong>Port</strong>. Or open <a href="#jarvis">#jarvis</a> (legacy <a href="#javis">#javis</a> or <a href="#control-panel">#control-panel</a> still opens Jarvis).</p>
+    <hr>
+    <div id="content">
+
+    </div>
+
+    <script src="{{ url_for('static', filename='usd.js') }}"></script>
+    <script src="{{ url_for('static', filename='pts.js') }}"></script>
+    <script src="{{ url_for('static', filename='cif.js') }}"></script>
+    <script src="{{ url_for('static', filename='db.js') }}"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

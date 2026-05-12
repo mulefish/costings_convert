@@ -1,0 +1,137 @@
+const VIEW_CONFIG = {
+    OTR: {
+        columns: [
+            "Row",
+            "Origin City",
+            "Origin State",
+            "Dest City",
+            "Dest State",
+            "Cargo Type",
+            "LH",
+            "FSC",
+            "GRI",
+            "Final",
+            "PTS",
+            "Last Updated",
+            "Expiration",
+            "Previous",
+            "Delta"
+        ],
+        rows: []
+    },
+    OCEAN: {
+        columns: [
+            "Row",
+            "Port",
+            "Destination",
+            "Country",
+            "Delivery Type",
+            "Code",
+            "SCAC",
+            "Ocean Freight",
+            "GRI",
+            "Ocean Total",
+            "Total pts",
+            "Updated",
+            "Expiration",
+            "Previous",
+            "Delta"
+        ],
+        rows: []
+    },
+    "Seam Tariffs": {
+        columns: [
+            "Row",
+            "Warehouse",
+            "Name",
+            "City",
+            "State",
+            "County",
+            "Terms",
+            "Verified",
+            "Points",
+            "Recv",
+            "Strg",
+            "Load",
+            "Compr",
+            "Class",
+            "Mark",
+            "EffDate",
+            "Rail",
+            "ICE Ref",
+            "Capacity",
+            "CertLoad",
+            "CertCompr",
+            "CertMark",
+            "CertRecv",
+            "CertStrg",
+            "CertClass",
+            "Min Storage",
+            "Basis Adj."
+        ],
+        rows: []
+    },
+    "Cert Tariffs": {
+        columns: [
+            "Row",
+            "Warehouse",
+            "Name",
+            "City",
+            "State",
+            "County",
+            "Terms",
+            "Verified",
+            "Points",
+            "Recv",
+            "Strg",
+            "Load",
+            "Compr",
+            "Class",
+            "Mark",
+            "EffDate",
+            "Rail",
+            "ICE Ref",
+            "Capacity",
+            "CertLoad",
+            "CertCompr",
+            "CertMark",
+            "CertRecv",
+            "CertStrg",
+            "CertClass"
+        ],
+        rows: []
+    },
+    USD: typeof getUsdViewConfig === "function" ? getUsdViewConfig() : { columns: [], headerGroups: [], columnLabels: {}, rows: [] },
+    PTS: typeof getPtsViewConfig === "function" ? getPtsViewConfig() : { columns: [], headerGroups: [], columnLabels: {}, rows: [] },
+    CIF: typeof getCifViewConfig === "function" ? getCifViewConfig() : { columns: [], headerGroups: [], columnLabels: {}, rows: [] },
+    Export: {
+        columns: ["Base", "Code", "C", "D", "CIF FE"],
+        rows: [],
+    },
+    "Regions and Ports": {
+        columns: [
+            "Row",
+            "Warehouse",
+            "Name",
+            "City",
+            "State",
+            "Region",
+            "Export",
+            "Port",
+            "ESO",
+            "Flat Bed Fees",
+            "Late Fees",
+            "Transportation Adjust",
+            "Misc  Fees",
+            "Consol Interest",
+        ],
+        rows: [],
+    },
+};
+
+function getViewConfig(viewName) {
+    if (Object.prototype.hasOwnProperty.call(VIEW_CONFIG, viewName)) {
+        return VIEW_CONFIG[viewName];
+    }
+    return null;
+}

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Costings - Jarvis</title>
+    <script src="{{ url_for('static', filename='headers.js') }}"></script>
+
+    <style>
+        table { border-collapse: collapse; width: auto; font-family: Arial, sans-serif; font-size: 13px; }
+        th, td { border: 1px solid #d9d9d9; padding: 6px 8px; text-align: left; white-space: nowrap; }
+        td.td-num { text-align: right; }
+        td.td-text { text-align: left; }
+        thead th { background: #2f5fa7; color: #ffffff; }
+        tbody tr:nth-child(odd) { background: #ffffff; }
+        tbody tr:nth-child(even) { background: #f2f2f2; }
+        thead th:hover { background: #234a82; }
+        input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; }
+        table.usd-table thead tr:first-child th.usd-group-header {
+            background: #1a73e8;
+            color: #ffffff;
+            text-align: center;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        table.usd-table thead tr:first-child th.usd-group-empty {
+            background: #e8eef7;
+            color: #333333;
+        }
+        table.usd-table thead tr:nth-child(2) th.usd-sub-header {
+            background: #d0dbf0;
+            color: #111111;
+            font-size: 11px;
+        }
+        table.usd-table thead tr:nth-child(2) th.usd-sub-header:hover {
+            background: #b8c9e8;
+        }
+	.note { 
+		font-size:12px;
+		color:#555;
+		margin:6px 0 0 0;
+	}
+    </style>
+</head>
+<body>
+	<select onchange='select_view()' id='select_view' >
+        <option selected>Jarvis</option>
+        <option>Notes</option>
+        <option>OTR</option>
+	<option>OCEAN</option>
+        <option>Seam Tariffs</option>
+        <option>Cert Tariffs</option>
+        <option>USD</option>
+        <option>PTS</option>
+        <option>CIF</option>
+        <option>Regions and Ports</option>
+        <option>Export</option>
+	</select>
+	<p class='note'>Global rates and USD inputs: choose <strong>Jarvis</strong>, edit numbers, click <strong>Save</strong> (writes to the SQLite database). In the <strong>USD</strong> view, Outbound <strong>Ocean base</strong> is <strong>OceanBase &divide; 88</strong> from drayage by row <strong>Port</strong>. Or open <a href="#jarvis">#jarvis</a>.</p>
+    <div id="cell-derivation" style="font-family:monospace; font-size:12px; background:#f8f8f0; border:1px solid #ddd; padding:8px 12px; margin:8px 0; min-height:1.4em; color:#333; display:none;"></div>
+    <hr>
+    <div id="content">
+
+    </div>
+
+    <script src="{{ url_for('static', filename='usd.js') }}"></script>
+    <script src="{{ url_for('static', filename='pts.js') }}"></script>
+    <script src="{{ url_for('static', filename='cif.js') }}"></script>
+    <script src="{{ url_for('static', filename='db.js') }}"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

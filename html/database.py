@@ -1,0 +1,725 @@
+"""
+SQLite persistence layer for the costings application.
+
+Seven logical "config" stores are mapped to relational tables:
+
+  1. control_panel        – flat key/value pairs (all numeric)
+  2. consolidation        – per-region metrics (bale, storage, month)
+  3. consolidation_days_storage – single row (Days Storage)
+  4. drayage              – per-region drayage fields
+  5. document_cif         – per-country CIF factors
+  7. notes                – free-form notes with timestamps
+  6. usa_forwarding_cost  – flat key/value + a cif_regions list
+
+The public API mirrors the old JSON dicts so the rest of server.py needs minimal changes:
+    get_control_panel() -> dict
+    save_control_panel(d)
+    get_consolidation() -> dict[str, dict]
+    save_consolidation(d)
+    ... etc.
+"""
+
+import json
+import sqlite3
+from pathlib import Path
+
+DB_PATH: Path = Path(__file__).resolve().parent.parent / "data" / "costings.db"
+
+_conn: sqlite3.Connection | None = None
+
+
+def _get_conn() -> sqlite3.Connection:
+    global _conn
+    if _conn is None:
+        _conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
+        _conn.execute("PRAGMA journal_mode=WAL")
+        _conn.execute("PRAGMA foreign_keys=ON")
+        _conn.row_factory = sqlite3.Row
+        _ensure_schema(_conn)
+    return _conn
+
+
+def _ensure_schema(conn: sqlite3.Connection) -> None:
+    conn.executescript(_SCHEMA_SQL)
+    _ensure_is_active_columns(conn)
+
+
+_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS control_panel (
+    key       TEXT PRIMARY KEY,
+    value     REAL NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS consolidation (
+    region    TEXT PRIMARY KEY,
+    bale      REAL NOT NULL DEFAULT 0,
+    storage   REAL NOT NULL DEFAULT 0,
+    month     REAL NOT NULL DEFAULT 0,
+    is_active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS consolidation_days_storage (
+    id        INTEGER PRIMARY KEY CHECK (id = 1),
+    days      REAL NOT NULL DEFAULT 14.0,
+    is_active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS drayage (
+    region     TEXT PRIMARY KEY,
+    line_haul  REAL NOT NULL DEFAULT 0,
+    chas_split REAL NOT NULL DEFAULT 0,
+    contrainer REAL NOT NULL DEFAULT 0,
+    bale       REAL NOT NULL DEFAULT 0,
+    ocean_base REAL NOT NULL DEFAULT 0,
+    updated    TEXT NOT NULL DEFAULT '',
+    is_active  INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS document_cif (
+    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    country   TEXT NOT NULL,
+    code      TEXT NOT NULL DEFAULT '',
+    lc        REAL,
+    ins       REAL,
+    cont      REAL,
+    com       REAL,
+    cof       REAL,
+    ciq_qc    REAL,
+    is_active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS usa_forwarding_cost (
+    key       TEXT PRIMARY KEY,
+    value     TEXT NOT NULL,
+    is_active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS cif_regions (
+    sort_order INTEGER PRIMARY KEY,
+    region     TEXT NOT NULL,
+    is_active  INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS notes (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    title      TEXT NOT NULL DEFAULT '',
+    body       TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    is_active  INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS otr_rates (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    origin_city      TEXT NOT NULL DEFAULT '',
+    origin_state     TEXT NOT NULL DEFAULT '',
+    dest_city        TEXT NOT NULL DEFAULT '',
+    dest_state       TEXT NOT NULL DEFAULT '',
+    cargo_type       TEXT NOT NULL DEFAULT '',
+    base_rate        REAL NOT NULL DEFAULT 0,
+    update_date      TEXT NOT NULL DEFAULT '',
+    expiration_date  TEXT NOT NULL DEFAULT '',
+    prior_base_rate  REAL,
+    is_active        INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS seam_tariffs (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    warehouse   TEXT NOT NULL DEFAULT '',
+    name        TEXT NOT NULL DEFAULT '',
+    city        TEXT NOT NULL DEFAULT '',
+    state       TEXT NOT NULL DEFAULT '',
+    county      TEXT NOT NULL DEFAULT '',
+    terms       TEXT NOT NULL DEFAULT '',
+    verified    TEXT NOT NULL DEFAULT '',
+    points      TEXT NOT NULL DEFAULT '',
+    recv        TEXT NOT NULL DEFAULT '',
+    strg        TEXT NOT NULL DEFAULT '',
+    load        TEXT NOT NULL DEFAULT '',
+    compr       TEXT NOT NULL DEFAULT '',
+    class       TEXT NOT NULL DEFAULT '',
+    mark        TEXT NOT NULL DEFAULT '',
+    eff_date    TEXT NOT NULL DEFAULT '',
+    bales       TEXT NOT NULL DEFAULT '',
+    rail        TEXT NOT NULL DEFAULT '',
+    ice_ref     TEXT NOT NULL DEFAULT '',
+    capacity    TEXT NOT NULL DEFAULT '',
+    cert_load   TEXT NOT NULL DEFAULT '',
+    cert_compr  TEXT NOT NULL DEFAULT '',
+    cert_mark   TEXT NOT NULL DEFAULT '',
+    cert_recv   TEXT NOT NULL DEFAULT '',
+    cert_strg   TEXT NOT NULL DEFAULT '',
+    cert_class  TEXT NOT NULL DEFAULT '',
+    min_storage TEXT NOT NULL DEFAULT '',
+    basis_adj   TEXT NOT NULL DEFAULT '',
+    is_active   INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS regions_and_ports (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    warehouse            TEXT NOT NULL DEFAULT '',
+    name                 TEXT NOT NULL DEFAULT '',
+    city                 TEXT NOT NULL DEFAULT '',
+    state                TEXT NOT NULL DEFAULT '',
+    region               TEXT NOT NULL DEFAULT '',
+    export               TEXT NOT NULL DEFAULT '',
+    port                 TEXT NOT NULL DEFAULT '',
+    eso                  TEXT NOT NULL DEFAULT '',
+    flat_bed_fees        TEXT NOT NULL DEFAULT '',
+    late_fees            TEXT NOT NULL DEFAULT '',
+    transportation_adjust TEXT NOT NULL DEFAULT '',
+    misc_fees            TEXT NOT NULL DEFAULT '',
+    consol_interest      TEXT NOT NULL DEFAULT '',
+    is_active            INTEGER NOT NULL DEFAULT 1
+);
+"""
+
+
+_ALL_TABLES = (
+    "control_panel", "consolidation", "consolidation_days_storage",
+    "drayage", "document_cif", "usa_forwarding_cost", "cif_regions", "notes",
+    "otr_rates", "seam_tariffs", "regions_and_ports",
+)
+
+
+def _ensure_is_active_columns(conn: sqlite3.Connection) -> None:
+    """Add is_active column to any existing table that lacks it (migration for existing DBs)."""
+    for table in _ALL_TABLES:
+        cols = {row[1] for row in conn.execute(f"PRAGMA table_info([{table}])").fetchall()}
+        if "is_active" not in cols:
+            conn.execute(f"ALTER TABLE [{table}] ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# control_panel
+# ---------------------------------------------------------------------------
+
+def get_control_panel() -> dict:
+    conn = _get_conn()
+    rows = conn.execute("SELECT key, value FROM control_panel").fetchall()
+    return {r["key"]: r["value"] for r in rows}
+
+
+def save_control_panel(data: dict) -> None:
+    conn = _get_conn()
+    conn.executemany(
+        "INSERT OR REPLACE INTO control_panel (key, value) VALUES (?, ?)",
+        [(k, float(v)) for k, v in data.items()],
+    )
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# consolidation
+# ---------------------------------------------------------------------------
+
+def get_consolidation() -> dict:
+    conn = _get_conn()
+    rows = conn.execute("SELECT region, bale, storage, month FROM consolidation").fetchall()
+    return {r["region"]: {"bale": r["bale"], "storage": r["storage"], "month": r["month"]} for r in rows}
+
+
+def save_consolidation(data: dict) -> None:
+    conn = _get_conn()
+    conn.execute("DELETE FROM consolidation")
+    conn.executemany(
+        "INSERT INTO consolidation (region, bale, storage, month) VALUES (?, ?, ?, ?)",
+        [
+            (region, inner.get("bale", 0), inner.get("storage", 0), inner.get("month", 0))
+            for region, inner in data.items()
+            if isinstance(inner, dict)
+        ],
+    )
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# consolidation_days_storage
+# ---------------------------------------------------------------------------
+
+def get_consolidation_days_storage() -> dict:
+    conn = _get_conn()
+    row = conn.execute("SELECT days FROM consolidation_days_storage WHERE id = 1").fetchone()
+    if row is None:
+        return {"Days Storage": 14.0}
+    return {"Days Storage": row["days"]}
+
+
+def save_consolidation_days_storage(data: dict) -> None:
+    conn = _get_conn()
+    days = float(data.get("Days Storage", 14.0))
+    conn.execute(
+        "INSERT OR REPLACE INTO consolidation_days_storage (id, days) VALUES (1, ?)",
+        (days,),
+    )
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# drayage
+# ---------------------------------------------------------------------------
+
+def get_drayage() -> dict:
+    conn = _get_conn()
+    rows = conn.execute(
+        "SELECT region, line_haul, chas_split, contrainer, bale, ocean_base, updated FROM drayage"
+    ).fetchall()
+    return {
+        r["region"]: {
+            "LineHaul": r["line_haul"],
+            "ChasSplit": r["chas_split"],
+            "Contrainer": r["contrainer"],
+            "Bale": r["bale"],
+            "OceanBase": r["ocean_base"],
+            "Updated": r["updated"],
+        }
+        for r in rows
+    }
+
+
+def save_drayage(data: dict) -> None:
+    conn = _get_conn()
+    conn.execute("DELETE FROM drayage")
+    conn.executemany(
+        "INSERT INTO drayage (region, line_haul, chas_split, contrainer, bale, ocean_base, updated) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        [
+            (
+                region,
+                inner.get("LineHaul", 0),
+                inner.get("ChasSplit", 0),
+                inner.get("Contrainer", 0),
+                inner.get("Bale", 0),
+                inner.get("OceanBase", 0),
+                str(inner.get("Updated", "")),
+            )
+            for region, inner in data.items()
+            if isinstance(inner, dict)
+        ],
+    )
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# document_cif
+# ---------------------------------------------------------------------------
+
+def get_document_cif() -> list[dict]:
+    conn = _get_conn()
+    rows = conn.execute(
+        "SELECT country, code, lc, ins, cont, com, cof, ciq_qc FROM document_cif ORDER BY id"
+    ).fetchall()
+    return [
+        {
+            "country": r["country"],
+            "code": r["code"],
+            "LC": r["lc"],
+            "INS": r["ins"],
+            "CONT": r["cont"],
+            "COM": r["com"],
+            "COF": r["cof"],
+            "CIQ_QC": r["ciq_qc"],
+        }
+        for r in rows
+    ]
+
+
+def save_document_cif(data: list[dict]) -> None:
+    conn = _get_conn()
+    conn.execute("DELETE FROM document_cif")
+    conn.executemany(
+        "INSERT INTO document_cif (country, code, lc, ins, cont, com, cof, ciq_qc) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+            (
+                row.get("country", ""),
+                row.get("code", ""),
+                row.get("LC"),
+                row.get("INS"),
+                row.get("CONT"),
+                row.get("COM"),
+                row.get("COF"),
+                row.get("CIQ_QC"),
+            )
+            for row in data
+        ],
+    )
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# usa_forwarding_cost  (flat key-value store + separate cif_regions list)
+# ---------------------------------------------------------------------------
+
+def get_usa_forwarding_cost() -> dict:
+    conn = _get_conn()
+    rows = conn.execute("SELECT key, value FROM usa_forwarding_cost").fetchall()
+    out: dict = {}
+    for r in rows:
+        k, v = r["key"], r["value"]
+        try:
+            out[k] = float(v)
+        except (TypeError, ValueError):
+            out[k] = v
+
+    region_rows = conn.execute("SELECT region FROM cif_regions ORDER BY sort_order").fetchall()
+    out["cif_regions"] = [r["region"] for r in region_rows]
+    return out
+
+
+def save_usa_forwarding_cost(data: dict) -> None:
+    conn = _get_conn()
+    conn.execute("DELETE FROM usa_forwarding_cost")
+    conn.execute("DELETE FROM cif_regions")
+
+    kv_rows = []
+    cif_regions = []
+    for k, v in data.items():
+        if k == "cif_regions":
+            if isinstance(v, list):
+                cif_regions = v
+            continue
+        kv_rows.append((k, str(v)))
+
+    conn.executemany(
+        "INSERT INTO usa_forwarding_cost (key, value) VALUES (?, ?)",
+        kv_rows,
+    )
+    conn.executemany(
+        "INSERT INTO cif_regions (sort_order, region) VALUES (?, ?)",
+        [(i, str(r).strip()) for i, r in enumerate(cif_regions)],
+    )
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# notes
+# ---------------------------------------------------------------------------
+
+def get_notes() -> list[dict]:
+    conn = _get_conn()
+    rows = conn.execute(
+        "SELECT id, title, body, created_at, updated_at FROM notes ORDER BY updated_at DESC"
+    ).fetchall()
+    return [
+        {"id": r["id"], "title": r["title"], "body": r["body"],
+         "created_at": r["created_at"], "updated_at": r["updated_at"]}
+        for r in rows
+    ]
+
+
+def save_note(note_id: int | None, title: str, body: str) -> dict:
+    conn = _get_conn()
+    if note_id is not None:
+        conn.execute(
+            "UPDATE notes SET title = ?, body = ?, updated_at = datetime('now') WHERE id = ?",
+            (title, body, note_id),
+        )
+        conn.commit()
+        row = conn.execute("SELECT id, title, body, created_at, updated_at FROM notes WHERE id = ?", (note_id,)).fetchone()
+    else:
+        cur = conn.execute(
+            "INSERT INTO notes (title, body) VALUES (?, ?)",
+            (title, body),
+        )
+        conn.commit()
+        row = conn.execute("SELECT id, title, body, created_at, updated_at FROM notes WHERE id = ?", (cur.lastrowid,)).fetchone()
+    return {"id": row["id"], "title": row["title"], "body": row["body"],
+            "created_at": row["created_at"], "updated_at": row["updated_at"]}
+
+
+def delete_note(note_id: int) -> bool:
+    conn = _get_conn()
+    cur = conn.execute("DELETE FROM notes WHERE id = ?", (note_id,))
+    conn.commit()
+    return cur.rowcount > 0
+
+
+# ---------------------------------------------------------------------------
+# otr_rates
+# ---------------------------------------------------------------------------
+
+def get_otr_rates(active_only: bool = True) -> list[dict]:
+    conn = _get_conn()
+    where = " WHERE is_active = 1" if active_only else ""
+    rows = conn.execute(
+        f"SELECT id, origin_city, origin_state, dest_city, dest_state, cargo_type, "
+        f"base_rate, update_date, expiration_date, prior_base_rate, is_active "
+        f"FROM otr_rates{where} ORDER BY id"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def insert_otr_rate(row: dict) -> None:
+    conn = _get_conn()
+    conn.execute(
+        "INSERT INTO otr_rates (origin_city, origin_state, dest_city, dest_state, "
+        "cargo_type, base_rate, update_date, expiration_date, prior_base_rate) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            row.get("origin_city", ""), row.get("origin_state", ""),
+            row.get("dest_city", ""), row.get("dest_state", ""),
+            row.get("cargo_type", ""), row.get("base_rate", 0),
+            row.get("update_date", ""), row.get("expiration_date", ""),
+            row.get("prior_base_rate"),
+        ),
+    )
+    conn.commit()
+
+
+def deactivate_otr_rate(row_id: int) -> None:
+    conn = _get_conn()
+    conn.execute("UPDATE otr_rates SET is_active = 0 WHERE id = ?", (row_id,))
+    conn.commit()
+
+
+def _otr_compound_key(row: dict) -> str:
+    return (
+        f"{row.get('origin_city', '').upper()}|{row.get('origin_state', '').upper()}"
+        f"|{row.get('dest_city', '').upper()}|{row.get('dest_state', '').upper()}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# seam_tariffs
+# ---------------------------------------------------------------------------
+
+_SEAM_COLS = (
+    "warehouse", "name", "city", "state", "county", "terms", "verified",
+    "points", "recv", "strg", "load", "compr", "class", "mark", "eff_date",
+    "bales", "rail", "ice_ref", "capacity", "cert_load", "cert_compr",
+    "cert_mark", "cert_recv", "cert_strg", "cert_class", "min_storage", "basis_adj",
+)
+
+
+def get_seam_tariffs(active_only: bool = True) -> list[dict]:
+    conn = _get_conn()
+    where = " WHERE is_active = 1" if active_only else ""
+    rows = conn.execute(
+        f"SELECT id, {', '.join(_SEAM_COLS)}, is_active FROM seam_tariffs{where} ORDER BY "
+        f"CAST(warehouse AS INTEGER), id"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def insert_seam_tariff(row: dict) -> None:
+    conn = _get_conn()
+    placeholders = ", ".join("?" for _ in _SEAM_COLS)
+    conn.execute(
+        f"INSERT INTO seam_tariffs ({', '.join(_SEAM_COLS)}) VALUES ({placeholders})",
+        tuple(str(row.get(c, "")).strip() for c in _SEAM_COLS),
+    )
+    conn.commit()
+
+
+def deactivate_seam_tariff(row_id: int) -> None:
+    conn = _get_conn()
+    conn.execute("UPDATE seam_tariffs SET is_active = 0 WHERE id = ?", (row_id,))
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# regions_and_ports
+# ---------------------------------------------------------------------------
+
+_RAP_COLS = (
+    "warehouse", "name", "city", "state", "region", "export", "port",
+    "eso", "flat_bed_fees", "late_fees", "transportation_adjust",
+    "misc_fees", "consol_interest",
+)
+
+
+def get_regions_and_ports(active_only: bool = True) -> list[dict]:
+    conn = _get_conn()
+    where = " WHERE is_active = 1" if active_only else ""
+    rows = conn.execute(
+        f"SELECT id, {', '.join(_RAP_COLS)}, is_active FROM regions_and_ports{where} ORDER BY "
+        f"CAST(warehouse AS INTEGER), id"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def insert_regions_and_ports_row(row: dict) -> None:
+    conn = _get_conn()
+    placeholders = ", ".join("?" for _ in _RAP_COLS)
+    conn.execute(
+        f"INSERT INTO regions_and_ports ({', '.join(_RAP_COLS)}) VALUES ({placeholders})",
+        tuple(str(row.get(c, "")).strip() for c in _RAP_COLS),
+    )
+    conn.commit()
+
+
+def deactivate_regions_and_ports_row(row_id: int) -> None:
+    conn = _get_conn()
+    conn.execute("UPDATE regions_and_ports SET is_active = 0 WHERE id = ?", (row_id,))
+    conn.commit()
+
+
+def update_regions_and_ports_row(row_id: int, updates: dict) -> None:
+    conn = _get_conn()
+    sets = []
+    vals = []
+    for col in _RAP_COLS:
+        if col in updates:
+            sets.append(f"{col} = ?")
+            vals.append(str(updates[col]).strip())
+    if not sets:
+        return
+    vals.append(row_id)
+    conn.execute(f"UPDATE regions_and_ports SET {', '.join(sets)} WHERE id = ?", tuple(vals))
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# Migration: seed DB from existing JSON + CSV files
+# ---------------------------------------------------------------------------
+
+def _migrate_otr_csv(data_dir: Path) -> None:
+    import csv
+    conn = _get_conn()
+    if conn.execute("SELECT COUNT(*) FROM otr_rates").fetchone()[0] > 0:
+        return
+    otr_path = data_dir / "OTR_Rates.csv"
+    if not otr_path.is_file():
+        return
+    with otr_path.open("r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f, skipinitialspace=True)
+        for raw in reader:
+            oc_parts = str(raw.get("ORIGINCITY", "")).split(",", 1)
+            oc = oc_parts[0].strip()
+            os_ = oc_parts[1].strip() if len(oc_parts) > 1 else ""
+            dc_parts = str(raw.get("DESTINATIONCITY", "")).split(",", 1)
+            dc = dc_parts[0].strip()
+            ds = dc_parts[1].strip() if len(dc_parts) > 1 else ""
+            br = raw.get("BASE RATE", "0")
+            pr = raw.get("PRIOR BASE RATE")
+            try:
+                br_f = float(br)
+            except (TypeError, ValueError):
+                br_f = 0.0
+            try:
+                pr_f = float(pr) if pr and str(pr).strip() else None
+            except (TypeError, ValueError):
+                pr_f = None
+            conn.execute(
+                "INSERT INTO otr_rates (origin_city, origin_state, dest_city, dest_state, "
+                "cargo_type, base_rate, update_date, expiration_date, prior_base_rate) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (oc, os_, dc, ds,
+                 str(raw.get("CARGOTYPE", "")).strip(),
+                 br_f,
+                 str(raw.get("UPDATEDATE", "")).strip(),
+                 str(raw.get("EXPIRATIONDATE", "")).strip(),
+                 pr_f),
+            )
+    conn.commit()
+
+
+def _migrate_seam_csv(data_dir: Path) -> None:
+    import csv
+    conn = _get_conn()
+    if conn.execute("SELECT COUNT(*) FROM seam_tariffs").fetchone()[0] > 0:
+        return
+    seam_path = data_dir / "SEAM_TARIFFS_CERT_TARIFFS.csv"
+    if not seam_path.is_file():
+        return
+    csv_to_db = {
+        "Warehouse": "warehouse", "Name": "name", "City": "city", "State": "state",
+        "County": "county", "Terms": "terms", "Verified": "verified", "Points": "points",
+        "Recv": "recv", "Strg": "strg", "Load": "load", "Compr": "compr",
+        "Class": "class", "Mark": "mark", "EffDate": "eff_date", "Bales": "bales",
+        "Rail": "rail", "ICE Ref": "ice_ref", "Capacity": "capacity",
+        "CertLoad": "cert_load", "CertCompr": "cert_compr", "CertMark": "cert_mark",
+        "CertRecv": "cert_recv", "CertStrg": "cert_strg", "CertClass": "cert_class",
+        "Min Storage": "min_storage", "Basis Adj": "basis_adj",
+    }
+    with seam_path.open("r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f, skipinitialspace=True)
+        for raw in reader:
+            row = {db_col: str(raw.get(csv_col, "")).strip() for csv_col, db_col in csv_to_db.items()}
+            placeholders = ", ".join("?" for _ in _SEAM_COLS)
+            conn.execute(
+                f"INSERT INTO seam_tariffs ({', '.join(_SEAM_COLS)}) VALUES ({placeholders})",
+                tuple(row.get(c, "") for c in _SEAM_COLS),
+            )
+    conn.commit()
+
+
+def _migrate_rap_csv(data_dir: Path) -> None:
+    import csv
+    conn = _get_conn()
+    if conn.execute("SELECT COUNT(*) FROM regions_and_ports").fetchone()[0] > 0:
+        return
+    rap_path = data_dir / "regions_and_ports.csv"
+    if not rap_path.is_file():
+        return
+    csv_to_db = {
+        "Warehouse": "warehouse", "Name": "name", "City": "city", "State": "state",
+        "Region": "region", "Export": "export", "Port": "port", "ESO": "eso",
+        "Flat Bed Fees": "flat_bed_fees", "Late Fees": "late_fees",
+        "Transportation Adjust": "transportation_adjust",
+        "Misc  Fees": "misc_fees", "Consol Interest": "consol_interest",
+    }
+    with rap_path.open("r", encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f, skipinitialspace=True)
+        for raw in reader:
+            row = {}
+            for csv_col, db_col in csv_to_db.items():
+                row[db_col] = str(raw.get(csv_col, "")).strip()
+            if not row.get("misc_fees"):
+                row["misc_fees"] = str(raw.get("Misc Fees", "")).strip()
+            placeholders = ", ".join("?" for _ in _RAP_COLS)
+            conn.execute(
+                f"INSERT INTO regions_and_ports ({', '.join(_RAP_COLS)}) VALUES ({placeholders})",
+                tuple(row.get(c, "") for c in _RAP_COLS),
+            )
+    conn.commit()
+
+
+def migrate_from_json(data_dir: Path) -> None:
+    """One-time import: read JSON config files and CSV data files into SQLite."""
+
+    cp_path = data_dir / "control_panel.json"
+    if cp_path.exists():
+        with cp_path.open("r", encoding="utf-8") as f:
+            save_control_panel(json.load(f))
+
+    cons_path = data_dir / "consolidation.json"
+    if cons_path.exists():
+        with cons_path.open("r", encoding="utf-8") as f:
+            save_consolidation(json.load(f))
+
+    cds_path = data_dir / "consolidation_days_storage.json"
+    if cds_path.exists():
+        with cds_path.open("r", encoding="utf-8") as f:
+            save_consolidation_days_storage(json.load(f))
+
+    dray_path = data_dir / "drayage.json"
+    if dray_path.exists():
+        with dray_path.open("r", encoding="utf-8") as f:
+            save_drayage(json.load(f))
+
+    doc_cif_path = data_dir / "document_cif.json"
+    if doc_cif_path.exists():
+        with doc_cif_path.open("r", encoding="utf-8") as f:
+            save_document_cif(json.load(f))
+
+    ufc_path = data_dir / "usa_forwarding_cost.json"
+    if ufc_path.exists():
+        with ufc_path.open("r", encoding="utf-8") as f:
+            save_usa_forwarding_cost(json.load(f))
+
+    _migrate_otr_csv(data_dir)
+    _migrate_seam_csv(data_dir)
+    _migrate_rap_csv(data_dir)
+
+    print(f"Migration complete -> {DB_PATH}")
+
+
+def ensure_csv_tables_populated(data_dir: Path) -> None:
+    """Called on server startup: seed OTR/SEAM/R&P tables from CSV if they're empty."""
+    _migrate_otr_csv(data_dir)
+    _migrate_seam_csv(data_dir)
+    _migrate_rap_csv(data_dir)

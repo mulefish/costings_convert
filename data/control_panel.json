@@ -1,0 +1,14 @@
+{
+  "Fuel Surcharge": 1.5,
+  "OTR GRI": 0.0,
+  "Ocean GRI": 250.0,
+  "Buffer": 0.0,
+  "Avg Purchase Price": 0.7,
+  "EDF Interest Rate": 6.5,
+  "Origin Commission": 0.0,
+  "Avg Bale Weight": 500.0,
+  "OTR FSC Multiplier": 1.5,
+  "OTR Buffer (USD)": 50.0,
+  "InAndOut": 2.7,
+  "TotalStorage": 1.68
+}
