@@ -2959,6 +2959,8 @@ function _exportCifFieldForGroup(groupLabel) {
     return map[groupLabel] || "";
 }
 
+const EXPORT_BODY_POPULATED_GROUPS = new Set(["Origin Warehouse", "Inland Logistics", "Consolidation"]);
+
 function _exportCellValueForGroupRegion(cifByRegion, group, abbr) {
     const cifKey = _exportCifFieldForGroup(group);
     const cifRegion = EXPORT_REGION_TO_CIF[abbr];
@@ -2985,7 +2987,9 @@ function _buildExportRows(cifByRegion) {
             EXPORT_CIF_GROUP_LABELS.forEach(group => {
                 EXPORT_REGIONS.forEach(abbr => {
                     const key = group + "|" + abbr;
-                    row[key] = _exportCellValueForGroupRegion(cif, group, abbr);
+                    if (EXPORT_BODY_POPULATED_GROUPS.has(group)) {
+                        row[key] = _exportCellValueForGroupRegion(cif, group, abbr);
+                    }
                 });
             });
 
