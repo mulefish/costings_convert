@@ -3556,7 +3556,139 @@ function _exportCifFieldForGroup(groupLabel) {
 
 const EXPORT_BODY_POPULATED_GROUPS = new Set(["Origin Warehouse", "Inland Logistics", "Consolidation"]);
 
-function _exportCellValueForGroupRegion(cifByRegion, group, abbr) {
+/** Export Outbound (WTX…ER5): CIF Dray + Ocean Costing Total pts (Country, City/Destination, hub Port). */
+const EXPORT_OUTBOUND_CIF_OCEAN_HUB_ABBRS = new Set(["WTX", "WTXH", "STX", "MRS", "ER5"]);
+
+/** Ocean row Port must match this hub (normalized) for the export column. */
+const EXPORT_OUTBOUND_OCEAN_HUB_PORT = {
+    WTX: "dallas",
+    WTXH: "houston",
+    STX: "houston",
+    MRS: "memphis",
+    ER5: "savannah",
+};
+
+function _exportOutboundUsesCifDrayAndOceanHubPts(abbr) {
+    return EXPORT_OUTBOUND_CIF_OCEAN_HUB_ABBRS.has(String(abbr ?? "").trim());
+}
+
+function _exportOceanHubPortNorm(abbr) {
+    const a = String(abbr ?? "").trim();
+    return EXPORT_OUTBOUND_OCEAN_HUB_PORT[a] || "";
+}
+
+function _exportOceanPortMatchesHub(portRaw, abbr) {
+    const hub = _exportOceanHubPortNorm(abbr);
+    if (!hub) {
+        return false;
+    }
+    const p = _exportNormLoose(portRaw);
+    if (!p) {
+        return false;
+    }
+    return p === hub || p.includes(hub);
+}
+
+function _exportDestinationMatchesExportCity(destRaw, cifFe) {
+    const fe = _exportNormLoose(cifFe);
+    const d = _exportNormLoose(destRaw);
+    if (!fe || !d) {
+        return false;
+    }
+    return d === fe || fe === d || d.includes(fe) || fe.includes(d);
+}
+
+/** CIF Outbound Dray for this export column’s region (same Region row as rest of CIF). */
+function _exportCifDrayForAbbr(cifByRegion, abbr) {
+    const cifRegion = EXPORT_REGION_TO_CIF[abbr];
+    const row = cifRegion && cifByRegion ? cifByRegion[cifRegion] : null;
+    if (!row) {
+        return "";
+    }
+    const v = row.Dray;
+    if (v === undefined || v === null || v === "") {
+        return "";
+    }
+    return String(v);
+}
+
+/**
+ * Ocean Costing Total pts: Country = Export Base; Destination matches Export CIF FE (city);
+ * Port matches export hub (Dallas / Houston / Memphis / Savannah).
+ */
+function _exportOceanTotalPtsForOutboundRow(oceanCostingRows, baseGroup, cifFe, abbr) {
+    if (!Array.isArray(oceanCostingRows)) {
+        return "";
+    }
+    const country = _exportNormLoose(baseGroup);
+    const fe = String(cifFe || "").trim();
+    if (!country || !fe) {
+        return "";
+    }
+    for (const r of oceanCostingRows) {
+        if (_exportNormLoose(r.Country) !== country) {
+            continue;
+        }
+        if (!_exportOceanPortMatchesHub(r.Port, abbr)) {
+            continue;
+        }
+        if (!_exportDestinationMatchesExportCity(r.Destination, fe)) {
+            continue;
+        }
+        const tp = r["Total pts"];
+        if (tp === undefined || tp === null || tp === "") {
+            return "";
+        }
+        return String(tp);
+    }
+    return "";
+}
+
+function _exportNormLoose(s) {
+    return String(s ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, " ");
+}
+
+function _exportParseNumericCell(s) {
+    if (s === null || s === undefined || s === "") {
+        return NaN;
+    }
+    const n = parseFloat(String(s).replace(/,/g, ""));
+    return Number.isFinite(n) ? n : NaN;
+}
+
+function _exportOutboundLogisticsBodyCell(cifByRegion, exportOpts, exportRow, abbr) {
+    if (!_exportOutboundUsesCifDrayAndOceanHubPts(abbr)) {
+        return _exportCellValueForGroupRegion(cifByRegion, "Outbound Logistics", abbr, exportOpts);
+    }
+    const opts = exportOpts || {};
+    const baseG = String(exportRow._exportBaseGroup || exportRow.Base || "").trim();
+    const cifFe = String(exportRow["CIF FE"] || "").trim();
+    const oceanPtsStr = _exportOceanTotalPtsForOutboundRow(opts.oceanCostingRows, baseG, cifFe, abbr);
+    const drayStr = _exportCifDrayForAbbr(cifByRegion, abbr);
+
+    const oceanN = _exportParseNumericCell(oceanPtsStr);
+    const drayN = _exportParseNumericCell(drayStr);
+    const hasOcean = String(oceanPtsStr).trim() !== "" && Number.isFinite(oceanN);
+    const hasDray = String(drayStr).trim() !== "" && Number.isFinite(drayN);
+
+    if (!hasOcean && !hasDray) {
+        return _exportCellValueForGroupRegion(cifByRegion, "Outbound Logistics", abbr, {});
+    }
+    const sum = (hasDray ? drayN : 0) + (hasOcean ? oceanN : 0);
+    return String(Math.round(sum * 100) / 100);
+}
+
+function _exportCellValueForGroupRegion(cifByRegion, group, abbr, exportOpts) {
+    const opts = exportOpts || {};
+    if (group === "Outbound Logistics" && _exportOutboundUsesCifDrayAndOceanHubPts(abbr)) {
+        const dray = _exportCifDrayForAbbr(cifByRegion, abbr);
+        if (dray != null && String(dray).trim() !== "") {
+            return String(dray);
+        }
+    }
     const cifKey = _exportCifFieldForGroup(group);
     const cifRegion = EXPORT_REGION_TO_CIF[abbr];
     const cifRow = cifRegion ? cifByRegion[cifRegion] : null;
@@ -3566,7 +3698,7 @@ function _exportCellValueForGroupRegion(cifByRegion, group, abbr) {
     return String(raw);
 }
 
-function _buildExportRows(cifByRegion) {
+function _buildExportRows(cifByRegion, exportOpts) {
     const columns = _buildExportColumns();
     const cif = cifByRegion || {};
 
@@ -3584,7 +3716,9 @@ function _buildExportRows(cifByRegion) {
                 EXPORT_REGIONS.forEach(abbr => {
                     const key = group + "|" + abbr;
                     if (EXPORT_BODY_POPULATED_GROUPS.has(group)) {
-                        row[key] = _exportCellValueForGroupRegion(cif, group, abbr);
+                        row[key] = _exportCellValueForGroupRegion(cif, group, abbr, exportOpts);
+                    } else if (group === "Outbound Logistics") {
+                        row[key] = _exportOutboundLogisticsBodyCell(cif, exportOpts, row, abbr);
                     }
                 });
             });
@@ -3602,16 +3736,30 @@ async function renderExportTable() {
     const exportThemeColors = await getThemeCountryColorMapCached();
 
     let cifData = null;
+    let oceanRaw = [];
     try {
-        const resp = await fetch("/api/cif");
-        if (resp.ok) cifData = await resp.json();
-    } catch (e) { /* proceed without CIF data */ }
+        const [cifRes, oceanRes] = await Promise.all([
+            fetch("/api/cif"),
+            fetch("/api/ocean"),
+        ]);
+        if (cifRes.ok) cifData = await cifRes.json();
+        if (oceanRes.ok) {
+            const od = await oceanRes.json();
+            oceanRaw = Array.isArray(od.rows) ? od.rows : [];
+        }
+    } catch (e) { /* proceed with partial data */ }
     const cifByRegion = {};
     if (cifData && cifData.rows) {
         cifData.rows.forEach(r => { cifByRegion[r.Region] = r; });
     }
+    const oceanCfg = getViewConfig("Ocean Costing");
+    const oceanColumns = (oceanCfg && oceanCfg.columns) ? oceanCfg.columns : [];
+    const oceanCostingRows = dedupeOceanCostingRows(oceanRaw, oceanColumns);
+    const exportCellOpts = {
+        oceanCostingRows,
+    };
     const columns = _buildExportColumns();
-    const rows = _buildExportRows(cifByRegion);
+    const rows = _buildExportRows(cifByRegion, exportCellOpts);
     const regionCount = EXPORT_REGIONS.length;
 
     const controls = document.createElement("div");
@@ -3660,13 +3808,16 @@ async function renderExportTable() {
     });
     thead.appendChild(r1);
 
-    // Row 2: TT FT | then 11 regions repeated under each group
+    // Row 2: Country | City (labels) | then regions under each group
     const r2 = document.createElement("tr");
-    const ttTh = document.createElement("th");
-    ttTh.colSpan = 2;
-    ttTh.textContent = "TT FT";
-    ttTh.className = "usd-sub-header";
-    r2.appendChild(ttTh);
+    const countryTh = document.createElement("th");
+    countryTh.textContent = "Country";
+    countryTh.className = "usd-sub-header";
+    r2.appendChild(countryTh);
+    const cityTh = document.createElement("th");
+    cityTh.textContent = "City";
+    cityTh.className = "usd-sub-header";
+    r2.appendChild(cityTh);
     EXPORT_CIF_GROUP_LABELS.forEach(() => {
         EXPORT_REGIONS.forEach((label, ri) => {
             const th = document.createElement("th");
@@ -3678,7 +3829,7 @@ async function renderExportTable() {
     });
     thead.appendChild(r2);
 
-    // Row 3: Base | CIF FE | Base Rate row (CIF values per group × region)
+    // Row 3: Base | CIF FE | CIF sample values per group × region
     const r3 = document.createElement("tr");
     columns.forEach((col, i) => {
         const th = document.createElement("th");
@@ -3690,7 +3841,7 @@ async function renderExportTable() {
             if (pipe > 0) {
                 const group = col.slice(0, pipe);
                 const abbr = col.slice(pipe + 1);
-                const v = _exportCellValueForGroupRegion(cifByRegion, group, abbr);
+                const v = _exportCellValueForGroupRegion(cifByRegion, group, abbr, exportCellOpts);
                 th.textContent = v;
                 th.className = "usd-sub-header td-num";
             }
