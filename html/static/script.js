@@ -499,12 +499,13 @@ async function renderControlPanelView() {
     wrap.appendChild(consolBtnRow);
 
     const DRAYAGE_FIELDS = [
-        ["LineHaul", "Line Haul"],
-        ["ChasSplit", "Chas Split"],
-        ["Contrainer", "Contrainer"],
-        ["Bale", "Bale"],
-        ["OceanBase", "Ocean base"],
-        ["Updated", "Updated"],
+        ["GRI", "GRI", "number", true],
+        ["LineHaul", "Line Haul", "number", false],
+        ["ChasSplit", "Chas Split", "number", false],
+        ["Contrainer", "Contrainer", "number", false],
+        ["Bale", "Bale", "number", false],
+        ["OceanBase", "Ocean base", "number", false],
+        ["Updated", "Updated", "text", false],
     ];
     const hdray = document.createElement("h3");
     hdray.style.marginTop = "28px";
@@ -518,7 +519,7 @@ async function renderControlPanelView() {
     pdray.style.maxWidth = "720px";
     pdray.style.lineHeight = "1.45";
     pdray.textContent =
-        "Per-region Line Haul, chassis split, container, bale rate, ocean base, and updated note are saved to costings/data/drayage.json.";
+        "Per-region GRI (defaults to 0), line haul, chassis split, container, bale rate, ocean base, and updated note are stored in SQLite (drayage). Add or remove rows, then save.";
     wrap.appendChild(pdray);
 
     wrap.appendChild(drayageStatus);
@@ -526,7 +527,7 @@ async function renderControlPanelView() {
     const drayTable = document.createElement("table");
     drayTable.style.borderCollapse = "collapse";
     drayTable.style.marginTop = "8px";
-    drayTable.style.minWidth = "640px";
+    drayTable.style.minWidth = "720px";
     const drayThead = document.createElement("thead");
     const drayHr = document.createElement("tr");
     const chPort = document.createElement("th");
@@ -545,36 +546,59 @@ async function renderControlPanelView() {
         th.style.color = "#fff";
         drayHr.appendChild(th);
     });
+    const drayThRm = document.createElement("th");
+    drayThRm.textContent = "";
+    drayThRm.style.border = "1px solid #d9d9d9";
+    drayThRm.style.padding = "6px 10px";
+    drayThRm.style.background = "#2f5fa7";
+    drayThRm.style.color = "#fff";
+    drayThRm.style.width = "88px";
+    drayHr.appendChild(drayThRm);
     drayThead.appendChild(drayHr);
     drayTable.appendChild(drayThead);
     const drayTbody = document.createElement("tbody");
+    drayTbody.id = "jarvis-drayage-tbody";
 
-    const drayRegionKeys = Object.keys(drayageData).sort();
-    drayRegionKeys.forEach((region) => {
+    function addJarvisDrayageRow(regionName, inner) {
+        const rowInner = inner && typeof inner === "object" ? inner : {};
         const tr = document.createElement("tr");
-        const tdP = document.createElement("td");
-        tdP.textContent = region;
-        tdP.style.border = "1px solid #d9d9d9";
-        tdP.style.padding = "6px 10px";
-        tr.appendChild(tdP);
-        const inner =
-            drayageData[region] && typeof drayageData[region] === "object"
-                ? drayageData[region]
-                : {};
-        DRAYAGE_FIELDS.forEach(([field]) => {
+        const tdRegion = document.createElement("td");
+        tdRegion.style.border = "1px solid #d9d9d9";
+        tdRegion.style.padding = "6px 10px";
+        const regionInp = document.createElement("input");
+        regionInp.type = "text";
+        regionInp.value = regionName != null ? String(regionName) : "";
+        regionInp.dataset.drayageField = "__region__";
+        regionInp.style.width = "100%";
+        regionInp.style.boxSizing = "border-box";
+        regionInp.style.padding = "6px 8px";
+        tdRegion.appendChild(regionInp);
+        tr.appendChild(tdRegion);
+        DRAYAGE_FIELDS.forEach(([field, , kind, defaultZero]) => {
             const td = document.createElement("td");
             td.style.border = "1px solid #d9d9d9";
             td.style.padding = "6px 10px";
             const inp = document.createElement("input");
-            if (field === "Updated") {
-                inp.type = "text";
-            } else {
-                inp.type = "number";
+            inp.type = kind === "text" ? "text" : "number";
+            if (kind === "number") {
                 inp.step = "any";
             }
-            const raw = inner[field];
-            inp.value = raw !== undefined && raw !== null ? raw : "";
-            inp.dataset.drayageRegion = region;
+            const raw = rowInner[field];
+            if (kind === "number") {
+                if (defaultZero) {
+                    inp.value =
+                        raw !== undefined && raw !== null && raw !== ""
+                            ? raw
+                            : "0";
+                } else {
+                    inp.value =
+                        raw !== undefined && raw !== null && raw !== ""
+                            ? raw
+                            : "";
+                }
+            } else {
+                inp.value = raw !== undefined && raw !== null ? String(raw) : "";
+            }
             inp.dataset.drayageField = field;
             inp.style.width = "100%";
             inp.style.boxSizing = "border-box";
@@ -582,8 +606,33 @@ async function renderControlPanelView() {
             td.appendChild(inp);
             tr.appendChild(td);
         });
+        const tdRm = document.createElement("td");
+        tdRm.style.border = "1px solid #d9d9d9";
+        tdRm.style.padding = "6px 10px";
+        const rmBtn = document.createElement("button");
+        rmBtn.type = "button";
+        rmBtn.textContent = "Remove";
+        rmBtn.style.fontSize = "12px";
+        rmBtn.style.cursor = "pointer";
+        rmBtn.addEventListener("click", () => {
+            tr.remove();
+        });
+        tdRm.appendChild(rmBtn);
+        tr.appendChild(tdRm);
         drayTbody.appendChild(tr);
-    });
+    }
+
+    const drayRegionKeys = Object.keys(drayageData).sort();
+    if (drayRegionKeys.length) {
+        drayRegionKeys.forEach((region) => {
+            const inner =
+                drayageData[region] && typeof drayageData[region] === "object"
+                    ? drayageData[region]
+                    : {};
+            addJarvisDrayageRow(region, inner);
+        });
+    }
+
     drayTable.appendChild(drayTbody);
     wrap.appendChild(drayTable);
 
@@ -592,6 +641,17 @@ async function renderControlPanelView() {
     drayBtnRow.style.display = "flex";
     drayBtnRow.style.gap = "8px";
     drayBtnRow.style.alignItems = "center";
+    drayBtnRow.style.flexWrap = "wrap";
+
+    const addDrayBtn = document.createElement("button");
+    addDrayBtn.type = "button";
+    addDrayBtn.textContent = "Add row";
+    addDrayBtn.style.padding = "8px 16px";
+    addDrayBtn.style.cursor = "pointer";
+    addDrayBtn.addEventListener("click", () => {
+        addJarvisDrayageRow("", { GRI: 0 });
+    });
+
     const saveDrayBtn = document.createElement("button");
     saveDrayBtn.type = "button";
     saveDrayBtn.textContent = "Save drayage";
@@ -601,23 +661,53 @@ async function renderControlPanelView() {
         drayageStatus.textContent = "";
         drayageStatus.style.color = "";
         const body = {};
-        for (const inp of wrap.querySelectorAll("input[data-drayage-region]")) {
-            const r = inp.dataset.drayageRegion;
-            const f = inp.dataset.drayageField;
-            if (!body[r]) {
-                body[r] = {};
+        const seen = new Set();
+        for (const tr of drayTbody.querySelectorAll("tr")) {
+            const regionInp = tr.querySelector('input[data-drayage-field="__region__"]');
+            const region = regionInp ? regionInp.value.trim() : "";
+            if (!region) {
+                continue;
             }
-            if (f === "Updated") {
-                body[r][f] = inp.value.trim();
-            } else {
-                const v = parseFloat(inp.value, 10);
-                if (Number.isNaN(v)) {
-                    drayageStatus.textContent = `Invalid number for ${r} (${f}).`;
-                    drayageStatus.style.color = "#b00020";
-                    return;
+            if (seen.has(region)) {
+                drayageStatus.textContent = `Duplicate region name: ${region}`;
+                drayageStatus.style.color = "#b00020";
+                return;
+            }
+            seen.add(region);
+            body[region] = {};
+            for (const inp of tr.querySelectorAll("input[data-drayage-field]")) {
+                const f = inp.dataset.drayageField;
+                if (f === "__region__") {
+                    continue;
                 }
-                body[r][f] = v;
+                if (f === "Updated") {
+                    body[region][f] = inp.value.trim();
+                } else {
+                    const defaultZero = f === "GRI";
+                    const s = inp.value.trim();
+                    if (s === "") {
+                        body[region][f] = defaultZero ? 0 : null;
+                        if (body[region][f] === null) {
+                            drayageStatus.textContent = `Invalid number for ${region} (${f}).`;
+                            drayageStatus.style.color = "#b00020";
+                            return;
+                        }
+                    } else {
+                        const v = parseFloat(s);
+                        if (Number.isNaN(v)) {
+                            drayageStatus.textContent = `Invalid number for ${region} (${f}).`;
+                            drayageStatus.style.color = "#b00020";
+                            return;
+                        }
+                        body[region][f] = v;
+                    }
+                }
             }
+        }
+        if (Object.keys(body).length === 0) {
+            drayageStatus.textContent = "Add at least one row with a port / region name before saving.";
+            drayageStatus.style.color = "#b00020";
+            return;
         }
         try {
             const res = await fetch("/api/drayage", {
@@ -629,6 +719,16 @@ async function renderControlPanelView() {
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.error || res.statusText);
             }
+            drayageData = await res.json();
+            drayTbody.replaceChildren();
+            const keys = Object.keys(drayageData).sort();
+            keys.forEach((region) => {
+                const inner =
+                    drayageData[region] && typeof drayageData[region] === "object"
+                        ? drayageData[region]
+                        : {};
+                addJarvisDrayageRow(region, inner);
+            });
             drayageStatus.textContent = "Drayage saved.";
             drayageStatus.style.color = "#1b5e20";
         } catch (err) {
@@ -637,6 +737,7 @@ async function renderControlPanelView() {
             drayageStatus.style.color = "#b00020";
         }
     });
+    drayBtnRow.appendChild(addDrayBtn);
     drayBtnRow.appendChild(saveDrayBtn);
     wrap.appendChild(drayBtnRow);
 
@@ -2266,7 +2367,7 @@ function renderOceanCostingTable(config) {
     note.style.color = "#555";
     note.style.marginBottom = "8px";
     note.textContent =
-        "Same ocean data as OCEAN: one row per Port + Destination + Country. Ocean Freight is chosen by country rules (cheapest, CMDU/MAEU mean, or mean of the three lowest CMDU/MAEU rates). GRI comes from Jarvis → Documentation / CIF (per Country). Use the search boxes to filter.";
+        "Same ocean data as OCEAN: one row per Port + Destination + Country. Ocean Freight is chosen by country rules (cheapest, CMDU/MAEU mean, or mean of the three lowest CMDU/MAEU rates). GRI = Documentation / CIF GRI for Country plus Drayage GRI for the row’s Port (same Port→region mapping as USD). Use the search boxes to filter.";
     content.appendChild(note);
 
     const controls = document.createElement("div");
@@ -3360,13 +3461,13 @@ function showCellDerivation(row, column, value, rowIdx) {
         derivation = `CSV → OTR source [ row ${rowIdx + 1} ] . "${column}"`;
     } else if (viewName === "OCEAN") {
         if (column === "GRI") {
-            derivation = `document_cif (Jarvis Documentation / CIF), Country="${row.Country || "?"}" . "GRI" (included in GET /api/ocean)`;
+            derivation = `GRI = document_cif (Country="${row.Country || "?"}") . "GRI" + drayage (Port="${row.Port || "?"}" → region) . "GRI" (GET /api/ocean)`;
         } else {
             derivation = `GET /api/ocean [ row ${rowIdx + 1} ] . "${column}"`;
         }
     } else if (viewName === "Ocean Costing") {
         if (column === "GRI") {
-            derivation = `document_cif (Jarvis Documentation / CIF), Country="${row.Country || "?"}" . "GRI" (included in GET /api/ocean)`;
+            derivation = `GRI = document_cif (Country="${row.Country || "?"}") . "GRI" + drayage (Port="${row.Port || "?"}" → region) . "GRI" (GET /api/ocean)`;
         } else {
             derivation = `GET /api/ocean (deduped by Port+Destination+Country) [ row ${rowIdx + 1} ] . "${column}"`;
         }

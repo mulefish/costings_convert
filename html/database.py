@@ -46,6 +46,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     _ensure_themes_type_column(conn)
     _ensure_themes_seeded(conn)
     _ensure_document_cif_gri_column(conn)
+    _ensure_drayage_gri_column(conn)
     conn.commit()
 
 
@@ -72,6 +73,7 @@ CREATE TABLE IF NOT EXISTS consolidation_days_storage (
 
 CREATE TABLE IF NOT EXISTS drayage (
     region     TEXT PRIMARY KEY,
+    gri        REAL NOT NULL DEFAULT 0,
     line_haul  REAL NOT NULL DEFAULT 0,
     chas_split REAL NOT NULL DEFAULT 0,
     contrainer REAL NOT NULL DEFAULT 0,
@@ -223,6 +225,18 @@ def _ensure_document_cif_gri_column(conn: sqlite3.Connection) -> None:
     cols = {row[1] for row in conn.execute("PRAGMA table_info(document_cif)").fetchall()}
     if "gri" not in cols:
         conn.execute("ALTER TABLE document_cif ADD COLUMN gri REAL NOT NULL DEFAULT 0")
+        conn.commit()
+
+
+def _ensure_drayage_gri_column(conn: sqlite3.Connection) -> None:
+    """Add drayage.gri for DBs created before that column existed."""
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='drayage'"
+    ).fetchone():
+        return
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(drayage)").fetchall()}
+    if "gri" not in cols:
+        conn.execute("ALTER TABLE drayage ADD COLUMN gri REAL NOT NULL DEFAULT 0")
         conn.commit()
 
 
@@ -386,10 +400,12 @@ def save_consolidation_days_storage(data: dict) -> None:
 def get_drayage() -> dict:
     conn = _get_conn()
     rows = conn.execute(
-        "SELECT region, line_haul, chas_split, contrainer, bale, ocean_base, updated FROM drayage"
+        "SELECT region, gri, line_haul, chas_split, contrainer, bale, ocean_base, updated "
+        "FROM drayage"
     ).fetchall()
     return {
         r["region"]: {
+            "GRI": r["gri"],
             "LineHaul": r["line_haul"],
             "ChasSplit": r["chas_split"],
             "Contrainer": r["contrainer"],
@@ -404,12 +420,19 @@ def get_drayage() -> dict:
 def save_drayage(data: dict) -> None:
     conn = _get_conn()
     conn.execute("DELETE FROM drayage")
-    conn.executemany(
-        "INSERT INTO drayage (region, line_haul, chas_split, contrainer, bale, ocean_base, updated) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [
+    params: list[tuple] = []
+    for region, inner in data.items():
+        if not isinstance(inner, dict):
+            continue
+        gri_v = inner.get("GRI")
+        try:
+            gri_f = 0.0 if gri_v is None else float(gri_v)
+        except (TypeError, ValueError):
+            gri_f = 0.0
+        params.append(
             (
                 region,
+                gri_f,
                 inner.get("LineHaul", 0),
                 inner.get("ChasSplit", 0),
                 inner.get("Contrainer", 0),
@@ -417,9 +440,11 @@ def save_drayage(data: dict) -> None:
                 inner.get("OceanBase", 0),
                 str(inner.get("Updated", "")),
             )
-            for region, inner in data.items()
-            if isinstance(inner, dict)
-        ],
+        )
+    conn.executemany(
+        "INSERT INTO drayage (region, gri, line_haul, chas_split, contrainer, bale, ocean_base, updated) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        params,
     )
     conn.commit()
 

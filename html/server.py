@@ -45,6 +45,7 @@ CONSOLIDATION_DAYS_STORAGE_DEFAULTS: dict = {
 
 DRAYAGE_DEFAULTS: dict = {
     "Memphis": {
+        "GRI": 0.0,
         "LineHaul": 255.0,
         "ChasSplit": 210.0,
         "Contrainer": 593.0,
@@ -53,6 +54,7 @@ DRAYAGE_DEFAULTS: dict = {
         "Updated": "24-Jun",
     },
     "Savannah": {
+        "GRI": 0.0,
         "LineHaul": 0.0,
         "ChasSplit": 0.0,
         "Contrainer": 485.0,
@@ -61,6 +63,7 @@ DRAYAGE_DEFAULTS: dict = {
         "Updated": "24-Jun",
     },
     "Dallas": {
+        "GRI": 0.0,
         "LineHaul": 270.0,
         "ChasSplit": 260.0,
         "Contrainer": 665.0,
@@ -69,6 +72,7 @@ DRAYAGE_DEFAULTS: dict = {
         "Updated": "24-Jun",
     },
     "Houston": {
+        "GRI": 0.0,
         "LineHaul": 0.0,
         "ChasSplit": 0.0,
         "Contrainer": 585.0,
@@ -1394,6 +1398,7 @@ def otr_apply_local():
 def ocean_rows():
     _sync_control_panel_from_disk_if_needed()
     _reload_document_cif()
+    _reload_drayage()
     now_text = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     dthc_prepaid = {
@@ -1466,7 +1471,9 @@ def ocean_rows():
             rate_40ft = _to_float(raw.get("40FT"), 0.0)
             prepaid = dthc_prepaid.get(country.lower(), "Yes")
             ocean_freight = allin_40hc if prepaid == "Yes" else rate_40ft
-            row_gri = _document_cif_float_for_country(country, "GRI")
+            doc_gri = _document_cif_float_for_country(country, "GRI")
+            dray_gri = _drayage_field_for_port(port, "GRI")
+            row_gri = doc_gri + dray_gri
             ocean_total = ocean_freight + row_gri
             total_pts = (ocean_total / 88.0) * 20.0
 
