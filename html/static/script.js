@@ -53,8 +53,8 @@ async function renderControlPanelView() {
     p.style.maxWidth = "720px";
     p.style.lineHeight = "1.45";
     p.textContent =
-        "These numbers are saved to costings/data/control_panel.json and drive Fuel Surcharge and OTR GRI (OTR view), Ocean GRI (Ocean view), and USD interest and commission. " +
-        "Per-port drayage rates live in costings/data/drayage.json. Per-country documentation and CIF factors live in costings/data/document_cif.json. USA forwarding costs live in costings/data/usa_forwarding_cost.json.";
+        "Values edited here are saved to the SQLite database (costings/data/costings.db): global control-panel numbers (fuel surcharge, OTR GRI, ocean GRI, interest, commission, and related inputs), consolidation, consolidation days storage, drayage by port, document/CIF by country, USA forwarding, and themes (Export Base colors). " +
+        "They drive the OTR, OCEAN, USD, PTS, CIF, and Export views.";
     wrap.appendChild(p);
 
     const status = document.createElement("p");
@@ -81,6 +81,10 @@ async function renderControlPanelView() {
     const usaFwdStatus = document.createElement("p");
     usaFwdStatus.style.fontSize = "13px";
     usaFwdStatus.style.minHeight = "1.2em";
+
+    const themesStatus = document.createElement("p");
+    themesStatus.style.fontSize = "13px";
+    themesStatus.style.minHeight = "1.2em";
 
     let data = {};
     let consol = {};
@@ -170,6 +174,24 @@ async function renderControlPanelView() {
         console.error(err);
         usaFwdStatus.textContent = "Could not load USA forwarding cost.";
         usaFwdStatus.style.color = "#b00020";
+    }
+
+    let themesRows = [];
+    try {
+        const themesRes = await fetch("/api/themes");
+        if (!themesRes.ok) {
+            themesStatus.textContent = "Could not load themes.";
+            themesStatus.style.color = "#b00020";
+        } else {
+            themesRows = await themesRes.json();
+            if (!Array.isArray(themesRows)) {
+                themesRows = [];
+            }
+        }
+    } catch (err) {
+        console.error(err);
+        themesStatus.textContent = "Could not load themes.";
+        themesStatus.style.color = "#b00020";
     }
 
     function getDaysMultiplierFromForm() {
@@ -690,6 +712,10 @@ async function renderControlPanelView() {
             inp.style.boxSizing = "border-box";
             inp.style.padding = "6px 8px";
             td.appendChild(inp);
+            if (key === "country") {
+                applyCountryThemeToTd(td, inp.value);
+                inp.addEventListener("input", () => applyCountryThemeToTd(td, inp.value));
+            }
             tr.appendChild(td);
         });
         docCifTbody.appendChild(tr);
@@ -925,6 +951,175 @@ async function renderControlPanelView() {
     usaFwdBtnRow.appendChild(saveUsaFwdBtn);
     wrap.appendChild(usaFwdBtnRow);
 
+    const themesH = document.createElement("h3");
+    themesH.style.marginTop = "28px";
+    themesH.style.marginBottom = "8px";
+    themesH.textContent = "Themes";
+    wrap.appendChild(themesH);
+
+    const themesIntro = document.createElement("p");
+    themesIntro.style.fontSize = "13px";
+    themesIntro.style.color = "#444";
+    themesIntro.style.maxWidth = "900px";
+    themesIntro.style.lineHeight = "1.45";
+    themesIntro.textContent =
+        "SQLite table themes: Country, CountryAbbr (unique, used as primary key), Color (hex, e.g. #FF0000), and type (free text for your own grouping). " +
+        "Export view matches Base to Country for background colors. Add or remove rows, edit cells, then Save themes (replaces all rows in the table).";
+    wrap.appendChild(themesIntro);
+    wrap.appendChild(themesStatus);
+
+    const themesTable = document.createElement("table");
+    themesTable.style.borderCollapse = "collapse";
+    themesTable.style.marginTop = "8px";
+    themesTable.style.minWidth = "520px";
+    const themesThead = document.createElement("thead");
+    const themesHeadTr = document.createElement("tr");
+    ["Country", "CountryAbbr", "Color", "type", ""].forEach((label) => {
+        const th = document.createElement("th");
+        th.textContent = label;
+        th.style.border = "1px solid #d9d9d9";
+        th.style.padding = "6px 10px";
+        th.style.background = "#2f5fa7";
+        th.style.color = "#fff";
+        themesHeadTr.appendChild(th);
+    });
+    themesThead.appendChild(themesHeadTr);
+    themesTable.appendChild(themesThead);
+    const themesTbody = document.createElement("tbody");
+    themesTbody.id = "jarvis-themes-tbody";
+
+    function addJarvisThemeRow(rowData) {
+        const d = rowData || {};
+        const tr = document.createElement("tr");
+        function appendFieldCell(field, widthPx) {
+            const td = document.createElement("td");
+            td.style.border = "1px solid #d9d9d9";
+            td.style.padding = "4px 6px";
+            const inp = document.createElement("input");
+            inp.type = "text";
+            inp.value = d[field] != null ? String(d[field]) : "";
+            inp.setAttribute("data-theme-field", field);
+            inp.style.width = widthPx ? `${widthPx}px` : "100%";
+            inp.style.boxSizing = "border-box";
+            inp.style.padding = "6px 8px";
+            if (field === "CountryAbbr") {
+                inp.maxLength = 8;
+                inp.style.textTransform = "uppercase";
+            }
+            td.appendChild(inp);
+            tr.appendChild(td);
+        }
+        appendFieldCell("Country", 200);
+        appendFieldCell("CountryAbbr", 88);
+        appendFieldCell("Color", 100);
+        appendFieldCell("type", 140);
+        const tdRm = document.createElement("td");
+        tdRm.style.border = "1px solid #d9d9d9";
+        tdRm.style.padding = "4px 6px";
+        const rmBtn = document.createElement("button");
+        rmBtn.type = "button";
+        rmBtn.textContent = "Remove";
+        rmBtn.style.fontSize = "12px";
+        rmBtn.style.cursor = "pointer";
+        rmBtn.addEventListener("click", () => {
+            tr.remove();
+        });
+        tdRm.appendChild(rmBtn);
+        tr.appendChild(tdRm);
+        const countryInp = tr.querySelector('input[data-theme-field="Country"]');
+        if (countryInp && countryInp.parentElement) {
+            applyCountryThemeToTd(countryInp.parentElement, countryInp.value);
+            countryInp.addEventListener("input", () => {
+                applyCountryThemeToTd(countryInp.parentElement, countryInp.value);
+            });
+        }
+        themesTbody.appendChild(tr);
+    }
+
+    themesRows.forEach((r) => addJarvisThemeRow(r));
+
+    themesTable.appendChild(themesTbody);
+    wrap.appendChild(themesTable);
+
+    const themesBtnRow = document.createElement("div");
+    themesBtnRow.style.marginTop = "10px";
+    themesBtnRow.style.display = "flex";
+    themesBtnRow.style.gap = "8px";
+    themesBtnRow.style.flexWrap = "wrap";
+    themesBtnRow.style.alignItems = "center";
+
+    const addThemeBtn = document.createElement("button");
+    addThemeBtn.type = "button";
+    addThemeBtn.textContent = "Add row";
+    addThemeBtn.style.padding = "8px 16px";
+    addThemeBtn.style.cursor = "pointer";
+    addThemeBtn.addEventListener("click", () => {
+        addJarvisThemeRow({});
+    });
+
+    const saveThemesBtn = document.createElement("button");
+    saveThemesBtn.type = "button";
+    saveThemesBtn.textContent = "Save themes";
+    saveThemesBtn.style.padding = "8px 16px";
+    saveThemesBtn.style.cursor = "pointer";
+    saveThemesBtn.addEventListener("click", async () => {
+        themesStatus.textContent = "";
+        themesStatus.style.color = "";
+        const rowsOut = [];
+        for (const tr of themesTbody.querySelectorAll("tr")) {
+            const row = {};
+            for (const inp of tr.querySelectorAll("input[data-theme-field]")) {
+                const f = inp.getAttribute("data-theme-field");
+                row[f] = inp.value.trim();
+            }
+            const hasAny = row.CountryAbbr || row.Country || row.Color || row.type;
+            if (!hasAny) {
+                continue;
+            }
+            if (!row.CountryAbbr) {
+                themesStatus.textContent = "Each non-empty row needs a CountryAbbr (unique).";
+                themesStatus.style.color = "#b00020";
+                return;
+            }
+            row.CountryAbbr = row.CountryAbbr.toUpperCase();
+            rowsOut.push(row);
+        }
+        const abbrs = rowsOut.map((r) => r.CountryAbbr);
+        if (new Set(abbrs).size !== abbrs.length) {
+            themesStatus.textContent = "Duplicate CountryAbbr values are not allowed.";
+            themesStatus.style.color = "#b00020";
+            return;
+        }
+        try {
+            const res = await fetch("/api/themes/save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rows: rowsOut }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload.error || res.statusText);
+            }
+            themesStatus.textContent = `Saved ${payload.count ?? rowsOut.length} theme row(s).`;
+            themesStatus.style.color = "#1b5e20";
+            invalidateThemeCountryColorMapCache();
+            const reload = await fetch("/api/themes");
+            if (reload.ok) {
+                const list = await reload.json();
+                themesTbody.replaceChildren();
+                (Array.isArray(list) ? list : []).forEach((r) => addJarvisThemeRow(r));
+            }
+        } catch (err) {
+            console.error(err);
+            themesStatus.textContent = err.message || "Save failed.";
+            themesStatus.style.color = "#b00020";
+        }
+    });
+
+    themesBtnRow.appendChild(addThemeBtn);
+    themesBtnRow.appendChild(saveThemesBtn);
+    wrap.appendChild(themesBtnRow);
+
     const h3 = document.createElement("h3");
     h3.style.marginTop = "28px";
     h3.style.marginBottom = "8px";
@@ -1132,24 +1327,24 @@ async function renderNotesView() {
     const content = document.getElementById("content");
     content.innerHTML = "<p>Loading tables...</p>";
 
-    let tables = [];
+    let tablesRaw = [];
     try {
         const resp = await fetch("/api/db-tables");
-        tables = await resp.json();
+        tablesRaw = await resp.json();
     } catch (e) {
         content.innerHTML = "<p style='color:red;'>Failed to load table list.</p>";
         return;
     }
 
-    const preferredTable = "ocean_costing_rules";
-    const initialTable = tables.includes(preferredTable) ? preferredTable : (tables[0] || "");
+    const tables = tablesRaw.filter((t) => t !== "ocean_costing_rules");
+    const initialTable = tables[0] || "";
 
     const options = tables
         .map((t) => `<option value="${t}"${t === initialTable ? " selected" : ""}>${t}</option>`)
         .join("");
     content.innerHTML = `<div style="font-family:Arial,sans-serif;">
         <p style="font-size:12px; color:#555; margin:0 0 10px 0;">
-            Browse any SQLite table. <strong>ocean_costing_rules</strong> stores Ocean Costing rule rows (versioned via <code>is_active</code>).
+            Browse any SQLite table (versioned tables support <code>is_active</code> when the checkbox is on).
         </p>
         <div style="margin-bottom:12px;">
             <label style="font-size:13px; font-weight:bold; margin-right:8px;">Table:</label>
@@ -1188,6 +1383,7 @@ async function renderNotesView() {
                 out.innerHTML = "<p style='font-size:13px; color:#888;'>No columns.</p>";
                 return;
             }
+            const themeMap = await getThemeCountryColorMapCached();
             let thtml = "<table><thead><tr>";
             for (const c of cols) thtml += `<th>${c}</th>`;
             thtml += "</tr></thead><tbody>";
@@ -1199,7 +1395,15 @@ async function renderNotesView() {
                     const val = row[c];
                     const display = val === null ? "<span style='color:#aaa;'>NULL</span>" : String(val).replace(/</g, "&lt;");
                     const isNum = val !== null && val !== "" && !isNaN(val);
-                    thtml += `<td class="${isNum ? "td-num" : "td-text"}">${display}</td>`;
+                    let bgAttr = "";
+                    if (_isThemeCountryColumn(c) && val != null && String(val).trim() !== "") {
+                        const bg = _exportBaseCellBackground(String(val), themeMap);
+                        if (bg) {
+                            const safe = String(bg).replace(/"/g, "");
+                            bgAttr = ` style="background-color:${safe}"`;
+                        }
+                    }
+                    thtml += `<td class="${isNum ? "td-num" : "td-text"}"${bgAttr}>${display}</td>`;
                 }
                 thtml += "</tr>";
             }
@@ -2920,13 +3124,24 @@ function drawTable(hostElement, columns, rows, options = {}) {
                     inp.style.boxSizing = "border-box";
                     inp.style.border = "1px solid #ccc";
                     inp.style.padding = "2px 4px";
-                    inp.addEventListener("input", () => { row[column] = inp.value; });
+                    inp.addEventListener("input", () => {
+                        row[column] = inp.value;
+                        if (_isThemeCountryColumn(column)) {
+                            applyCountryThemeToTd(td, inp.value);
+                        }
+                    });
                     td.appendChild(inp);
+                    if (_isThemeCountryColumn(column)) {
+                        applyCountryThemeToTd(td, inp.value);
+                    }
                     tr.appendChild(td);
                     return;
                 }
                 td.textContent = value;
                 td.classList.add(isNumericValue(value) ? "td-num" : "td-text");
+                if (_isThemeCountryColumn(column)) {
+                    applyCountryThemeToTd(td, value);
+                }
                 if (row._status === "updated" && Array.isArray(changedFields) && changedFields.includes(column)) {
                     td.style.fontWeight = "bold";
                     td.style.fontSize = "15px";
@@ -2951,6 +3166,9 @@ function drawTable(hostElement, columns, rows, options = {}) {
                             const newVal = input.value.trim();
                             td.textContent = newVal;
                             row[column] = newVal;
+                            if (_isThemeCountryColumn(column)) {
+                                applyCountryThemeToTd(td, newVal);
+                            }
                             if (newVal !== value) {
                                 await editableColumns[column].onSave(row, newVal);
                             }
@@ -3229,6 +3447,90 @@ const EXPORT_CIF_GROUP_LABELS = [
     "Outbound Logistics", "Documentation", "CIF", "Total Terms"
 ];
 
+/** Map themes.Country (lower) → Color. Export "Other" → themes "Other International". */
+function _exportThemeColorByCountry(themesRows) {
+    const m = new Map();
+    for (const t of themesRows || []) {
+        const name = String(t.Country ?? "").trim().toLowerCase();
+        const color = String(t.Color ?? "").trim();
+        if (name && color) {
+            m.set(name, color);
+        }
+    }
+    return m;
+}
+
+function _exportBaseCellBackground(baseText, colorByCountry) {
+    if (!baseText || !colorByCountry?.size) {
+        return "";
+    }
+    const key = baseText.trim().toLowerCase();
+    if (!key) {
+        return "";
+    }
+    if (key === "other") {
+        return colorByCountry.get("other international") || "";
+    }
+    return colorByCountry.get(key) || "";
+}
+
+let _themeCountryColorMapPromise = null;
+
+function invalidateThemeCountryColorMapCache() {
+    _themeCountryColorMapPromise = null;
+}
+
+function getThemeCountryColorMapCached() {
+    if (!_themeCountryColorMapPromise) {
+        _themeCountryColorMapPromise = fetch("/api/themes")
+            .then((r) => (r.ok ? r.json() : []))
+            .then((rows) => _exportThemeColorByCountry(Array.isArray(rows) ? rows : []))
+            .catch(() => new Map());
+    }
+    return _themeCountryColorMapPromise;
+}
+
+function _isThemeCountryColumn(columnName) {
+    if (columnName == null) {
+        return false;
+    }
+    const s = String(columnName);
+    if (s === "Country") {
+        return true;
+    }
+    return s.toLowerCase() === "country";
+}
+
+function applyCountryThemeToTd(td, countryText) {
+    if (!td) {
+        return;
+    }
+    getThemeCountryColorMapCached().then((map) => {
+        const bg = _exportBaseCellBackground(String(countryText || ""), map);
+        if (bg) {
+            td.style.backgroundColor = bg;
+        }
+    });
+}
+
+function _exportRowMatchesSearch(row, baseQuery, cifFeQuery) {
+    const b = (baseQuery || "").trim().toLowerCase();
+    const c = (cifFeQuery || "").trim().toLowerCase();
+    if (b) {
+        const group = String(row._exportBaseGroup ?? row.Base ?? "").trim().toLowerCase();
+        if (!group.includes(b)) {
+            return false;
+        }
+    }
+    if (c) {
+        const port = String(row["CIF FE"] ?? "").trim().toLowerCase();
+        if (!port.includes(c)) {
+            return false;
+        }
+    }
+    return true;
+}
+
 function _buildExportColumns() {
     const cols = ["Base", "CIF FE"];
     EXPORT_CIF_GROUP_LABELS.forEach(group => {
@@ -3276,6 +3578,7 @@ function _buildExportRows(cifByRegion) {
             columns.forEach(c => { row[c] = ""; });
             row["Base"] = isFirst ? entry.base : "";
             row["CIF FE"] = port;
+            row._exportBaseGroup = entry.base;
 
             EXPORT_CIF_GROUP_LABELS.forEach(group => {
                 EXPORT_REGIONS.forEach(abbr => {
@@ -3296,6 +3599,8 @@ async function renderExportTable() {
     const content = document.getElementById("content");
     content.innerHTML = "";
 
+    const exportThemeColors = await getThemeCountryColorMapCached();
+
     let cifData = null;
     try {
         const resp = await fetch("/api/cif");
@@ -3308,6 +3613,30 @@ async function renderExportTable() {
     const columns = _buildExportColumns();
     const rows = _buildExportRows(cifByRegion);
     const regionCount = EXPORT_REGIONS.length;
+
+    const controls = document.createElement("div");
+    controls.style.display = "flex";
+    controls.style.flexWrap = "wrap";
+    controls.style.gap = "8px";
+    controls.style.alignItems = "center";
+    controls.style.marginBottom = "10px";
+    const baseSearchInput = document.createElement("input");
+    baseSearchInput.type = "search";
+    baseSearchInput.placeholder = "Search Base";
+    baseSearchInput.setAttribute("aria-label", "Search Base");
+    baseSearchInput.style.padding = "6px 10px";
+    baseSearchInput.style.fontSize = "13px";
+    baseSearchInput.style.minWidth = "160px";
+    const cifFeSearchInput = document.createElement("input");
+    cifFeSearchInput.type = "search";
+    cifFeSearchInput.placeholder = "Search CIF FE";
+    cifFeSearchInput.setAttribute("aria-label", "Search CIF FE");
+    cifFeSearchInput.style.padding = "6px 10px";
+    cifFeSearchInput.style.fontSize = "13px";
+    cifFeSearchInput.style.minWidth = "160px";
+    controls.appendChild(baseSearchInput);
+    controls.appendChild(cifFeSearchInput);
+    content.appendChild(controls);
 
     const table = document.createElement("table");
     table.className = "usd-table";
@@ -3373,22 +3702,39 @@ async function renderExportTable() {
 
     table.appendChild(thead);
 
-    // Body
     const tbody = document.createElement("tbody");
-    rows.forEach(row => {
-        const tr = document.createElement("tr");
-        columns.forEach((col, i) => {
-            const td = document.createElement("td");
-            const val = row[col] ?? "";
-            td.textContent = val;
-            const isNumCol = col.indexOf("|") > 0 || typeof row[col] === "number";
-            td.className = isNumCol ? "td-num" : "td-text";
-            if (i > 1 && (i - 2) % regionCount === 0) td.style.borderLeft = dividerBorder;
-            tr.appendChild(td);
-        });
-        tbody.appendChild(tr);
-    });
     table.appendChild(tbody);
+
+    function redrawExportBody() {
+        tbody.replaceChildren();
+        const baseQ = baseSearchInput.value;
+        const cifQ = cifFeSearchInput.value;
+        const filtered = rows.filter((r) => _exportRowMatchesSearch(r, baseQ, cifQ));
+        filtered.forEach((row) => {
+            const tr = document.createElement("tr");
+            columns.forEach((col, i) => {
+                const td = document.createElement("td");
+                const val = row[col] ?? "";
+                td.textContent = val;
+                const isNumCol = col.indexOf("|") > 0 || typeof row[col] === "number";
+                td.className = isNumCol ? "td-num" : "td-text";
+                if (col === "Base") {
+                    const baseForTheme = String(val || row._exportBaseGroup || "");
+                    const bg = _exportBaseCellBackground(baseForTheme, exportThemeColors);
+                    if (bg) {
+                        td.style.backgroundColor = bg;
+                    }
+                }
+                if (i > 1 && (i - 2) % regionCount === 0) td.style.borderLeft = dividerBorder;
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+    }
+
+    baseSearchInput.addEventListener("input", redrawExportBody);
+    cifFeSearchInput.addEventListener("input", redrawExportBody);
+    redrawExportBody();
 
     content.appendChild(table);
 }

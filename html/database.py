@@ -43,6 +43,8 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(_SCHEMA_SQL)
     _ensure_is_active_columns(conn)
     conn.execute("DROP TABLE IF EXISTS ocean_costing_lanes")
+    _ensure_themes_type_column(conn)
+    _ensure_themes_seeded(conn)
     conn.commit()
 
 
@@ -184,6 +186,13 @@ CREATE TABLE IF NOT EXISTS ocean_costing_rules (
     logic       TEXT NOT NULL DEFAULT '',
     is_active   INTEGER NOT NULL DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS themes (
+    Country     TEXT NOT NULL,
+    CountryAbbr TEXT NOT NULL PRIMARY KEY,
+    Color       TEXT NOT NULL,
+    "type"      TEXT NOT NULL DEFAULT ''
+);
 """
 
 
@@ -201,6 +210,94 @@ def _ensure_is_active_columns(conn: sqlite3.Connection) -> None:
         if "is_active" not in cols:
             conn.execute(f"ALTER TABLE [{table}] ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
     conn.commit()
+
+
+def _ensure_themes_type_column(conn: sqlite3.Connection) -> None:
+    """Add themes.type column for DBs created before that field existed."""
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='themes'"
+    ).fetchone():
+        return
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(themes)").fetchall()}
+    if "type" not in cols:
+        conn.execute('ALTER TABLE themes ADD COLUMN "type" TEXT NOT NULL DEFAULT \'\'')
+        conn.commit()
+
+
+def _ensure_themes_seeded(conn: sqlite3.Connection) -> None:
+    """One-time seed from chart colors (hex). Skips if themes already has rows."""
+    row = conn.execute("SELECT COUNT(*) AS n FROM themes").fetchone()
+    if row and int(row["n"] or row[0]) > 0:
+        return
+    # Order matches chart IDs 1–21; ES = El Salvador (green block with Latin America).
+    seed: tuple[tuple[str, str, str, str], ...] = (
+        ("China", "CN", "#FF0000", ""),
+        ("Bangladesh", "BD", "#FFC000", ""),
+        ("Pakistan", "PK", "#FFC000", ""),
+        ("India", "IN", "#FFC000", ""),
+        ("Vietnam", "VN", "#00B0F0", ""),
+        ("Korea", "KO", "#00B0F0", ""),
+        ("Japan", "JP", "#00B0F0", ""),
+        ("Malaysia", "MA", "#00B0F0", ""),
+        ("Taiwan", "TW", "#00B0F0", ""),
+        ("Indonesia", "ID", "#00B0F0", ""),
+        ("Thailand", "TH", "#00B0F0", ""),
+        ("Mexico", "MX", "#00B050", ""),
+        ("Peru", "PE", "#00B050", ""),
+        ("Colombia", "CO", "#00B050", ""),
+        ("Ecuador", "EC", "#00B050", ""),
+        ("Guatemala", "GU", "#00B050", ""),
+        ("Honduras", "HO", "#00B050", ""),
+        ("El Salvador", "ES", "#00B050", ""),
+        ("Turkey", "TR", "#7030A0", ""),
+        ("Other International", "OI", "#FFCCFF", ""),
+        ("Total", "TO", "#FFFFFF", ""),
+    )
+    conn.executemany(
+        'INSERT INTO themes (Country, CountryAbbr, Color, "type") VALUES (?, ?, ?, ?)',
+        seed,
+    )
+
+
+def get_themes() -> list[dict[str, str]]:
+    conn = _get_conn()
+    rows = conn.execute(
+        'SELECT Country, CountryAbbr, Color, "type" AS type FROM themes ORDER BY CountryAbbr'
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def save_themes_rows(rows: list) -> int:
+    """Replace all theme rows. Each dict: Country, CountryAbbr, Color, type (optional)."""
+    conn = _get_conn()
+    if not isinstance(rows, list):
+        raise TypeError("rows must be a list")
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        conn.execute("DELETE FROM themes")
+        sql = 'INSERT INTO themes (Country, CountryAbbr, Color, "type") VALUES (?, ?, ?, ?)'
+        n = 0
+        for r in rows:
+            if not isinstance(r, dict):
+                continue
+            abbr = str(r.get("CountryAbbr", "")).strip().upper()
+            if not abbr:
+                continue
+            conn.execute(
+                sql,
+                (
+                    str(r.get("Country", "")).strip(),
+                    abbr,
+                    str(r.get("Color", "")).strip(),
+                    str(r.get("type", "")).strip(),
+                ),
+            )
+            n += 1
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    return n
 
 
 # ---------------------------------------------------------------------------

@@ -1856,6 +1856,26 @@ def cif_rows_api():
     return jsonify({"rows": [_row_with_columns(r, CIF_COLUMNS) for r in built]})
 
 
+@app.route("/api/themes")
+def themes_api():
+    return jsonify(db.get_themes())
+
+
+@app.route("/api/themes/save", methods=["POST"])
+def themes_save_api():
+    payload = request.get_json(force=True, silent=True) or {}
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return jsonify({"error": "rows must be an array"}), 400
+    try:
+        n = db.save_themes_rows(rows)
+        return jsonify({"ok": True, "count": n})
+    except Exception as exc:
+        if current_app.debug:
+            return jsonify({"error": str(exc), "traceback": traceback.format_exc()}), 500
+        return jsonify({"error": str(exc)}), 500
+
+
 def _build_usd_rows():
     _reload_control_panel()
     _reload_consolidation_days_storage()
