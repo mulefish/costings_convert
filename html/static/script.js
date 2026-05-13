@@ -3602,10 +3602,10 @@ const EXPORT_DATA = [
 
 const EXPORT_REGIONS = ["WTX","WTXH","STX","MRS","ER5","EMOT","ME","HOU","DAL","BRZ","AUS"];
 
-/** Export: EMOT / ME — no per-region CIF row for these labels yet (Origin / Inland / Consol / Outbound stay blank). */
+/** Export: EMOT / ME / BRZ — no per-region CIF for these columns yet (Origin / Inland / Consol / Outbound stay blank). */
 function _exportRegionColumnDeferred(abbr) {
     const a = String(abbr ?? "").trim();
-    return a === "EMOT" || a === "ME";
+    return a === "EMOT" || a === "ME" || a === "BRZ";
 }
 
 const EXPORT_REGION_TO_CIF = {
@@ -3626,8 +3626,16 @@ const EXPORT_REGION_TO_CIF = {
 
 const EXPORT_CIF_GROUP_LABELS = [
     "Origin Warehouse", "Inland Logistics", "Consolidation",
-    "Outbound Logistics", "Documentation", "CIF", "Total Terms"
+    "Outbound Logistics", "Documentation", "CIF",
+    "Total Terms", "Premium and Discounts"
 ];
+
+/** Export Total Terms row: per region, sum of each section column to the left of Total Terms (same row & region). */
+const _EXPORT_TOTAL_TERMS_INDEX = EXPORT_CIF_GROUP_LABELS.indexOf("Total Terms");
+const EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS =
+    _EXPORT_TOTAL_TERMS_INDEX > 0
+        ? EXPORT_CIF_GROUP_LABELS.slice(0, _EXPORT_TOTAL_TERMS_INDEX)
+        : [];
 
 /** Map themes.Country (lower) → Color. Export "Other" → themes "Other International". */
 function _exportThemeColorByCountry(themesRows) {
@@ -3734,6 +3742,7 @@ function _exportCifFieldForGroup(groupLabel) {
         "Outbound Logistics": "Total_Out",
         Documentation: "Total_Doc",
         CIF: "Total_CIF",
+        "Premium and Discounts": "",
         "Total Terms": "Cash",
     };
     return map[groupLabel] || "";
@@ -3938,8 +3947,40 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         );
     }
 
+    if (group === "Total Terms") {
+        const parts = [];
+        let sum = 0;
+        let hasError = false;
+        for (const g of EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS) {
+            const k = `${g}|${abbr}`;
+            const cell = row[k];
+            const str = cell === undefined || cell === null ? "" : String(cell).trim();
+            if (str === "ERROR") {
+                hasError = true;
+                parts.push(`${g}=ERROR`);
+            } else {
+                const n = _exportParseNumericCell(str);
+                const add = Number.isFinite(n) ? n : 0;
+                sum += add;
+                parts.push(`${g}=${str === "" ? "0" : str}`);
+            }
+        }
+        if (hasError) {
+            return `Total Terms (${abbr}): ${parts.join(", ")} → ERROR because a contributing cell is ERROR.`;
+        }
+        return (
+            `Total Terms (${abbr}): sum of this row for region ${abbr} — ` +
+            `${EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS.join(", ")}: ` +
+            `${parts.join(" + ")} = ${_exportWholeNumberString(sum)} (rounded whole).`
+        );
+    }
+
     if (_exportRegionColumnDeferred(abbr) && group !== "Documentation" && group !== "CIF") {
-        return `Column "${column}": EMOT and ME are blank here (no per-region CIF for these columns yet; Documentation and CIF rows still show country totals).`;
+        return `Column "${column}": EMOT, ME, and BRZ are blank here (no per-region CIF for these columns yet; Documentation and CIF rows still show country totals).`;
+    }
+
+    if (group === "Premium and Discounts") {
+        return `Premium and Discounts (${abbr}): not mapped to GET /api/cif yet; cells are blank (section is to the right of Total Terms and is not part of that sum).`;
     }
 
     if (group === "Outbound Logistics" && _exportOutboundUsesCifDrayAndOceanHubPts(abbr)) {
@@ -4093,6 +4134,9 @@ function _exportCifSectionTotalPts(country, documentCifRows, usaFwd) {
 }
 
 function _exportCellValueForGroupRegion(cifByRegion, group, abbr) {
+    if (group === "Total Terms") {
+        return "";
+    }
     if (_exportRegionColumnDeferred(abbr)) {
         return "";
     }
@@ -4103,6 +4147,28 @@ function _exportCellValueForGroupRegion(cifByRegion, group, abbr) {
     const raw = cifRow[cifKey];
     if (raw === undefined || raw === null || raw === "") return "";
     return _exportWholeNumberString(raw);
+}
+
+function _exportFillTotalTermsCellsForRow(row) {
+    EXPORT_REGIONS.forEach((abbr) => {
+        const ttKey = "Total Terms|" + abbr;
+        let sum = 0;
+        let hasError = false;
+        for (const group of EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS) {
+            const key = group + "|" + abbr;
+            const raw = row[key];
+            const s = raw === undefined || raw === null ? "" : String(raw).trim();
+            if (s === "ERROR") {
+                hasError = true;
+                break;
+            }
+            const n = _exportParseNumericCell(s);
+            if (Number.isFinite(n)) {
+                sum += n;
+            }
+        }
+        row[ttKey] = hasError ? "ERROR" : _exportWholeNumberString(sum);
+    });
 }
 
 function _buildExportRows(cifByRegion, exportOpts) {
@@ -4153,6 +4219,8 @@ function _buildExportRows(cifByRegion, exportOpts) {
                     }
                 });
             });
+
+            _exportFillTotalTermsCellsForRow(row);
 
             rows.push(row);
         });
@@ -4291,7 +4359,7 @@ async function renderExportTable() {
 
     const dividerBorder = "3px solid #333";
 
-    // Row 1: CIF group headers, each spanning 11 region columns
+    // Row 1: CIF group headers, each spanning all region columns
     const r1 = document.createElement("tr");
     const emptyTh = document.createElement("th");
     emptyTh.colSpan = 2;
@@ -4369,6 +4437,8 @@ async function renderExportTable() {
                         );
                     }
                     v = _exportWholeNumberString(samplePts);
+                } else if (group === "Total Terms") {
+                    v = rows.length ? String(rows[0][col] ?? "") : "";
                 } else {
                     v = _exportCellValueForGroupRegion(cifByRegion, group, abbr);
                 }
