@@ -1892,6 +1892,70 @@ def cif_rows_api():
     return jsonify({"rows": [_row_with_columns(r, CIF_COLUMNS) for r in built]})
 
 
+@app.route("/api/export/documentation-totals")
+def export_documentation_totals_api():
+    """Per-country Total Doc in PTS for Export Documentation: (LC/20 + CONT/20 + INS/20 + USA forwarding TOTAL) × 20.
+
+    Keys are normalized country names (uppercase, collapsed spaces) for Export view lookup.
+    """
+    _reload_document_cif()
+    _reload_usa_forwarding_cost()
+    _recompute_usa_forwarding_total()
+    forwarding_usd = _to_float(usa_forwarding_cost.get("TOTAL"), 0.0)
+    pts = 20.0
+    totals: dict[str, int] = {}
+    for row in document_cif:
+        if not isinstance(row, dict):
+            continue
+        country = str(row.get("country", "")).strip()
+        if not country:
+            continue
+        lc = _to_float(row.get("LC"), 0.0)
+        ins = _to_float(row.get("INS"), 0.0)
+        cont = _to_float(row.get("CONT"), 0.0)
+        sight_usd = lc / 20.0
+        insurance_usd = ins / 20.0
+        controlling_usd = cont / 20.0
+        total_usd = sight_usd + forwarding_usd + controlling_usd + insurance_usd
+        k = _normalize_key(country)
+        totals[k] = int(round(total_usd * pts))
+    resp = jsonify(totals)
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
+
+
+@app.route("/api/export/cif-totals")
+def export_cif_totals_api():
+    """Per-country Total CIF in PTS for Export CIF section: (COM/20 + COF/20 + CIQ_QC/20 + USA forwarding TOTAL) × 20.
+
+    Keys are normalized country names (uppercase, collapsed spaces) for Export view lookup.
+    """
+    _reload_document_cif()
+    _reload_usa_forwarding_cost()
+    _recompute_usa_forwarding_total()
+    forwarding_usd = _to_float(usa_forwarding_cost.get("TOTAL"), 0.0)
+    pts = 20.0
+    totals: dict[str, int] = {}
+    for row in document_cif:
+        if not isinstance(row, dict):
+            continue
+        country = str(row.get("country", "")).strip()
+        if not country:
+            continue
+        com = _to_float(row.get("COM"), 0.0)
+        cof = _to_float(row.get("COF"), 0.0)
+        ciq = _to_float(row.get("CIQ_QC"), 0.0)
+        dest_comm_usd = com / 20.0
+        cof_usd = cof / 20.0
+        qclaim_usd = ciq / 20.0
+        total_usd = dest_comm_usd + cof_usd + qclaim_usd + forwarding_usd
+        k = _normalize_key(country)
+        totals[k] = int(round(total_usd * pts))
+    resp = jsonify(totals)
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
+
+
 @app.route("/api/themes")
 def themes_api():
     resp = jsonify(db.get_themes())
