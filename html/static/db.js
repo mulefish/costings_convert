@@ -39,6 +39,26 @@ const VIEW_CONFIG = {
         ],
         rows: []
     },
+    "Ocean Costing": {
+        columns: [
+            "Row",
+            "Port",
+            "Destination",
+            "Country",
+            "Delivery Type",
+            "Code",
+            "SCAC",
+            "Ocean Freight",
+            "GRI",
+            "Ocean Total",
+            "Total pts",
+            "Updated",
+            "Expiration",
+            "Previous",
+            "Delta",
+        ],
+        rows: [],
+    },
     "Seam Tariffs": {
         columns: [
             "Row",

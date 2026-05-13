@@ -1080,6 +1080,12 @@ async function select_view() {
         return;
     }
 
+    if (viewName === "Ocean Costing") {
+        await loadOceanCostingRows(config);
+        renderOceanCostingTable(config);
+        return;
+    }
+
     if (viewName === "Seam Tariffs") {
         await loadSeamTariffRows(config);
         renderSeamTariffTable(config);
@@ -1135,8 +1141,16 @@ async function renderNotesView() {
         return;
     }
 
-    const options = tables.map(t => `<option value="${t}">${t}</option>`).join("");
+    const preferredTable = "ocean_costing_rules";
+    const initialTable = tables.includes(preferredTable) ? preferredTable : (tables[0] || "");
+
+    const options = tables
+        .map((t) => `<option value="${t}"${t === initialTable ? " selected" : ""}>${t}</option>`)
+        .join("");
     content.innerHTML = `<div style="font-family:Arial,sans-serif;">
+        <p style="font-size:12px; color:#555; margin:0 0 10px 0;">
+            Browse any SQLite table. <strong>ocean_costing_rules</strong> stores Ocean Costing rule rows (versioned via <code>is_active</code>).
+        </p>
         <div style="margin-bottom:12px;">
             <label style="font-size:13px; font-weight:bold; margin-right:8px;">Table:</label>
             <select id="db-table-select" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
@@ -1199,7 +1213,7 @@ async function renderNotesView() {
     function reload() { loadTable(sel.value); }
     sel.addEventListener("change", reload);
     toggle.addEventListener("change", reload);
-    if (tables.length) loadTable(tables[0]);
+    if (tables.length) loadTable(initialTable);
 }
 
 async function loadOtrRows(config) {
@@ -1238,6 +1252,234 @@ async function loadOceanRows(config) {
         }
         const payload = await response.json();
         config.rows = Array.isArray(payload.rows) ? payload.rows : [];
+    } catch (error) {
+        console.error(error);
+        config.rows = [];
+    }
+}
+
+function _oceanCostingCompoundKey(row) {
+    const port = String(row.Port ?? "").trim().toUpperCase();
+    const dest = String(row.Destination ?? "").trim().toUpperCase();
+    const country = String(row.Country ?? "").trim().toUpperCase();
+    return `${port}\x1f${dest}\x1f${country}`;
+}
+
+/** SCACs used for Ocean Costing averages (matches server CSV `scacCode`). */
+const OCEAN_COSTING_CMDU_MAEU_SCACS = new Set(["CMDU", "MAEU"]);
+
+const OCEAN_COSTING_RULE_CHEAPEST = new Set([
+    "china",
+    "indonesia",
+    "thailand",
+    "taiwan",
+    "vietnam",
+    "korea",
+    "japan",
+    "malaysia",
+    "spain",
+    "italy",
+]);
+
+const OCEAN_COSTING_RULE_CMDU_MAEU_MEAN = new Set([
+    "peru",
+    "guatemala",
+    "honduras",
+    "nicaragua",
+    "colombia",
+    "ecuador",
+    "costa rica",
+    "el salvador",
+]);
+
+const OCEAN_COSTING_RULE_TOP3_CMDU_MAEU_MEAN = new Set(["bangladesh", "turkey", "pakistan", "india"]);
+
+function _oceanCostingCanonicalCountryName(countryRaw) {
+    const c = String(countryRaw ?? "").trim().toLowerCase();
+    if (c === "south korea" || c === "republic of korea") {
+        return "korea";
+    }
+    if (c === "pakastan") {
+        return "pakistan";
+    }
+    return c;
+}
+
+function _oceanCostingFreightRuleForCountry(countryRaw) {
+    const c = _oceanCostingCanonicalCountryName(countryRaw);
+    if (OCEAN_COSTING_RULE_CHEAPEST.has(c)) {
+        return "cheapest";
+    }
+    if (OCEAN_COSTING_RULE_CMDU_MAEU_MEAN.has(c)) {
+        return "cmdumaeu_mean";
+    }
+    if (OCEAN_COSTING_RULE_TOP3_CMDU_MAEU_MEAN.has(c)) {
+        return "cmdumaeu_top3_mean";
+    }
+    return "cheapest";
+}
+
+function _parseOceanCostingNumber(value) {
+    if (value === null || value === undefined || value === "") {
+        return NaN;
+    }
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? value : NaN;
+    }
+    const n = parseFloat(String(value).replace(/,/g, ""));
+    return Number.isFinite(n) ? n : NaN;
+}
+
+function _normOceanCostingScac(scac) {
+    return String(scac ?? "").trim().toUpperCase();
+}
+
+function _roundOceanCostingMoney(n) {
+    if (!Number.isFinite(n)) {
+        return n;
+    }
+    return Math.round(n * 100) / 100;
+}
+
+function _meanFiniteOceanCosting(nums) {
+    const ok = nums.filter(Number.isFinite);
+    if (!ok.length) {
+        return NaN;
+    }
+    return ok.reduce((a, b) => a + b, 0) / ok.length;
+}
+
+function _cheapestOceanFreightAmongRows(rows) {
+    let best = NaN;
+    for (const r of rows) {
+        const n = _parseOceanCostingNumber(r["Ocean Freight"]);
+        if (Number.isFinite(n) && (!Number.isFinite(best) || n < best)) {
+            best = n;
+        }
+    }
+    return best;
+}
+
+function _cmdumaeuOceanFreightValues(rows) {
+    const out = [];
+    for (const r of rows) {
+        if (!OCEAN_COSTING_CMDU_MAEU_SCACS.has(_normOceanCostingScac(r.SCAC))) {
+            continue;
+        }
+        const n = _parseOceanCostingNumber(r["Ocean Freight"]);
+        if (Number.isFinite(n)) {
+            out.push(n);
+        }
+    }
+    return out;
+}
+
+function _computeOceanCostingAggregateFreight(rows, rule) {
+    const cheapest = _cheapestOceanFreightAmongRows(rows);
+    if (rule === "cheapest") {
+        return cheapest;
+    }
+    if (rule === "cmdumaeu_mean") {
+        const pool = _cmdumaeuOceanFreightValues(rows);
+        if (pool.length) {
+            return _meanFiniteOceanCosting(pool);
+        }
+        return cheapest;
+    }
+    if (rule === "cmdumaeu_top3_mean") {
+        const scored = rows
+            .filter((r) => OCEAN_COSTING_CMDU_MAEU_SCACS.has(_normOceanCostingScac(r.SCAC)))
+            .map((r) => _parseOceanCostingNumber(r["Ocean Freight"]))
+            .filter(Number.isFinite)
+            .sort((a, b) => a - b);
+        const top3 = scored.slice(0, 3);
+        if (top3.length) {
+            return _meanFiniteOceanCosting(top3);
+        }
+        return cheapest;
+    }
+    return cheapest;
+}
+
+function _pickOceanCostingRepresentativeRow(rows) {
+    let best = null;
+    let bestN = NaN;
+    for (const r of rows) {
+        const n = _parseOceanCostingNumber(r["Ocean Freight"]);
+        if (!Number.isFinite(n)) {
+            continue;
+        }
+        if (!best || n < bestN) {
+            best = r;
+            bestN = n;
+        }
+    }
+    return best || rows[0] || {};
+}
+
+function _oceanCostingRowFromOcean(row, rowNum, columns) {
+    const out = {};
+    for (const col of columns) {
+        if (col === "Row") {
+            out[col] = rowNum;
+        } else {
+            out[col] = row[col] ?? "";
+        }
+    }
+    return out;
+}
+
+function dedupeOceanCostingRows(rawRows, columns) {
+    const byKey = new Map();
+    for (const r of rawRows) {
+        const k = _oceanCostingCompoundKey(r);
+        if (!byKey.has(k)) {
+            byKey.set(k, []);
+        }
+        byKey.get(k).push(r);
+    }
+    const orderedKeys = [];
+    const seen = new Set();
+    for (const r of rawRows) {
+        const k = _oceanCostingCompoundKey(r);
+        if (seen.has(k)) {
+            continue;
+        }
+        seen.add(k);
+        orderedKeys.push(k);
+    }
+    const merged = [];
+    for (const k of orderedKeys) {
+        const group = byKey.get(k) || [];
+        if (!group.length) {
+            continue;
+        }
+        const country = group[0].Country ?? "";
+        const rule = _oceanCostingFreightRuleForCountry(country);
+        const freight = _computeOceanCostingAggregateFreight(group, rule);
+        const base = { ..._pickOceanCostingRepresentativeRow(group) };
+        const gri = _parseOceanCostingNumber(base.GRI);
+        const griN = Number.isFinite(gri) ? gri : 0;
+        if (Number.isFinite(freight)) {
+            base["Ocean Freight"] = _roundOceanCostingMoney(freight);
+            const oceanTotal = freight + griN;
+            base["Ocean Total"] = _roundOceanCostingMoney(oceanTotal);
+            base["Total pts"] = _roundOceanCostingMoney((oceanTotal / 88.0) * 20.0);
+        }
+        merged.push(base);
+    }
+    return merged.map((r, i) => _oceanCostingRowFromOcean(r, i + 1, columns));
+}
+
+async function loadOceanCostingRows(config) {
+    try {
+        const response = await fetch("/api/ocean");
+        if (!response.ok) {
+            throw new Error(`Failed to load Ocean Costing rows (${response.status})`);
+        }
+        const payload = await response.json();
+        const raw = Array.isArray(payload.rows) ? payload.rows : [];
+        config.rows = dedupeOceanCostingRows(raw, config.columns);
     } catch (error) {
         console.error(error);
         config.rows = [];
@@ -1739,6 +1981,55 @@ function renderOceanTable(config) {
                 toggleSort(sortState, column);
                 draw();
             }
+        });
+    };
+
+    portInput.addEventListener("input", draw);
+    countryInput.addEventListener("input", draw);
+    draw();
+}
+
+function renderOceanCostingTable(config) {
+    const content = document.getElementById("content");
+
+    const note = document.createElement("p");
+    note.style.fontSize = "12px";
+    note.style.color = "#555";
+    note.style.marginBottom = "8px";
+    note.textContent =
+        "Same ocean data as OCEAN: one row per Port + Destination + Country. Ocean Freight is chosen by country rules (cheapest, CMDU/MAEU mean, or mean of the three lowest CMDU/MAEU rates). Use the search boxes to filter.";
+    content.appendChild(note);
+
+    const controls = document.createElement("div");
+    const portInput = document.createElement("input");
+    const countryInput = document.createElement("input");
+
+    portInput.placeholder = "Search Port";
+    countryInput.placeholder = "Search Country or Destination";
+
+    controls.appendChild(portInput);
+    controls.appendChild(countryInput);
+    controls.style.display = "flex";
+    controls.style.alignItems = "center";
+    controls.style.flexWrap = "wrap";
+    controls.style.gap = "8px";
+    controls.style.marginBottom = "6px";
+    content.appendChild(controls);
+
+    const tableHost = document.createElement("div");
+    tableHost.id = "ocean-costing-table-host";
+    content.appendChild(tableHost);
+
+    const sortState = { column: null, ascending: true };
+    const draw = () => {
+        const filteredRows = filterOceanRows(config.rows, portInput.value, countryInput.value);
+        const sortedRows = sortRows(filteredRows, sortState);
+        drawTable(tableHost, config.columns, sortedRows, {
+            sortState,
+            onHeaderClick: (column) => {
+                toggleSort(sortState, column);
+                draw();
+            },
         });
     };
 
@@ -2786,6 +3077,8 @@ function showCellDerivation(row, column, value, rowIdx) {
         derivation = `CSV → OTR source [ row ${rowIdx + 1} ] . "${column}"`;
     } else if (viewName === "OCEAN") {
         derivation = `API → ICE cotton futures [ row ${rowIdx + 1} ] . "${column}"`;
+    } else if (viewName === "Ocean Costing") {
+        derivation = `GET /api/ocean (deduped by Port+Destination+Country) [ row ${rowIdx + 1} ] . "${column}"`;
     } else if (viewName === "USD") {
         derivation = _usdDerivation(row, column);
     } else {

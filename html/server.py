@@ -1464,6 +1464,56 @@ def ocean_rows():
     return jsonify({"rows": [_row_with_columns(r, OCEAN_COLUMNS) for r in rows]})
 
 
+@app.route("/api/ocean-costing-rules", methods=["GET"])
+def ocean_costing_rules_list():
+    rows = db.get_ocean_costing_rules(active_only=True)
+    return jsonify({"rows": rows})
+
+
+@app.route("/api/ocean-costing-rules/save", methods=["POST"])
+def ocean_costing_rules_save():
+    payload = request.get_json(force=True, silent=True) or {}
+    city = str(payload.get("city", "")).strip()
+    desc = str(payload.get("desc", "")).strip()
+    country = str(payload.get("country", "")).strip()
+    logic = str(payload.get("logic", "")).strip()
+    if not city or not country:
+        return jsonify({"error": "city and country are required"}), 400
+    db.deactivate_ocean_costing_rules_matching(city, desc, country)
+    new_id = db.insert_ocean_costing_rule(city, desc, country, logic)
+    return jsonify({"ok": True, "id": new_id})
+
+
+@app.route("/api/ocean-costing-rules/save-all", methods=["POST"])
+def ocean_costing_rules_save_all():
+    payload = request.get_json(force=True, silent=True) or {}
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return jsonify({"error": "rows must be an array"}), 400
+    merged: dict[tuple[str, str, str], tuple[str, str, str, str]] = {}
+    for item in rows:
+        if not isinstance(item, dict):
+            continue
+        city = str(item.get("city", "")).strip()
+        desc = str(item.get("desc", "")).strip()
+        country = str(item.get("country", "")).strip()
+        logic = str(item.get("logic", "")).strip()
+        if not city or not country:
+            continue
+        k = (
+            db._norm_ocean_rule_key(city),
+            db._norm_ocean_rule_key(desc),
+            db._norm_ocean_rule_key(country),
+        )
+        merged[k] = (city, desc, country, logic)
+    db.deactivate_all_ocean_costing_rules()
+    saved = 0
+    for city, desc, country, logic in merged.values():
+        db.insert_ocean_costing_rule(city, desc, country, logic)
+        saved += 1
+    return jsonify({"ok": True, "saved": saved})
+
+
 def _seam_db_to_api(raw: dict) -> dict:
     return {
         "Warehouse": raw.get("warehouse", ""),

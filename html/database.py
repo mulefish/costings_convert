@@ -42,6 +42,8 @@ def _get_conn() -> sqlite3.Connection:
 def _ensure_schema(conn: sqlite3.Connection) -> None:
     conn.executescript(_SCHEMA_SQL)
     _ensure_is_active_columns(conn)
+    conn.execute("DROP TABLE IF EXISTS ocean_costing_lanes")
+    conn.commit()
 
 
 _SCHEMA_SQL = """
@@ -173,13 +175,22 @@ CREATE TABLE IF NOT EXISTS regions_and_ports (
     consol_interest      TEXT NOT NULL DEFAULT '',
     is_active            INTEGER NOT NULL DEFAULT 1
 );
+
+CREATE TABLE IF NOT EXISTS ocean_costing_rules (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    city        TEXT NOT NULL DEFAULT '',
+    description TEXT NOT NULL DEFAULT '',
+    country     TEXT NOT NULL DEFAULT '',
+    logic       TEXT NOT NULL DEFAULT '',
+    is_active   INTEGER NOT NULL DEFAULT 1
+);
 """
 
 
 _ALL_TABLES = (
     "control_panel", "consolidation", "consolidation_days_storage",
     "drayage", "document_cif", "usa_forwarding_cost", "cif_regions", "notes",
-    "otr_rates", "seam_tariffs", "regions_and_ports",
+    "otr_rates", "seam_tariffs", "regions_and_ports", "ocean_costing_rules",
 )
 
 
@@ -554,6 +565,77 @@ def insert_regions_and_ports_row(row: dict) -> None:
 def deactivate_regions_and_ports_row(row_id: int) -> None:
     conn = _get_conn()
     conn.execute("UPDATE regions_and_ports SET is_active = 0 WHERE id = ?", (row_id,))
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# ocean_costing_rules (versioned: save deactivates prior row with same city/desc/country)
+# ---------------------------------------------------------------------------
+
+
+def _norm_ocean_rule_key(value) -> str:
+    return " ".join(str(value or "").strip().split()).lower()
+
+
+def get_ocean_costing_rules(active_only: bool = True) -> list[dict]:
+    conn = _get_conn()
+    where = " WHERE is_active = 1" if active_only else ""
+    rows = conn.execute(
+        "SELECT id, city, description, country, logic, is_active "
+        f"FROM ocean_costing_rules{where} ORDER BY id"
+    ).fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        out.append(
+            {
+                "id": d["id"],
+                "city": str(d.get("city") or ""),
+                "desc": str(d.get("description") or ""),
+                "country": str(d.get("country") or ""),
+                "logic": str(d.get("logic") or ""),
+                "is_active": int(d.get("is_active") or 0),
+            }
+        )
+    return out
+
+
+def insert_ocean_costing_rule(city: str, desc: str, country: str, logic: str) -> int:
+    conn = _get_conn()
+    cur = conn.execute(
+        "INSERT INTO ocean_costing_rules (city, description, country, logic, is_active) "
+        "VALUES (?, ?, ?, ?, 1)",
+        (city.strip(), desc.strip(), country.strip(), logic.strip()),
+    )
+    conn.commit()
+    return int(cur.lastrowid)
+
+
+def deactivate_ocean_costing_rules_matching(city: str, desc: str, country: str) -> int:
+    """Deactivate active rows whose (city, desc, country) matches after normalization. Returns count."""
+    conn = _get_conn()
+    nc = _norm_ocean_rule_key(city)
+    nd = _norm_ocean_rule_key(desc)
+    nct = _norm_ocean_rule_key(country)
+    rows = conn.execute(
+        "SELECT id, city, description, country FROM ocean_costing_rules WHERE is_active = 1"
+    ).fetchall()
+    n = 0
+    for r in rows:
+        if (
+            _norm_ocean_rule_key(r["city"]) == nc
+            and _norm_ocean_rule_key(r["description"]) == nd
+            and _norm_ocean_rule_key(r["country"]) == nct
+        ):
+            conn.execute("UPDATE ocean_costing_rules SET is_active = 0 WHERE id = ?", (r["id"],))
+            n += 1
+    conn.commit()
+    return n
+
+
+def deactivate_all_ocean_costing_rules() -> None:
+    conn = _get_conn()
+    conn.execute("UPDATE ocean_costing_rules SET is_active = 0 WHERE is_active = 1")
     conn.commit()
 
 
