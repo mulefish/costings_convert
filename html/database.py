@@ -45,6 +45,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     conn.execute("DROP TABLE IF EXISTS ocean_costing_lanes")
     _ensure_themes_type_column(conn)
     _ensure_themes_seeded(conn)
+    _ensure_document_cif_gri_column(conn)
     conn.commit()
 
 
@@ -90,6 +91,7 @@ CREATE TABLE IF NOT EXISTS document_cif (
     com       REAL,
     cof       REAL,
     ciq_qc    REAL,
+    gri       REAL NOT NULL DEFAULT 0,
     is_active INTEGER NOT NULL DEFAULT 1
 );
 
@@ -210,6 +212,18 @@ def _ensure_is_active_columns(conn: sqlite3.Connection) -> None:
         if "is_active" not in cols:
             conn.execute(f"ALTER TABLE [{table}] ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1")
     conn.commit()
+
+
+def _ensure_document_cif_gri_column(conn: sqlite3.Connection) -> None:
+    """Add document_cif.gri for DBs created before that column existed."""
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='document_cif'"
+    ).fetchone():
+        return
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(document_cif)").fetchall()}
+    if "gri" not in cols:
+        conn.execute("ALTER TABLE document_cif ADD COLUMN gri REAL NOT NULL DEFAULT 0")
+        conn.commit()
 
 
 def _ensure_themes_type_column(conn: sqlite3.Connection) -> None:
@@ -417,7 +431,8 @@ def save_drayage(data: dict) -> None:
 def get_document_cif() -> list[dict]:
     conn = _get_conn()
     rows = conn.execute(
-        "SELECT country, code, lc, ins, cont, com, cof, ciq_qc FROM document_cif ORDER BY id"
+        "SELECT country, code, lc, ins, cont, com, cof, ciq_qc, gri "
+        "FROM document_cif ORDER BY id"
     ).fetchall()
     return [
         {
@@ -429,6 +444,7 @@ def get_document_cif() -> list[dict]:
             "COM": r["com"],
             "COF": r["cof"],
             "CIQ_QC": r["ciq_qc"],
+            "GRI": r["gri"],
         }
         for r in rows
     ]
@@ -437,10 +453,14 @@ def get_document_cif() -> list[dict]:
 def save_document_cif(data: list[dict]) -> None:
     conn = _get_conn()
     conn.execute("DELETE FROM document_cif")
-    conn.executemany(
-        "INSERT INTO document_cif (country, code, lc, ins, cont, com, cof, ciq_qc) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        [
+    params: list[tuple] = []
+    for row in data:
+        gri_v = row.get("GRI")
+        try:
+            gri_f = 0.0 if gri_v is None else float(gri_v)
+        except (TypeError, ValueError):
+            gri_f = 0.0
+        params.append(
             (
                 row.get("country", ""),
                 row.get("code", ""),
@@ -450,9 +470,13 @@ def save_document_cif(data: list[dict]) -> None:
                 row.get("COM"),
                 row.get("COF"),
                 row.get("CIQ_QC"),
+                gri_f,
             )
-            for row in data
-        ],
+        )
+    conn.executemany(
+        "INSERT INTO document_cif (country, code, lc, ins, cont, com, cof, ciq_qc, gri) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        params,
     )
     conn.commit()
 

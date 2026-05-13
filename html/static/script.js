@@ -53,7 +53,7 @@ async function renderControlPanelView() {
     p.style.maxWidth = "720px";
     p.style.lineHeight = "1.45";
     p.textContent =
-        "Values edited here are saved to the SQLite database (costings/data/costings.db): global control-panel numbers (fuel surcharge, OTR GRI, ocean GRI, interest, commission, and related inputs), consolidation, consolidation days storage, drayage by port, document/CIF by country, USA forwarding, and themes (Export Base colors). " +
+        "Values edited here are saved to the SQLite database (costings/data/costings.db): global control-panel numbers (fuel surcharge, OTR GRI, ocean GRI, interest, commission, and related inputs), consolidation, consolidation days storage, drayage by port, document/CIF by country, USA forwarding, and themes (Export tints each row using Themes → Country vs Export Base). " +
         "They drive the OTR, OCEAN, USD, PTS, CIF, and Export views.";
     wrap.appendChild(p);
 
@@ -642,6 +642,7 @@ async function renderControlPanelView() {
 
     const DOC_CIF_FIELDS = [
         { key: "country", label: "Country", kind: "text" },
+        { key: "GRI", label: "GRI", kind: "number", defaultZero: true },
         { key: "code", label: "Code", kind: "text" },
         { key: "LC", label: "LC", kind: "number" },
         { key: "INS", label: "INS", kind: "number" },
@@ -663,7 +664,7 @@ async function renderControlPanelView() {
     pDocCif.style.maxWidth = "960px";
     pDocCif.style.lineHeight = "1.45";
     pDocCif.textContent =
-        "Per-country sight LC, insurance, controlling, commission, cost of funds, and CIQ/QC factors are saved to costings/data/document_cif.json. Leave a numeric cell blank to store null.";
+        "Per-country GRI (defaults to 0), sight LC, insurance, controlling, commission, cost of funds, and CIQ/QC factors are stored in SQLite (document_cif). Leave other numeric cells blank to store null. Add or remove rows as needed, then save.";
     wrap.appendChild(pDocCif);
 
     wrap.appendChild(docCifStatus);
@@ -683,13 +684,23 @@ async function renderControlPanelView() {
         th.style.color = "#fff";
         docCifHr.appendChild(th);
     });
+    const docCifThActions = document.createElement("th");
+    docCifThActions.textContent = "";
+    docCifThActions.style.border = "1px solid #d9d9d9";
+    docCifThActions.style.padding = "6px 10px";
+    docCifThActions.style.background = "#2f5fa7";
+    docCifThActions.style.color = "#fff";
+    docCifThActions.style.width = "88px";
+    docCifHr.appendChild(docCifThActions);
     docCifThead.appendChild(docCifHr);
     docCifTable.appendChild(docCifThead);
     const docCifTbody = document.createElement("tbody");
+    docCifTbody.id = "jarvis-doc-cif-tbody";
 
-    documentCifData.forEach((row) => {
+    function addJarvisDocCifRow(rowData) {
+        const d = rowData || {};
         const tr = document.createElement("tr");
-        DOC_CIF_FIELDS.forEach(({ key, kind }) => {
+        DOC_CIF_FIELDS.forEach(({ key, kind, defaultZero }) => {
             const td = document.createElement("td");
             td.style.border = "1px solid #d9d9d9";
             td.style.padding = "6px 10px";
@@ -698,12 +709,19 @@ async function renderControlPanelView() {
             if (kind === "number") {
                 inp.step = "any";
             }
-            const raw = row[key];
+            const raw = d[key];
             if (kind === "number") {
-                inp.value =
-                    raw !== undefined && raw !== null && raw !== ""
-                        ? raw
-                        : "";
+                if (defaultZero) {
+                    inp.value =
+                        raw !== undefined && raw !== null && raw !== ""
+                            ? raw
+                            : "0";
+                } else {
+                    inp.value =
+                        raw !== undefined && raw !== null && raw !== ""
+                            ? raw
+                            : "";
+                }
             } else {
                 inp.value = raw !== undefined && raw !== null ? String(raw) : "";
             }
@@ -718,8 +736,26 @@ async function renderControlPanelView() {
             }
             tr.appendChild(td);
         });
+        const tdRm = document.createElement("td");
+        tdRm.style.border = "1px solid #d9d9d9";
+        tdRm.style.padding = "6px 10px";
+        const rmBtn = document.createElement("button");
+        rmBtn.type = "button";
+        rmBtn.textContent = "Remove";
+        rmBtn.style.fontSize = "12px";
+        rmBtn.style.cursor = "pointer";
+        rmBtn.addEventListener("click", () => {
+            tr.remove();
+        });
+        tdRm.appendChild(rmBtn);
+        tr.appendChild(tdRm);
         docCifTbody.appendChild(tr);
+    }
+
+    (Array.isArray(documentCifData) ? documentCifData : []).forEach((row) => {
+        addJarvisDocCifRow(row);
     });
+
     docCifTable.appendChild(docCifTbody);
     wrap.appendChild(docCifTable);
 
@@ -728,6 +764,17 @@ async function renderControlPanelView() {
     docCifBtnRow.style.display = "flex";
     docCifBtnRow.style.gap = "8px";
     docCifBtnRow.style.alignItems = "center";
+    docCifBtnRow.style.flexWrap = "wrap";
+
+    const addDocCifBtn = document.createElement("button");
+    addDocCifBtn.type = "button";
+    addDocCifBtn.textContent = "Add row";
+    addDocCifBtn.style.padding = "8px 16px";
+    addDocCifBtn.style.cursor = "pointer";
+    addDocCifBtn.addEventListener("click", () => {
+        addJarvisDocCifRow({ GRI: 0 });
+    });
+
     const saveDocCifBtn = document.createElement("button");
     saveDocCifBtn.type = "button";
     saveDocCifBtn.textContent = "Save document / CIF";
@@ -737,9 +784,9 @@ async function renderControlPanelView() {
         docCifStatus.textContent = "";
         docCifStatus.style.color = "";
         const body = [];
-        for (const tr of docCifTable.querySelectorAll("tbody tr")) {
+        for (const tr of docCifTbody.querySelectorAll("tr")) {
             const rowObj = {};
-            for (const { key, kind } of DOC_CIF_FIELDS) {
+            for (const { key, kind, defaultZero } of DOC_CIF_FIELDS) {
                 const inp = tr.querySelector(`input[data-doc-cif-field="${key}"]`);
                 if (!inp) {
                     continue;
@@ -749,9 +796,9 @@ async function renderControlPanelView() {
                 } else {
                     const s = inp.value.trim();
                     if (s === "") {
-                        rowObj[key] = null;
+                        rowObj[key] = defaultZero ? 0 : null;
                     } else {
-                        const v = parseFloat(s, 10);
+                        const v = parseFloat(s);
                         if (Number.isNaN(v)) {
                             docCifStatus.textContent = `Invalid number for ${key} (${rowObj.country || "row"}).`;
                             docCifStatus.style.color = "#b00020";
@@ -759,6 +806,19 @@ async function renderControlPanelView() {
                         }
                         rowObj[key] = v;
                     }
+                }
+            }
+            if (!rowObj.country && !rowObj.code) {
+                const hasOther =
+                    rowObj.GRI !== 0 ||
+                    rowObj.LC != null ||
+                    rowObj.INS != null ||
+                    rowObj.CONT != null ||
+                    rowObj.COM != null ||
+                    rowObj.COF != null ||
+                    rowObj.CIQ_QC != null;
+                if (!hasOther) {
+                    continue;
                 }
             }
             body.push(rowObj);
@@ -774,6 +834,10 @@ async function renderControlPanelView() {
                 throw new Error(err.error || res.statusText);
             }
             documentCifData = await res.json();
+            docCifTbody.replaceChildren();
+            (Array.isArray(documentCifData) ? documentCifData : []).forEach((r) => {
+                addJarvisDocCifRow(r);
+            });
             docCifStatus.textContent = "Document / CIF saved.";
             docCifStatus.style.color = "#1b5e20";
         } catch (err) {
@@ -782,6 +846,7 @@ async function renderControlPanelView() {
             docCifStatus.style.color = "#b00020";
         }
     });
+    docCifBtnRow.appendChild(addDocCifBtn);
     docCifBtnRow.appendChild(saveDocCifBtn);
     wrap.appendChild(docCifBtnRow);
 
@@ -964,7 +1029,7 @@ async function renderControlPanelView() {
     themesIntro.style.lineHeight = "1.45";
     themesIntro.textContent =
         "SQLite table themes: Country, CountryAbbr (unique, used as primary key), Color (hex, e.g. #FF0000), and type (free text for your own grouping). " +
-        "Export view matches Base to Country for background colors. Add or remove rows, edit cells, then Save themes (replaces all rows in the table).";
+        "Export view matches Base (country name) to Country for background colors on the whole row; add or remove rows, edit cells, then Save themes (replaces all rows in the table).";
     wrap.appendChild(themesIntro);
     wrap.appendChild(themesStatus);
 
@@ -2201,7 +2266,7 @@ function renderOceanCostingTable(config) {
     note.style.color = "#555";
     note.style.marginBottom = "8px";
     note.textContent =
-        "Same ocean data as OCEAN: one row per Port + Destination + Country. Ocean Freight is chosen by country rules (cheapest, CMDU/MAEU mean, or mean of the three lowest CMDU/MAEU rates). Use the search boxes to filter.";
+        "Same ocean data as OCEAN: one row per Port + Destination + Country. Ocean Freight is chosen by country rules (cheapest, CMDU/MAEU mean, or mean of the three lowest CMDU/MAEU rates). GRI comes from Jarvis → Documentation / CIF (per Country). Use the search boxes to filter.";
     content.appendChild(note);
 
     const controls = document.createElement("div");
@@ -3294,9 +3359,17 @@ function showCellDerivation(row, column, value, rowIdx) {
     } else if (viewName === "OTR") {
         derivation = `CSV → OTR source [ row ${rowIdx + 1} ] . "${column}"`;
     } else if (viewName === "OCEAN") {
-        derivation = `API → ICE cotton futures [ row ${rowIdx + 1} ] . "${column}"`;
+        if (column === "GRI") {
+            derivation = `document_cif (Jarvis Documentation / CIF), Country="${row.Country || "?"}" . "GRI" (included in GET /api/ocean)`;
+        } else {
+            derivation = `GET /api/ocean [ row ${rowIdx + 1} ] . "${column}"`;
+        }
     } else if (viewName === "Ocean Costing") {
-        derivation = `GET /api/ocean (deduped by Port+Destination+Country) [ row ${rowIdx + 1} ] . "${column}"`;
+        if (column === "GRI") {
+            derivation = `document_cif (Jarvis Documentation / CIF), Country="${row.Country || "?"}" . "GRI" (included in GET /api/ocean)`;
+        } else {
+            derivation = `GET /api/ocean (deduped by Port+Destination+Country) [ row ${rowIdx + 1} ] . "${column}"`;
+        }
     } else if (viewName === "USD") {
         derivation = _usdDerivation(row, column);
     } else {
@@ -3426,7 +3499,7 @@ const EXPORT_DATA = [
     { base: "Other",      code: "OT", c: "-",  d: "-",  ports: ["Batumi"] },
 ];
 
-const EXPORT_REGIONS = ["WTX","WTXH","STX","MRS","ER5","EMOT","ME","HOU","DAO","BRZ","AUS"];
+const EXPORT_REGIONS = ["WTX","WTXH","STX","MRS","ER5","EMOT","ME","HOU","DAL","BRZ","AUS"];
 
 const EXPORT_REGION_TO_CIF = {
     WTX:  "WTX",
@@ -3436,8 +3509,10 @@ const EXPORT_REGION_TO_CIF = {
     ER5:  "Eastern Rule 5",
     EMOT: "GA 30 Day",
     ME:   "Memphis Equity",
+    /** Export HOU column → CIF / hub name Houston */
     HOU:  "Houston",
-    DAO:  "Dallas",
+    /** Export DAL column → CIF / hub name Dallas */
+    DAL:  "Dallas",
     BRZ:  "BRZ",
     AUS:  "AUS",
 };
@@ -3451,9 +3526,12 @@ const EXPORT_CIF_GROUP_LABELS = [
 function _exportThemeColorByCountry(themesRows) {
     const m = new Map();
     for (const t of themesRows || []) {
-        const name = String(t.Country ?? "").trim().toLowerCase();
-        const color = String(t.Color ?? "").trim();
-        if (name && color) {
+        const color = String(t.Color ?? t.color ?? "").trim();
+        if (!color) {
+            continue;
+        }
+        const name = String(t.Country ?? t.country ?? "").trim().toLowerCase();
+        if (name) {
             m.set(name, color);
         }
     }
@@ -3556,10 +3634,13 @@ function _exportCifFieldForGroup(groupLabel) {
 
 const EXPORT_BODY_POPULATED_GROUPS = new Set(["Origin Warehouse", "Inland Logistics", "Consolidation"]);
 
-/** Export Outbound (WTX…ER5): CIF Dray + Ocean Costing Total pts (Country, City/Destination, hub Port). */
-const EXPORT_OUTBOUND_CIF_OCEAN_HUB_ABBRS = new Set(["WTX", "WTXH", "STX", "MRS", "ER5"]);
+/** Export Outbound (hub columns): CIF Dray + Ocean Total pts; same Country / Destination / hub-Port match for all. */
+const EXPORT_OUTBOUND_CIF_OCEAN_HUB_ABBRS = new Set([
+    "WTX", "WTXH", "STX", "MRS", "ER5", "HOU", "DAL",
+]);
 
-/** Ocean row Port must match this hub (normalized) for the export column. */
+/** Ocean row Port must match this hub (normalized substring) for the export column.
+ *  HOU / DAL hubs are taken from EXPORT_REGION_TO_CIF ("Houston", "Dallas"). */
 const EXPORT_OUTBOUND_OCEAN_HUB_PORT = {
     WTX: "dallas",
     WTXH: "houston",
@@ -3574,6 +3655,10 @@ function _exportOutboundUsesCifDrayAndOceanHubPts(abbr) {
 
 function _exportOceanHubPortNorm(abbr) {
     const a = String(abbr ?? "").trim();
+    if (a === "HOU" || a === "DAL") {
+        const cifLabel = EXPORT_REGION_TO_CIF[a];
+        return cifLabel ? _exportNormLoose(cifLabel) : "";
+    }
     return EXPORT_OUTBOUND_OCEAN_HUB_PORT[a] || "";
 }
 
@@ -3659,13 +3744,82 @@ function _exportParseNumericCell(s) {
     return Number.isFinite(n) ? n : NaN;
 }
 
+/**
+ * Human-readable derivation for Export view cells (click-to-explain panel).
+ * @param {object} ctx — { cifByRegion, oceanCostingRows }
+ */
+function _exportCellDerivation(row, column, rowIdx, ctx) {
+    const cifByRegion = (ctx && ctx.cifByRegion) || {};
+    const oceanRows = (ctx && ctx.oceanCostingRows) || [];
+    if (column === "Base") {
+        return `Preset country from EXPORT_DATA in script.js (first port row shows name; later rows blank; _exportBaseGroup = country for the block). Filtered row #${rowIdx + 1}.`;
+    }
+    if (column === "CIF FE") {
+        return `Preset destination / foreign port from EXPORT_DATA.ports for this country; used with Base for Ocean Costing matches.`;
+    }
+    const pipe = column.indexOf("|");
+    if (pipe <= 0) {
+        return `Export column "${column}".`;
+    }
+    const group = column.slice(0, pipe);
+    const abbr = column.slice(pipe + 1);
+    const cifRegion = EXPORT_REGION_TO_CIF[abbr];
+    if (!cifRegion) {
+        return `Unknown region code "${abbr}".`;
+    }
+    const cifKey = _exportCifFieldForGroup(group);
+
+    if (group === "Outbound Logistics" && _exportOutboundUsesCifDrayAndOceanHubPts(abbr)) {
+        const baseG = String(row._exportBaseGroup || row.Base || "").trim();
+        const cifFe = String(row["CIF FE"] || "").trim();
+        if (!baseG || !cifFe) {
+            return "ERROR: Base (country) or CIF FE (city) is blank on this row; cannot match Ocean Costing.";
+        }
+        const hub = _exportOceanHubPortNorm(abbr);
+        const drayStr = _exportCifDrayForAbbr(cifByRegion, abbr);
+        const ptsStr = _exportOceanTotalPtsForOutboundRow(oceanRows, baseG, cifFe, abbr);
+        const drayN = _exportParseNumericCell(drayStr);
+        const ptsN = _exportParseNumericCell(ptsStr);
+        const hasD = Number.isFinite(drayN);
+        const hasP = Number.isFinite(ptsN);
+        const loc = `Country="${baseG}", Destination≈"${cifFe}", Port hub "${hub || "?"}"`;
+        if (!hasD && !hasP) {
+            return `ERROR: no numeric CIF Dray and no Ocean Total pts for ${loc}. Cell shows ERROR (not CIF Total_Out).`;
+        }
+        const bits = [];
+        if (hasD) {
+            bits.push(`CIF Dray: GET /api/cif [ Region="${cifRegion}" ] . Dray = ${drayStr}`);
+        }
+        if (hasP) {
+            bits.push(`Ocean Total pts: deduped GET /api/ocean row where ${loc} → Total pts = ${ptsStr}`);
+        }
+        bits.push(`Cell = sum of available parts, rounded to a whole number.`);
+        return bits.join(" · ");
+    }
+
+    if (group === "Outbound Logistics") {
+        return `GET /api/cif [ Region="${cifRegion}" ] . Total_Out (${abbr}).`;
+    }
+
+    if (EXPORT_BODY_POPULATED_GROUPS.has(group)) {
+        const field = cifKey || column;
+        return `GET /api/cif [ Region="${cifRegion}" ] . "${field}" (${group}: PTS averages for that region).`;
+    }
+
+    const field = cifKey || "?";
+    return `GET /api/cif [ Region="${cifRegion}" ] . "${field}" (${group}).`;
+}
+
 function _exportOutboundLogisticsBodyCell(cifByRegion, exportOpts, exportRow, abbr) {
     if (!_exportOutboundUsesCifDrayAndOceanHubPts(abbr)) {
-        return _exportCellValueForGroupRegion(cifByRegion, "Outbound Logistics", abbr, exportOpts);
+        return _exportCellValueForGroupRegion(cifByRegion, "Outbound Logistics", abbr);
     }
     const opts = exportOpts || {};
     const baseG = String(exportRow._exportBaseGroup || exportRow.Base || "").trim();
     const cifFe = String(exportRow["CIF FE"] || "").trim();
+    if (!baseG || !cifFe) {
+        return "ERROR";
+    }
     const oceanPtsStr = _exportOceanTotalPtsForOutboundRow(opts.oceanCostingRows, baseG, cifFe, abbr);
     const drayStr = _exportCifDrayForAbbr(cifByRegion, abbr);
 
@@ -3675,27 +3829,35 @@ function _exportOutboundLogisticsBodyCell(cifByRegion, exportOpts, exportRow, ab
     const hasDray = String(drayStr).trim() !== "" && Number.isFinite(drayN);
 
     if (!hasOcean && !hasDray) {
-        return _exportCellValueForGroupRegion(cifByRegion, "Outbound Logistics", abbr, {});
+        return "ERROR";
     }
     const sum = (hasDray ? drayN : 0) + (hasOcean ? oceanN : 0);
-    return String(Math.round(sum * 100) / 100);
+    if (!Number.isFinite(sum)) {
+        return "ERROR";
+    }
+    return _exportWholeNumberString(sum);
 }
 
-function _exportCellValueForGroupRegion(cifByRegion, group, abbr, exportOpts) {
-    const opts = exportOpts || {};
-    if (group === "Outbound Logistics" && _exportOutboundUsesCifDrayAndOceanHubPts(abbr)) {
-        const dray = _exportCifDrayForAbbr(cifByRegion, abbr);
-        if (dray != null && String(dray).trim() !== "") {
-            return String(dray);
-        }
+/** Export view: numeric CIF / computed values display as whole numbers. */
+function _exportWholeNumberString(raw) {
+    if (raw === undefined || raw === null || raw === "") {
+        return "";
     }
+    const n = parseFloat(String(raw).replace(/,/g, ""));
+    if (!Number.isFinite(n)) {
+        return String(raw);
+    }
+    return String(Math.round(n));
+}
+
+function _exportCellValueForGroupRegion(cifByRegion, group, abbr) {
     const cifKey = _exportCifFieldForGroup(group);
     const cifRegion = EXPORT_REGION_TO_CIF[abbr];
     const cifRow = cifRegion ? cifByRegion[cifRegion] : null;
     if (!cifRow || !cifKey) return "";
     const raw = cifRow[cifKey];
     if (raw === undefined || raw === null || raw === "") return "";
-    return String(raw);
+    return _exportWholeNumberString(raw);
 }
 
 function _buildExportRows(cifByRegion, exportOpts) {
@@ -3716,7 +3878,7 @@ function _buildExportRows(cifByRegion, exportOpts) {
                 EXPORT_REGIONS.forEach(abbr => {
                     const key = group + "|" + abbr;
                     if (EXPORT_BODY_POPULATED_GROUPS.has(group)) {
-                        row[key] = _exportCellValueForGroupRegion(cif, group, abbr, exportOpts);
+                        row[key] = _exportCellValueForGroupRegion(cif, group, abbr);
                     } else if (group === "Outbound Logistics") {
                         row[key] = _exportOutboundLogisticsBodyCell(cif, exportOpts, row, abbr);
                     }
@@ -3732,6 +3894,27 @@ function _buildExportRows(cifByRegion, exportOpts) {
 async function renderExportTable() {
     const content = document.getElementById("content");
     content.innerHTML = "";
+
+    invalidateThemeCountryColorMapCache();
+
+    const derivPanel = document.createElement("div");
+    derivPanel.id = "export-cell-derivation";
+    derivPanel.setAttribute("role", "status");
+    derivPanel.setAttribute("aria-live", "polite");
+    derivPanel.style.fontFamily = "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+    derivPanel.style.fontSize = "12px";
+    derivPanel.style.background = "#f8f8f0";
+    derivPanel.style.border = "1px solid #ccc";
+    derivPanel.style.borderRadius = "4px";
+    derivPanel.style.padding = "10px 12px";
+    derivPanel.style.margin = "0 0 12px 0";
+    derivPanel.style.minHeight = "2.8em";
+    derivPanel.style.color = "#555";
+    derivPanel.style.whiteSpace = "pre-wrap";
+    derivPanel.style.lineHeight = "1.45";
+    derivPanel.style.maxWidth = "100%";
+    derivPanel.textContent = "Click any cell in the Export table to see how that value was derived.";
+    content.appendChild(derivPanel);
 
     const exportThemeColors = await getThemeCountryColorMapCached();
 
@@ -3761,6 +3944,15 @@ async function renderExportTable() {
     const columns = _buildExportColumns();
     const rows = _buildExportRows(cifByRegion, exportCellOpts);
     const regionCount = EXPORT_REGIONS.length;
+
+    const derivationCtx = { cifByRegion, oceanCostingRows };
+
+    function showExportDerivation(row, column, value, rowIdx) {
+        const disp = value === "" || value === undefined ? '""' : String(value);
+        const explain = _exportCellDerivation(row, column, rowIdx, derivationCtx);
+        derivPanel.style.color = "#222";
+        derivPanel.textContent = `${column} = ${disp}  ←  ${explain}`;
+    }
 
     const controls = document.createElement("div");
     controls.style.display = "flex";
@@ -3841,7 +4033,7 @@ async function renderExportTable() {
             if (pipe > 0) {
                 const group = col.slice(0, pipe);
                 const abbr = col.slice(pipe + 1);
-                const v = _exportCellValueForGroupRegion(cifByRegion, group, abbr, exportCellOpts);
+                const v = _exportCellValueForGroupRegion(cifByRegion, group, abbr);
                 th.textContent = v;
                 th.className = "usd-sub-header td-num";
             }
@@ -3861,20 +4053,27 @@ async function renderExportTable() {
         const baseQ = baseSearchInput.value;
         const cifQ = cifFeSearchInput.value;
         const filtered = rows.filter((r) => _exportRowMatchesSearch(r, baseQ, cifQ));
-        filtered.forEach((row) => {
+        filtered.forEach((row, rowIdx) => {
             const tr = document.createElement("tr");
+            const rowBg = _exportBaseCellBackground(
+                String(row._exportBaseGroup || row.Base || "").trim(),
+                exportThemeColors,
+            );
             columns.forEach((col, i) => {
                 const td = document.createElement("td");
                 const val = row[col] ?? "";
                 td.textContent = val;
-                const isNumCol = col.indexOf("|") > 0 || typeof row[col] === "number";
+                const isNumCol =
+                    val !== "ERROR" &&
+                    (col.indexOf("|") > 0 || typeof row[col] === "number");
                 td.className = isNumCol ? "td-num" : "td-text";
-                if (col === "Base") {
-                    const baseForTheme = String(val || row._exportBaseGroup || "");
-                    const bg = _exportBaseCellBackground(baseForTheme, exportThemeColors);
-                    if (bg) {
-                        td.style.backgroundColor = bg;
-                    }
+                td.style.cursor = "pointer";
+                td.title = "Click for derivation";
+                td.addEventListener("click", () => {
+                    showExportDerivation(row, col, val, rowIdx);
+                });
+                if (rowBg) {
+                    td.style.backgroundColor = rowBg;
                 }
                 if (i > 1 && (i - 2) % regionCount === 0) td.style.borderLeft = dividerBorder;
                 tr.appendChild(td);

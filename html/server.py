@@ -78,7 +78,7 @@ DRAYAGE_DEFAULTS: dict = {
     },
 }
 
-DOCUMENT_CIF_NUMERIC_KEYS = frozenset({"LC", "INS", "CONT", "COM", "COF", "CIQ_QC"})
+DOCUMENT_CIF_NUMERIC_KEYS = frozenset({"GRI", "LC", "INS", "CONT", "COM", "COF", "CIQ_QC"})
 
 CIF_REGIONS_DEFAULT: tuple[str, ...] = (
     "WTX",
@@ -704,6 +704,18 @@ def _normalize_document_cif_row(raw: dict) -> dict:
     }
     for k in DOCUMENT_CIF_NUMERIC_KEYS:
         v = raw.get(k)
+        if k == "GRI":
+            if v is None:
+                out[k] = 0.0
+                continue
+            if isinstance(v, str) and not str(v).strip():
+                out[k] = 0.0
+                continue
+            try:
+                out[k] = float(v)
+            except (TypeError, ValueError):
+                out[k] = 0.0
+            continue
         if v is None:
             out[k] = None
             continue
@@ -913,6 +925,22 @@ def document_cif_api():
         }
         for k in DOCUMENT_CIF_NUMERIC_KEYS:
             v = raw.get(k)
+            if k == "GRI":
+                if v is None:
+                    row[k] = 0.0
+                elif isinstance(v, str) and not str(v).strip():
+                    row[k] = 0.0
+                else:
+                    try:
+                        row[k] = float(v)
+                    except (TypeError, ValueError):
+                        return (
+                            jsonify(
+                                {"error": f"Invalid number for row {i} field {k!r}"},
+                            ),
+                            400,
+                        )
+                continue
             if v is None:
                 row[k] = None
             elif isinstance(v, str) and not str(v).strip():
@@ -1365,7 +1393,7 @@ def otr_apply_local():
 @app.route("/api/ocean")
 def ocean_rows():
     _sync_control_panel_from_disk_if_needed()
-    ocean_gri = _to_float(control_panel.get("Ocean GRI"), 0.0)
+    _reload_document_cif()
     now_text = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     dthc_prepaid = {
@@ -1438,7 +1466,8 @@ def ocean_rows():
             rate_40ft = _to_float(raw.get("40FT"), 0.0)
             prepaid = dthc_prepaid.get(country.lower(), "Yes")
             ocean_freight = allin_40hc if prepaid == "Yes" else rate_40ft
-            ocean_total = ocean_freight + ocean_gri
+            row_gri = _document_cif_float_for_country(country, "GRI")
+            ocean_total = ocean_freight + row_gri
             total_pts = (ocean_total / 88.0) * 20.0
 
             rows.append(
@@ -1451,7 +1480,7 @@ def ocean_rows():
                     "Code": undest,
                     "SCAC": raw.get("scacCode", ""),
                     "Ocean Freight": _round2(ocean_freight),
-                    "GRI": _round2(ocean_gri),
+                    "GRI": _round2(row_gri),
                     "Ocean Total": _round2(ocean_total),
                     "Total pts": _round2(total_pts),
                     "Updated": now_text,
@@ -1858,7 +1887,10 @@ def cif_rows_api():
 
 @app.route("/api/themes")
 def themes_api():
-    return jsonify(db.get_themes())
+    resp = jsonify(db.get_themes())
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
 
 
 @app.route("/api/themes/save", methods=["POST"])
@@ -2573,4 +2605,4 @@ def rap_save_edits():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", debug=True)
