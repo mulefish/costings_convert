@@ -80,6 +80,11 @@
             flex-shrink: 0;
             accent-color: #c8dcf8;
         }
+        /* Export: center numeric header + body cells (overrides global td.td-num right) */
+        table.export-pricing-table td.td-num,
+        table.export-pricing-table thead th.td-num {
+            text-align: center !important;
+        }
         /* PTS include column: native checkbox tint (default OS green clashes with app blues) */
         #pts-table-host input[type="checkbox"] {
             accent-color: #4f6f8f;
