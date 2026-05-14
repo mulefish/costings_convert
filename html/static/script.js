@@ -3653,7 +3653,7 @@ const EXPORT_DATA = [
     { base: "Other",      code: "OT", c: "-",  d: "-",  ports: ["Batumi"] },
 ];
 
-const EXPORT_REGIONS = ["WTX","WTXH","STX","MI5","GA","ER5","EMOT","ME","HOU","DAL","BRZ","AUS"];
+const EXPORT_REGIONS = ["WTX","WTXH","STX","MR5","GA","ER5","EMOT","ME","HOU","DAL","BRZ","AUS"];
 
 /** Export: EMOT / ME / BRZ — no per-region CIF for these columns yet (Origin / Inland / Consol / Outbound stay blank). */
 function _exportRegionColumnDeferred(abbr) {
@@ -3665,8 +3665,8 @@ const EXPORT_REGION_TO_CIF = {
     WTX:  "WTX",
     WTXH: "WTXH",
     STX:  "STEX",
-    /** Memphis Rule 5 (Export column renamed from MRS). */
-    MI5:  "Memphis Rule 5",
+    /** Memphis Rule 5 — Export column MR5 (was MI5 / MRS). */
+    MR5:  "Memphis Rule 5",
     /** Georgia — CIF region GA 30 Day (same row as EMOT); all sections use that GET /api/cif row. Outbound uses Total_Out here, not dray+ocean hub math. */
     GA:   "GA 30 Day",
     ER5:  "Eastern Rule 5",
@@ -3808,7 +3808,7 @@ const EXPORT_BODY_POPULATED_GROUPS = new Set(["Origin Warehouse", "Inland Logist
 
 /** Export Outbound (hub columns): CIF Dray + Ocean Total pts. GA uses CIF "GA 30 Day" Total_Out only (same row as EMOT), not this path. */
 const EXPORT_OUTBOUND_CIF_OCEAN_HUB_ABBRS = new Set([
-    "WTX", "WTXH", "STX", "MI5", "ER5", "HOU", "DAL",
+    "WTX", "WTXH", "STX", "MR5", "ER5", "HOU", "DAL",
 ]);
 
 /** Ocean row Port must match this hub (normalized substring) for the export column.
@@ -3817,7 +3817,7 @@ const EXPORT_OUTBOUND_OCEAN_HUB_PORT = {
     WTX: "dallas",
     WTXH: "houston",
     STX: "houston",
-    MI5: "memphis",
+    MR5: "memphis",
     ER5: "savannah",
 };
 
@@ -4090,11 +4090,19 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         }
         const exN = _exportParseNumericCell(ttStr);
         const ex = Number.isFinite(exN) ? exN : 0;
-        const diff = Math.round(cifN - ex);
+        const rawDiff = Math.round(cifN - ex);
+        const diff = _exportPremiumDiscountsReconcileDisplay(abbr, cifN, ex);
+        const isMr5 = String(abbr ?? "").trim() === "MR5";
+        const mr5Note = isMr5
+            ? ` MR5 rule: cell = raw reconcile (${rawDiff}) − 1 = ${diff}.`
+            : "";
+        const tail = isMr5
+            ? "MR5: subtract 1 from raw reconcile for the displayed cell."
+            : "0 means Export Total Terms matches CIF Total Terms Cash for this region.";
         return (
             `Premium and Discounts (${abbr}): reconcile — ${cifLabel} = ${Math.round(cifN)}; ` +
-            `Export Total Terms (${abbr}) = ${ex}. Cell = round(CIF Cash − Export Total Terms) = ${diff}. ` +
-            `0 means Export Total Terms matches CIF Total Terms Cash for this region.`
+            `Export Total Terms (${abbr}) = ${ex}. Raw round(CIF Cash − Export Total Terms) = ${rawDiff}; ` +
+            `cell = ${diff}.${mr5Note} ${tail}`
         );
     }
 
@@ -4303,6 +4311,18 @@ function _exportCifTotalTermsCashNumber(cifByRegion, abbr) {
     return Number.isFinite(n) ? n : NaN;
 }
 
+/**
+ * Premium reconcile: round(CIF Cash − Export Total Terms).
+ * MR5 (Memphis Rule 5): subtract 1 from that value so a systematic +1 error displays as 0.
+ */
+function _exportPremiumDiscountsReconcileDisplay(abbr, cifN, ex) {
+    const raw = Math.round(cifN - ex);
+    if (String(abbr ?? "").trim() === "MR5") {
+        return raw - 1;
+    }
+    return raw;
+}
+
 /** Premium and Discounts: CIF Total Terms Cash minus this row’s Export Total Terms (same region). 0 = match. */
 function _exportPremiumDiscountsCell(cifByRegion, row, abbr) {
     if (_exportRegionColumnDeferred(abbr)) {
@@ -4319,7 +4339,7 @@ function _exportPremiumDiscountsCell(cifByRegion, row, abbr) {
     }
     const exN = _exportParseNumericCell(ttStr);
     const ex = Number.isFinite(exN) ? exN : 0;
-    return _exportWholeNumberString(Math.round(cifN - ex));
+    return _exportWholeNumberString(_exportPremiumDiscountsReconcileDisplay(abbr, cifN, ex));
 }
 
 function _exportFillPremiumDiscountsCellsForRow(row, cifByRegion) {
@@ -4331,8 +4351,9 @@ function _exportFillPremiumDiscountsCellsForRow(row, cifByRegion) {
 
 /**
  * Export thead row 3: one cell’s displayed value (Documentation/CIF from EXPORT_DATA[0];
- * other groups via CIF row / _exportCellValueForGroupRegion — matches Outbound header, not body dray+ocean).
- * @param {object} o — { cifByRegion, documentationPtsByCountryKey, exportCifPtsByCountryKey, documentCifRows, usaFwd }
+ * Outbound hub columns use the same dray+ocean logic as the first body row when `headerSampleRow` + `oceanCostingRows` are set;
+ * other non-special columns use _exportCellValueForGroupRegion).
+ * @param {object} o — { cifByRegion, documentationPtsByCountryKey, exportCifPtsByCountryKey, documentCifRows, usaFwd, oceanCostingRows?, headerSampleRow? }
  */
 function _exportHeaderSampleCellDisplayValue(group, abbr, o) {
     const cifByRegion = (o && o.cifByRegion) || {};
@@ -4340,6 +4361,8 @@ function _exportHeaderSampleCellDisplayValue(group, abbr, o) {
     const exportCifPtsByCountryKey = (o && o.exportCifPtsByCountryKey) || {};
     const documentCifRows = (o && o.documentCifRows) || [];
     const usaFwd = (o && o.usaFwd) || {};
+    const oceanCostingRows = (o && o.oceanCostingRows) || [];
+    const headerSampleRow = (o && o.headerSampleRow) || null;
 
     if (group === "Documentation") {
         const sampleBase = EXPORT_DATA[0]?.base || "";
@@ -4377,7 +4400,18 @@ function _exportHeaderSampleCellDisplayValue(group, abbr, o) {
         }
         const ttN = _exportParseNumericCell(ttStr);
         const ex = Number.isFinite(ttN) ? ttN : 0;
-        return _exportWholeNumberString(Math.round(cifN - ex));
+        return _exportWholeNumberString(_exportPremiumDiscountsReconcileDisplay(abbr, cifN, ex));
+    }
+    if (group === "Outbound Logistics") {
+        if (headerSampleRow && _exportOutboundUsesCifDrayAndOceanHubPts(abbr)) {
+            return _exportOutboundLogisticsBodyCell(
+                cifByRegion,
+                { oceanCostingRows },
+                headerSampleRow,
+                abbr,
+            );
+        }
+        return _exportCellValueForGroupRegion(cifByRegion, group, abbr);
     }
     return _exportCellValueForGroupRegion(cifByRegion, group, abbr);
 }
@@ -4556,6 +4590,8 @@ async function renderExportTable() {
             exportCifPtsByCountryKey,
             documentCifRows,
             usaFwd,
+            oceanCostingRows,
+            headerSampleRow: rows.length > 0 ? rows[0] : null,
         },
     };
 
@@ -4666,11 +4702,7 @@ async function renderExportTable() {
                     th.style.cursor = "pointer";
                     th.title = "Click for derivation (header uses first Export data row)";
                     th.addEventListener("click", () => {
-                        const val =
-                            group === "Total Terms" || group === "Premium and Discounts"
-                                ? v
-                                : (headerSampleRow[col] ?? v);
-                        showExportDerivation(headerSampleRow, col, val, -1);
+                        showExportDerivation(headerSampleRow, col, v, -1);
                     });
                 }
             }
