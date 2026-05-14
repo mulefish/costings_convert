@@ -3653,7 +3653,7 @@ const EXPORT_DATA = [
     { base: "Other",      code: "OT", c: "-",  d: "-",  ports: ["Batumi"] },
 ];
 
-const EXPORT_REGIONS = ["WTX","WTXH","STX","MRS","ER5","EMOT","ME","HOU","DAL","BRZ","AUS"];
+const EXPORT_REGIONS = ["WTX","WTXH","STX","MI5","GA","ER5","EMOT","ME","HOU","DAL","BRZ","AUS"];
 
 /** Export: EMOT / ME / BRZ — no per-region CIF for these columns yet (Origin / Inland / Consol / Outbound stay blank). */
 function _exportRegionColumnDeferred(abbr) {
@@ -3665,7 +3665,10 @@ const EXPORT_REGION_TO_CIF = {
     WTX:  "WTX",
     WTXH: "WTXH",
     STX:  "STEX",
-    MRS:  "Memphis Rule 5",
+    /** Memphis Rule 5 (Export column renamed from MRS). */
+    MI5:  "Memphis Rule 5",
+    /** Georgia — CIF region GA 30 Day (same row as EMOT); all sections use that GET /api/cif row. Outbound uses Total_Out here, not dray+ocean hub math. */
+    GA:   "GA 30 Day",
     ER5:  "Eastern Rule 5",
     EMOT: "GA 30 Day",
     ME:   "Memphis Equity",
@@ -3765,12 +3768,12 @@ function _exportRowMatchesSearch(row, baseQuery, cifFeQuery) {
     if (b) {
         const group = String(row._exportBaseGroup ?? row.Base ?? "").trim().toLowerCase();
         if (!group.includes(b)) {
-            return subjfalse;
+            return false;
         }
     }
     if (c) {
         const port = String(row["CIF FE"] ?? "").trim().toLowerCase();
-        if (!port.includes(c)) {add
+        if (!port.includes(c)) {
             return false;
         }
     }
@@ -3803,9 +3806,9 @@ function _exportCifFieldForGroup(groupLabel) {
 
 const EXPORT_BODY_POPULATED_GROUPS = new Set(["Origin Warehouse", "Inland Logistics", "Consolidation"]);
 
-/** Export Outbound (hub columns): CIF Dray + Ocean Total pts; same Country / Destination / hub-Port match for all. */
+/** Export Outbound (hub columns): CIF Dray + Ocean Total pts. GA uses CIF "GA 30 Day" Total_Out only (same row as EMOT), not this path. */
 const EXPORT_OUTBOUND_CIF_OCEAN_HUB_ABBRS = new Set([
-    "WTX", "WTXH", "STX", "MRS", "ER5", "HOU", "DAL",
+    "WTX", "WTXH", "STX", "MI5", "ER5", "HOU", "DAL",
 ]);
 
 /** Ocean row Port must match this hub (normalized substring) for the export column.
@@ -3814,7 +3817,7 @@ const EXPORT_OUTBOUND_OCEAN_HUB_PORT = {
     WTX: "dallas",
     WTXH: "houston",
     STX: "houston",
-    MRS: "memphis",
+    MI5: "memphis",
     ER5: "savannah",
 };
 
