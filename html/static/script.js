@@ -3717,7 +3717,7 @@ function _exportRowMatchesSearch(row, baseQuery, cifFeQuery) {
     }
     if (c) {
         const port = String(row["CIF FE"] ?? "").trim().toLowerCase();
-        if (!port.includes(c)) {
+        if (!port.includes(c)) {add
             return false;
         }
     }
@@ -3862,7 +3862,7 @@ function _exportParseNumericCell(s) {
 
 /**
  * Human-readable derivation for Export view cells (click-to-explain panel).
- * @param {object} ctx — { cifByRegion, oceanCostingRows, documentCifRows, usaFwd, documentationPtsByCountryKey, exportCifPtsByCountryKey }
+ * @param {object} ctx — { cifByRegion, oceanCostingRows, documentCifRows, usaFwd, documentationPtsByCountryKey, exportCifPtsByCountryKey, headerSampleOpts? }
  */
 function _exportCellDerivation(row, column, rowIdx, ctx) {
     const cifByRegion = (ctx && ctx.cifByRegion) || {};
@@ -3870,10 +3870,24 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
     const documentCifRows = (ctx && ctx.documentCifRows) || [];
     const usaFwd = (ctx && ctx.usaFwd) || {};
     if (column === "Base") {
-        return `Preset country from EXPORT_DATA in script.js (first port row shows name; later rows blank; _exportBaseGroup = country for the block). Filtered row #${rowIdx + 1}.`;
+        const rowRef =
+            rowIdx < 0
+                ? "Shown in the header sample row as the first data row for the first country in EXPORT_DATA."
+                : `Filtered row #${rowIdx + 1}.`;
+        return (
+            `Preset country from EXPORT_DATA in script.js (first port row shows name; later rows blank; _exportBaseGroup = country for the block). ` +
+            rowRef
+        );
     }
     if (column === "CIF FE") {
-        return `Preset destination / foreign port from EXPORT_DATA.ports for this country; used with Base for Ocean Costing matches.`;
+        const rowRef =
+            rowIdx < 0
+                ? "Header sample uses the first port row for that first country in EXPORT_DATA."
+                : "";
+        return (
+            `Preset destination / foreign port from EXPORT_DATA.ports for this country; used with Base for Ocean Costing matches.` +
+            (rowRef ? ` ${rowRef}` : "")
+        );
     }
     const pipe = column.indexOf("|");
     if (pipe <= 0) {
@@ -3925,9 +3939,6 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         const com = _exportDocCifFloatForCountry(baseG, "COM", documentCifRows);
         const cof = _exportDocCifFloatForCountry(baseG, "COF", documentCifRows);
         const ciq = _exportDocCifFloatForCountry(baseG, "CIQ_QC", documentCifRows);
-        const tRaw = usaFwd.TOTAL !== undefined && usaFwd.TOTAL !== null ? usaFwd.TOTAL : 0;
-        const totalFwd = parseFloat(String(tRaw).replace(/,/g, ""));
-        const fwd = Number.isFinite(totalFwd) ? totalFwd : 0;
         const ck = _exportNormCountryKey(baseG);
         const fromApi =
             ctx &&
@@ -3936,18 +3947,45 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
             Object.prototype.hasOwnProperty.call(ctx.exportCifPtsByCountryKey, ck);
         const pts = fromApi
             ? ctx.exportCifPtsByCountryKey[ck]
-            : _exportCifSectionTotalPts(baseG, documentCifRows, usaFwd);
+            : _exportCifSectionTotalPts(baseG, documentCifRows);
         const src = fromApi
-            ? "GET /api/export/cif-totals (COM, COF, CIQ_QC from document_cif + USA forwarding TOTAL)"
-            : "computed in browser from GET /api/document-cif + GET /api/usa-forwarding-cost";
+            ? "GET /api/export/cif-totals (COM, COF, CIQ_QC from document_cif only; USA forwarding is in Documentation only)"
+            : "computed in browser from GET /api/document-cif (COM, COF, CIQ_QC only)";
         return (
             `CIF Total CIF (PTS, rounded) = ${pts}. ` +
-            `Country="${baseG}": COM=${com}, COF=${cof}, CIQ_QC=${ciq}; USA forwarding TOTAL=${fwd}. ` +
+            `Country="${baseG}": COM=${com}, COF=${cof}, CIQ_QC=${ciq} (no USA forwarding TOTAL — already in Documentation). ` +
             `Source: ${src}. Same value for all region columns (${abbr}).`
         );
     }
 
     if (group === "Total Terms") {
+        if (rowIdx < 0 && ctx && ctx.headerSampleOpts) {
+            const o = ctx.headerSampleOpts;
+            const parts = [];
+            let sum = 0;
+            let hasError = false;
+            for (const g of EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS) {
+                const h = _exportHeaderSampleCellDisplayValue(g, abbr, o);
+                const str = String(h ?? "").trim();
+                if (str === "ERROR") {
+                    hasError = true;
+                    parts.push(`${g}=ERROR`);
+                    break;
+                }
+                const n = _exportParseNumericCell(str);
+                const add = Number.isFinite(n) ? n : 0;
+                sum += add;
+                parts.push(`${g}=${str === "" ? "0" : str}`);
+            }
+            if (hasError) {
+                return `Total Terms (${abbr}) — header sample: ${parts.join(", ")} → ERROR because a contributing header cell is ERROR.`;
+            }
+            return (
+                `Total Terms (${abbr}) — Export header row 3: sum of the values shown in that row for each section at ${abbr} ` +
+                `(same rules as those headers, e.g. Outbound = GET /api/cif Total_Out for the region, not row-specific dray+ocean). ` +
+                `${EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS.join(", ")}: ${parts.join(" + ")} = ${_exportWholeNumberString(sum)}.`
+            );
+        }
         const parts = [];
         let sum = 0;
         let hasError = false;
@@ -4117,19 +4155,17 @@ function _exportDocumentationTotalDocPts(country, documentCifRows, usaFwd) {
 }
 
 /**
- * Total CIF in PTS (whole number) for Export CIF section: (COM/20 + COF/20 + CIQ_QC/20 + TOTAL) × 20.
+ * Total CIF in PTS (whole number) for Export CIF section: (COM/20 + COF/20 + CIQ_QC/20) × 20.
+ * USA forwarding TOTAL is not included (Export Documentation already includes it).
  */
-function _exportCifSectionTotalPts(country, documentCifRows, usaFwd) {
+function _exportCifSectionTotalPts(country, documentCifRows) {
     const com = _exportDocCifFloatForCountry(country, "COM", documentCifRows);
     const cof = _exportDocCifFloatForCountry(country, "COF", documentCifRows);
     const ciq = _exportDocCifFloatForCountry(country, "CIQ_QC", documentCifRows);
     const destCommUsd = com / 20;
     const cofUsd = cof / 20;
     const qclaimUsd = ciq / 20;
-    const tRaw = usaFwd && usaFwd.TOTAL !== undefined && usaFwd.TOTAL !== null ? usaFwd.TOTAL : 0;
-    const forwardingParsed = parseFloat(String(tRaw).replace(/,/g, ""));
-    const forwardingUsd = Number.isFinite(forwardingParsed) ? forwardingParsed : 0;
-    const totalUsd = destCommUsd + cofUsd + qclaimUsd + forwardingUsd;
+    const totalUsd = destCommUsd + cofUsd + qclaimUsd;
     return Math.round(totalUsd * _EXPORT_DOC_PTS_FACTOR);
 }
 
@@ -4169,6 +4205,61 @@ function _exportFillTotalTermsCellsForRow(row) {
         }
         row[ttKey] = hasError ? "ERROR" : _exportWholeNumberString(sum);
     });
+}
+
+/**
+ * Export thead row 3: one cell’s displayed value (Documentation/CIF from EXPORT_DATA[0];
+ * other groups via CIF row / _exportCellValueForGroupRegion — matches Outbound header, not body dray+ocean).
+ * @param {object} o — { cifByRegion, documentationPtsByCountryKey, exportCifPtsByCountryKey, documentCifRows, usaFwd }
+ */
+function _exportHeaderSampleCellDisplayValue(group, abbr, o) {
+    const cifByRegion = (o && o.cifByRegion) || {};
+    const documentationPtsByCountryKey = (o && o.documentationPtsByCountryKey) || {};
+    const exportCifPtsByCountryKey = (o && o.exportCifPtsByCountryKey) || {};
+    const documentCifRows = (o && o.documentCifRows) || [];
+    const usaFwd = (o && o.usaFwd) || {};
+
+    if (group === "Documentation") {
+        const sampleBase = EXPORT_DATA[0]?.base || "";
+        const ck = _exportNormCountryKey(sampleBase);
+        let samplePts;
+        if (ck && Object.prototype.hasOwnProperty.call(documentationPtsByCountryKey, ck)) {
+            samplePts = documentationPtsByCountryKey[ck];
+        } else {
+            samplePts = _exportDocumentationTotalDocPts(sampleBase, documentCifRows, usaFwd);
+        }
+        return _exportWholeNumberString(samplePts);
+    }
+    if (group === "CIF") {
+        const sampleBase = EXPORT_DATA[0]?.base || "";
+        const ck = _exportNormCountryKey(sampleBase);
+        let samplePts;
+        if (ck && Object.prototype.hasOwnProperty.call(exportCifPtsByCountryKey, ck)) {
+            samplePts = exportCifPtsByCountryKey[ck];
+        } else {
+            samplePts = _exportCifSectionTotalPts(sampleBase, documentCifRows);
+        }
+        return _exportWholeNumberString(samplePts);
+    }
+    return _exportCellValueForGroupRegion(cifByRegion, group, abbr);
+}
+
+/** Row 3 header: Total Terms for a region = sum of other section headers in that column (not first body row’s Total Terms). */
+function _exportHeaderSampleTotalTermsForAbbr(abbr, o) {
+    let sum = 0;
+    let hasError = false;
+    for (const group of EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS) {
+        const s = String(_exportHeaderSampleCellDisplayValue(group, abbr, o) ?? "").trim();
+        if (s === "ERROR") {
+            hasError = true;
+            break;
+        }
+        const n = _exportParseNumericCell(s);
+        if (Number.isFinite(n)) {
+            sum += n;
+        }
+    }
+    return hasError ? "ERROR" : _exportWholeNumberString(sum);
 }
 
 function _buildExportRows(cifByRegion, exportOpts) {
@@ -4213,7 +4304,7 @@ function _buildExportRows(cifByRegion, exportOpts) {
                         } else {
                             const docRows = (exportOpts && exportOpts.documentCifRows) || [];
                             const uf = (exportOpts && exportOpts.usaFwd) || {};
-                            pts = _exportCifSectionTotalPts(entry.base, docRows, uf);
+                            pts = _exportCifSectionTotalPts(entry.base, docRows);
                         }
                         row[key] = _exportWholeNumberString(pts);
                     }
@@ -4320,13 +4411,21 @@ async function renderExportTable() {
         usaFwd,
         documentationPtsByCountryKey,
         exportCifPtsByCountryKey,
+        headerSampleOpts: {
+            cifByRegion,
+            documentationPtsByCountryKey,
+            exportCifPtsByCountryKey,
+            documentCifRows,
+            usaFwd,
+        },
     };
 
     function showExportDerivation(row, column, value, rowIdx) {
         const disp = value === "" || value === undefined ? '""' : String(value);
         const explain = _exportCellDerivation(row, column, rowIdx, derivationCtx);
         derivPanel.style.color = "#222";
-        derivPanel.textContent = `${column} = ${disp}  ←  ${explain}`;
+        const headerNote = rowIdx < 0 ? "[Header sample — first Export data row] " : "";
+        derivPanel.textContent = `${headerNote}${column} = ${disp}  ←  ${explain}`;
     }
 
     const controls = document.createElement("div");
@@ -4396,54 +4495,42 @@ async function renderExportTable() {
     });
     thead.appendChild(r2);
 
-    // Row 3: Base | CIF FE | CIF sample values per group × region
+    // Row 3: Base | CIF FE | sample values per group × region (same derivation as body; uses first data row)
     const r3 = document.createElement("tr");
+    const headerSampleRow = rows.length > 0 ? rows[0] : null;
+    const headerSampleOpts = derivationCtx.headerSampleOpts;
     columns.forEach((col, i) => {
         const th = document.createElement("th");
         th.className = "usd-sub-header";
         if (i < 2) {
             th.textContent = col;
+            if (headerSampleRow) {
+                th.style.cursor = "pointer";
+                th.title = "Click for derivation (header uses first Export data row)";
+                th.addEventListener("click", () => {
+                    const val = headerSampleRow[col] ?? "";
+                    showExportDerivation(headerSampleRow, col, val, -1);
+                });
+            }
         } else {
             const pipe = col.indexOf("|");
             if (pipe > 0) {
                 const group = col.slice(0, pipe);
                 const abbr = col.slice(pipe + 1);
-                let v;
-                if (group === "Documentation") {
-                    const sampleBase = EXPORT_DATA[0]?.base || "";
-                    const ck = _exportNormCountryKey(sampleBase);
-                    let samplePts;
-                    if (ck && Object.prototype.hasOwnProperty.call(documentationPtsByCountryKey, ck)) {
-                        samplePts = documentationPtsByCountryKey[ck];
-                    } else {
-                        samplePts = _exportDocumentationTotalDocPts(
-                            sampleBase,
-                            documentCifRows,
-                            usaFwd,
-                        );
-                    }
-                    v = _exportWholeNumberString(samplePts);
-                } else if (group === "CIF") {
-                    const sampleBase = EXPORT_DATA[0]?.base || "";
-                    const ck = _exportNormCountryKey(sampleBase);
-                    let samplePts;
-                    if (ck && Object.prototype.hasOwnProperty.call(exportCifPtsByCountryKey, ck)) {
-                        samplePts = exportCifPtsByCountryKey[ck];
-                    } else {
-                        samplePts = _exportCifSectionTotalPts(
-                            sampleBase,
-                            documentCifRows,
-                            usaFwd,
-                        );
-                    }
-                    v = _exportWholeNumberString(samplePts);
-                } else if (group === "Total Terms") {
-                    v = rows.length ? String(rows[0][col] ?? "") : "";
-                } else {
-                    v = _exportCellValueForGroupRegion(cifByRegion, group, abbr);
-                }
+                const v =
+                    group === "Total Terms"
+                        ? _exportHeaderSampleTotalTermsForAbbr(abbr, headerSampleOpts)
+                        : _exportHeaderSampleCellDisplayValue(group, abbr, headerSampleOpts);
                 th.textContent = v;
                 th.className = "usd-sub-header td-num";
+                if (headerSampleRow) {
+                    th.style.cursor = "pointer";
+                    th.title = "Click for derivation (header uses first Export data row)";
+                    th.addEventListener("click", () => {
+                        const val = group === "Total Terms" ? v : (headerSampleRow[col] ?? v);
+                        showExportDerivation(headerSampleRow, col, val, -1);
+                    });
+                }
             }
         }
         if (i > 1 && (i - 2) % regionCount === 0) th.style.borderLeft = dividerBorder;

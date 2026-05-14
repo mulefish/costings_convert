@@ -1926,14 +1926,12 @@ def export_documentation_totals_api():
 
 @app.route("/api/export/cif-totals")
 def export_cif_totals_api():
-    """Per-country Total CIF in PTS for Export CIF section: (COM/20 + COF/20 + CIQ_QC/20 + USA forwarding TOTAL) × 20.
+    """Per-country Total CIF in PTS for Export CIF section: (COM/20 + COF/20 + CIQ_QC/20) × 20.
 
     Keys are normalized country names (uppercase, collapsed spaces) for Export view lookup.
+    USA forwarding TOTAL is not included here (it is part of Export Documentation only).
     """
     _reload_document_cif()
-    _reload_usa_forwarding_cost()
-    _recompute_usa_forwarding_total()
-    forwarding_usd = _to_float(usa_forwarding_cost.get("TOTAL"), 0.0)
     pts = 20.0
     totals: dict[str, int] = {}
     for row in document_cif:
@@ -1948,7 +1946,7 @@ def export_cif_totals_api():
         dest_comm_usd = com / 20.0
         cof_usd = cof / 20.0
         qclaim_usd = ciq / 20.0
-        total_usd = dest_comm_usd + cof_usd + qclaim_usd + forwarding_usd
+        total_usd = dest_comm_usd + cof_usd + qclaim_usd
         k = _normalize_key(country)
         totals[k] = int(round(total_usd * pts))
     resp = jsonify(totals)
