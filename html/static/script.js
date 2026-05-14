@@ -1641,6 +1641,7 @@ async function mountOceanRatesExtractEditor(hostEl) {
             const td = document.createElement("td");
             td.textContent = oceanExtractRows.length ? "No columns." : "Not loaded — click “Load / refresh”.";
             td.style.padding = "8px";
+            tr.appendChild(td);
             oceanTbody.appendChild(tr);
             oceanSearchMeta.textContent = "";
             return;
@@ -4387,9 +4388,18 @@ function _exportOceanPortMatchesHub(portRaw, abbr) {
     return p === hub || p.includes(hub);
 }
 
+/** Same port, alternate romanizations — align before Export CIF FE vs Ocean Destination match. */
+function _exportNormalizePortAliasesForMatch(normLower) {
+    const s = String(normLower ?? "");
+    if (!s) {
+        return s;
+    }
+    return s.replace(/\bkwangyang\b/g, "gwangyang");
+}
+
 function _exportDestinationMatchesExportCity(destRaw, cifFe) {
-    const fe = _exportNormLoose(cifFe);
-    const d = _exportNormLoose(destRaw);
+    const fe = _exportNormalizePortAliasesForMatch(_exportNormLoose(cifFe));
+    const d = _exportNormalizePortAliasesForMatch(_exportNormLoose(destRaw));
     if (!fe || !d) {
         return false;
     }
