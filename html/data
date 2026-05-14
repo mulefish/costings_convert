@@ -25,6 +25,7 @@ import sqlite3
 from pathlib import Path
 
 _ROOT = Path(__file__).resolve().parent.parent
+# COSTINGS_DB_PATH is set by html/server.py before import (sibling to data/: database/costings.db).
 DB_PATH: Path = Path(os.environ.get("COSTINGS_DB_PATH", str(_ROOT / "database" / "costings.db")))
 
 _conn: sqlite3.Connection | None = None
@@ -33,7 +34,6 @@ _conn: sqlite3.Connection | None = None
 def _get_conn() -> sqlite3.Connection:
     global _conn
     if _conn is None:
-        DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         _conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
         _conn.execute("PRAGMA journal_mode=WAL")
         _conn.execute("PRAGMA foreign_keys=ON")
@@ -201,58 +201,6 @@ CREATE TABLE IF NOT EXISTS themes (
     Color       TEXT NOT NULL,
     "type"      TEXT NOT NULL DEFAULT ''
 );
-
-CREATE TABLE IF NOT EXISTS portcode_portcity (
-    PortCode  TEXT NOT NULL PRIMARY KEY,
-    PortCity  TEXT NOT NULL,
-    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
-);
-
-CREATE TABLE IF NOT EXISTS dischargeport_country (
-    discharge_port TEXT NOT NULL PRIMARY KEY,
-    country        TEXT NOT NULL,
-    is_active      INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
-);
-
-CREATE TABLE IF NOT EXISTS countrycode_country (
-    countrycode TEXT NOT NULL PRIMARY KEY,
-    country     TEXT NOT NULL,
-    is_active   INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
-);
-
-CREATE TABLE IF NOT EXISTS ocean_rates_extract (
-    id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    unOrig          TEXT,
-    unVia           TEXT,
-    unDest          TEXT,
-    orig            TEXT,
-    via             TEXT,
-    dest            TEXT,
-    dischargePort   TEXT,
-    scacCode        TEXT,
-    carrierName     TEXT,
-    contractNumber  TEXT,
-    rateType        TEXT,
-    amendmentNumber TEXT,
-    effectiveDate   TEXT,
-    expirationDate  TEXT,
-    updateTime      TEXT,
-    "40FT"          TEXT,
-    "40HC"          TEXT,
-    "DTHC40FT"      TEXT,
-    "DTHC40HC"      TEXT,
-    "ALLIN40FT"     TEXT,
-    "ALLIN40HC"     TEXT,
-    is_active       INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
-);
-
-CREATE TABLE IF NOT EXISTS otr_transit_lookup (
-    origin_city TEXT NOT NULL,
-    dest_port   TEXT NOT NULL,
-    lh          REAL,
-    is_active   INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
-    PRIMARY KEY (origin_city, dest_port)
-);
 """
 
 
@@ -260,7 +208,6 @@ _ALL_TABLES = (
     "control_panel", "consolidation", "consolidation_days_storage",
     "drayage", "document_cif", "usa_forwarding_cost", "cif_regions", "notes",
     "otr_rates", "seam_tariffs", "regions_and_ports", "ocean_costing_rules",
-    "portcode_portcity", "dischargeport_country", "countrycode_country", "ocean_rates_extract", "otr_transit_lookup",
 )
 
 
@@ -415,20 +362,8 @@ def save_themes_rows(rows: list) -> int:
 
 def get_control_panel() -> dict:
     conn = _get_conn()
-    cols = {str(r[1]) for r in conn.execute("PRAGMA table_info(control_panel)").fetchall()}
-    has_active = "is_active" in cols
-    wh = " WHERE COALESCE(is_active, 1) = 1" if has_active else ""
-    cur = conn.execute(
-        f'SELECT [key] AS cp_k, [value] AS cp_v FROM control_panel{wh}'
-    )
-    out: dict[str, float] = {}
-    for r in cur:
-        k = r["cp_k"]
-        if k is None or str(k).strip() == "":
-            continue
-        v = r["cp_v"]
-        out[str(k).strip()] = float(v) if v is not None else 0.0
-    return out
+    rows = conn.execute("SELECT key, value FROM control_panel").fetchall()
+    return {r["key"]: r["value"] for r in rows}
 
 
 def save_control_panel(data: dict) -> None:
@@ -809,148 +744,6 @@ def deactivate_regions_and_ports_row(row_id: int) -> None:
     conn = _get_conn()
     conn.execute("UPDATE regions_and_ports SET is_active = 0 WHERE id = ?", (row_id,))
     conn.commit()
-
-
-# ---------------------------------------------------------------------------
-# portcode_portcity (ocean / unOrig -> city for Port column and drayage)
-# ---------------------------------------------------------------------------
-
-
-def _qident_sql(name: str) -> str:
-    return '"' + str(name).replace('"', '""') + '"'
-
-
-def get_portcode_portcity_lookup(active_only: bool = True) -> dict[str, str]:
-    """Uppercase UN/LOC port code -> city name (same shape as former portcode_portcity.csv)."""
-    conn = _get_conn()
-    if not conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='portcode_portcity'"
-    ).fetchone():
-        return {}
-    cols = {row[1] for row in conn.execute("PRAGMA table_info(portcode_portcity)").fetchall()}
-    low = {str(c).lower(): c for c in cols}
-
-    def pick(*candidates: str) -> str | None:
-        for c in candidates:
-            if c.lower() in low:
-                return low[c.lower()]
-        return None
-
-    c_code = pick("PortCode", "portcode", "port_code")
-    c_city = pick("PortCity", "port_city")
-    if not c_code or not c_city:
-        return {}
-
-    has_active = "is_active" in cols
-    q = f"SELECT {_qident_sql(c_code)}, {_qident_sql(c_city)} FROM portcode_portcity"
-    if active_only and has_active:
-        q += " WHERE is_active = 1"
-
-    out: dict[str, str] = {}
-    for row in conn.execute(q):
-        code = str(row[0] or "").strip().upper()
-        if not code:
-            continue
-        out[code] = str(row[1] or "").strip()
-    return out
-
-
-def get_dischargeport_country_lookup(active_only: bool = True) -> dict[str, str]:
-    """Uppercase destination UN/LOC (unDest) -> destination label (same as former dischargeport_country.csv)."""
-    conn = _get_conn()
-    if not conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='dischargeport_country'"
-    ).fetchone():
-        return {}
-    cols = {row[1] for row in conn.execute("PRAGMA table_info(dischargeport_country)").fetchall()}
-    low = {str(c).lower(): c for c in cols}
-
-    def pick(*candidates: str) -> str | None:
-        for c in candidates:
-            if c.lower() in low:
-                return low[c.lower()]
-        return None
-
-    c_port = pick("discharge_port", "dischargePort")
-    c_lbl = pick("country", "Country")
-    if not c_port or not c_lbl:
-        return {}
-
-    has_active = "is_active" in cols
-    q = f"SELECT {_qident_sql(c_port)}, {_qident_sql(c_lbl)} FROM dischargeport_country"
-    if active_only and has_active:
-        q += " WHERE is_active = 1"
-
-    out: dict[str, str] = {}
-    for row in conn.execute(q):
-        code = str(row[0] or "").strip().upper()
-        if not code:
-            continue
-        out[code] = str(row[1] or "").strip()
-    return out
-
-
-def get_countrycode_country_lookup(active_only: bool = True) -> dict[str, str]:
-    """Uppercase ISO country code (first two chars of unDest) -> country name."""
-    conn = _get_conn()
-    if not conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='countrycode_country'"
-    ).fetchone():
-        return {}
-    cols = {row[1] for row in conn.execute("PRAGMA table_info(countrycode_country)").fetchall()}
-    low = {str(c).lower(): c for c in cols}
-
-    def pick(*candidates: str) -> str | None:
-        for c in candidates:
-            if c.lower() in low:
-                return low[c.lower()]
-        return None
-
-    c_code = pick("countrycode", "countryCode")
-    c_name = pick("country", "Country")
-    if not c_code or not c_name:
-        return {}
-
-    has_active = "is_active" in cols
-    q = f"SELECT {_qident_sql(c_code)}, {_qident_sql(c_name)} FROM countrycode_country"
-    if active_only and has_active:
-        q += " WHERE is_active = 1"
-
-    out: dict[str, str] = {}
-    for row in conn.execute(q):
-        code = str(row[0] or "").strip().upper()
-        if not code:
-            continue
-        out[code] = str(row[1] or "").strip()
-    return out
-
-
-def get_ocean_rates_extract_row_dicts(active_only: bool = True) -> list[dict[str, object]]:
-    """
-    Ocean rate rows as dicts keyed like the former 470OceanRatesExtract.csv DictReader.
-    Omits id and is_active from each dict.
-    """
-    conn = _get_conn()
-    if not conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ocean_rates_extract'"
-    ).fetchone():
-        return []
-    col_rows = conn.execute("PRAGMA table_info(ocean_rates_extract)").fetchall()
-    cols = [r[1] for r in col_rows]
-    skip = {"id", "is_active"}
-    data_cols = [c for c in cols if c not in skip]
-    if not data_cols:
-        return []
-    has_active = "is_active" in cols
-    sel = ", ".join(_qident_sql(c) for c in data_cols)
-    q = f"SELECT {sel} FROM ocean_rates_extract"
-    if active_only and has_active:
-        q += " WHERE is_active = 1"
-
-    out: list[dict[str, object]] = []
-    for row in conn.execute(q):
-        out.append({data_cols[i]: row[i] for i in range(len(data_cols))})
-    return out
 
 
 # ---------------------------------------------------------------------------

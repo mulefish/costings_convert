@@ -1,18 +1,23 @@
 import copy
 import csv
 import math
+import os
 import traceback
 from collections import Counter
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
 from datetime import datetime
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+DATA_DIR = BASE_DIR / "data"
+DATABASE_DIR = BASE_DIR / "database"
+os.environ.setdefault("COSTINGS_DB_PATH", str(DATABASE_DIR / "costings.db"))
+DATABASE_DIR.mkdir(parents=True, exist_ok=True)
+
 from flask import Flask, current_app, jsonify, render_template, request
 import database as db
 
 app = Flask(__name__)
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATA_DIR = BASE_DIR / "data"
 UPLOAD_DIR = BASE_DIR / "csv_to_upload"
 
 CONTROL_PANEL_DEFAULTS = {
@@ -878,7 +883,8 @@ _init_consolidation()
 _init_drayage()
 _init_document_cif()
 _init_usa_forwarding_cost()
-db.ensure_csv_tables_populated(DATA_DIR)
+if DATA_DIR.is_dir():
+    db.ensure_csv_tables_populated(DATA_DIR)
 
 
 @app.route("/api/usa-forwarding-cost", methods=["GET", "PUT", "POST"])
@@ -1437,67 +1443,52 @@ def ocean_rows():
         "vietnam": "Yes",
     }
 
-    port_lookup = {}
-    with (DATA_DIR / "portcode_portcity.csv").open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle, skipinitialspace=True)
-        for raw in reader:
-            port_lookup[str(raw.get("PortCode", "")).strip().upper()] = str(raw.get("PortCity", "")).strip()
-
-    destination_lookup = {}
-    with (DATA_DIR / "dischargeport_country.csv").open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle, skipinitialspace=True)
-        for raw in reader:
-            destination_lookup[str(raw.get("dischargePort", "")).strip().upper()] = str(raw.get("Country", "")).strip()
-
-    country_lookup = {}
-    with (DATA_DIR / "countrycode_country.csv").open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle, skipinitialspace=True)
-        for raw in reader:
-            country_lookup[str(raw.get("countrycode", "")).strip().upper()] = str(raw.get("country", "")).strip()
+    port_lookup = db.get_portcode_portcity_lookup()
+    destination_lookup = db.get_dischargeport_country_lookup()
+    country_lookup = db.get_countrycode_country_lookup()
 
     rows = []
-    with (DATA_DIR / "470OceanRatesExtract.csv").open("r", encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle, skipinitialspace=True)
-        row_num = 0
-        for raw in reader:
-            row_num += 1
-            unorig = str(raw.get("unOrig", "")).strip().upper()
-            undest = str(raw.get("unDest", "")).strip().upper()
-            country_code = undest[:2]
+    raw_ocean = db.get_ocean_rates_extract_row_dicts()
+    row_num = 0
+    for raw in raw_ocean:
+        row_num += 1
+        unorig = str(raw.get("unOrig", "")).strip().upper()
+        undest = str(raw.get("unDest", "")).strip().upper()
+        country_code = undest[:2]
 
-            port = port_lookup.get(unorig, "")
-            destination = destination_lookup.get(undest, "")
-            country = country_lookup.get(country_code, "")
+        port = port_lookup.get(unorig, "")
+        destination = destination_lookup.get(undest, "")
+        country = country_lookup.get(country_code, "")
 
-            allin_40hc = _to_float(raw.get("ALLIN40HC"), 0.0)
-            rate_40ft = _to_float(raw.get("40FT"), 0.0)
-            prepaid = dthc_prepaid.get(country.lower(), "Yes")
-            ocean_freight = allin_40hc if prepaid == "Yes" else rate_40ft
-            doc_gri = _document_cif_float_for_country(country, "GRI")
-            dray_gri = _drayage_field_for_port(port, "GRI")
-            row_gri = doc_gri + dray_gri
-            ocean_total = ocean_freight + row_gri
-            total_pts = (ocean_total / 88.0) * 20.0
+        allin_40hc = _to_float(raw.get("ALLIN40HC"), 0.0)
+        rate_40ft = _to_float(raw.get("40FT"), 0.0)
+        prepaid = dthc_prepaid.get(country.lower(), "Yes")
+        ocean_freight = allin_40hc if prepaid == "Yes" else rate_40ft
+        doc_gri = _document_cif_float_for_country(country, "GRI")
+        dray_gri = _drayage_field_for_port(port, "GRI")
+        row_gri = doc_gri + dray_gri
+        ocean_total = ocean_freight + row_gri
+        total_pts = (ocean_total / 88.0) * 20.0
 
-            rows.append(
-                {
-                    "Row": row_num,
-                    "Port": port,
-                    "Destination": destination,
-                    "Country": country,
-                    "Delivery Type": "EXPORT",
-                    "Code": undest,
-                    "SCAC": raw.get("scacCode", ""),
-                    "Ocean Freight": _round2(ocean_freight),
-                    "GRI": _round2(row_gri),
-                    "Ocean Total": _round2(ocean_total),
-                    "Total pts": _round2(total_pts),
-                    "Updated": now_text,
-                    "Expiration": raw.get("expirationDate", ""),
-                    "Previous": "",
-                    "Delta": "",
-                }
-            )
+        rows.append(
+            {
+                "Row": row_num,
+                "Port": port,
+                "Destination": destination,
+                "Country": country,
+                "Delivery Type": "EXPORT",
+                "Code": undest,
+                "SCAC": raw.get("scacCode", ""),
+                "Ocean Freight": _round2(ocean_freight),
+                "GRI": _round2(row_gri),
+                "Ocean Total": _round2(ocean_total),
+                "Total pts": _round2(total_pts),
+                "Updated": now_text,
+                "Expiration": raw.get("expirationDate", ""),
+                "Previous": "",
+                "Delta": "",
+            }
+        )
 
     return jsonify({"rows": [_row_with_columns(r, OCEAN_COLUMNS) for r in rows]})
 
