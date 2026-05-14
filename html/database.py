@@ -1,24 +1,3 @@
-"""
-SQLite persistence layer for the costings application.
-
-Seven logical "config" stores are mapped to relational tables:
-
-  1. control_panel        – flat key/value pairs (all numeric)
-  2. consolidation        – per-region metrics (bale, storage, month)
-  3. consolidation_days_storage – single row (Days Storage)
-  4. drayage              – per-region drayage fields
-  5. document_cif         – per-country CIF factors
-  7. notes                – free-form notes with timestamps
-  6. usa_forwarding_cost  – flat key/value + a cif_regions list
-
-The public API mirrors the old JSON dicts so the rest of server.py needs minimal changes:
-    get_control_panel() -> dict
-    save_control_panel(d)
-    get_consolidation() -> dict[str, dict]
-    save_consolidation(d)
-    ... etc.
-"""
-
 import json
 import os
 import sqlite3

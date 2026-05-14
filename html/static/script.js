@@ -1512,17 +1512,21 @@ async function renderNotesView() {
         <p style="font-size:12px; color:#555; margin:0 0 10px 0;">
             Browse any SQLite table (versioned tables support <code>is_active</code> when the checkbox is on).
         </p>
-        <div style="margin-bottom:12px;">
-            <label style="font-size:13px; font-weight:bold; margin-right:8px;">Table:</label>
+        <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <input type="text" id="db-global-search" placeholder="Search all tables..." style="padding:5px 10px; border:1px solid #ccc; border-radius:4px; font-size:13px; width:220px;" />
+            <button id="db-search-btn" style="padding:5px 12px; border:1px solid #888; border-radius:4px; background:#f0f0f0; cursor:pointer; font-size:13px;">Search</button>
+            <span style="color:#ccc; margin:0 4px;">|</span>
+            <label style="font-size:13px; font-weight:bold; margin-right:4px;">Table:</label>
             <select id="db-table-select" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
                 ${options}
             </select>
-            <label style="margin-left:16px; font-size:13px; cursor:pointer;">
+            <label style="font-size:13px; cursor:pointer;">
                 <input type="checkbox" id="db-active-toggle" checked style="margin-right:4px; cursor:pointer;" />
                 Active only
             </label>
-            <span id="db-row-count" style="margin-left:12px; font-size:12px; color:#666;"></span>
+            <span id="db-row-count" style="margin-left:4px; font-size:12px; color:#666;"></span>
         </div>
+        <div id="db-search-results" style="display:none; margin-bottom:16px;"></div>
         <div id="db-table-output"></div>
     </div>`;
 
@@ -1580,9 +1584,68 @@ async function renderNotesView() {
         }
     }
 
-    function reload() { loadTable(sel.value); }
+    function reload() {
+        document.getElementById("db-search-results").style.display = "none";
+        document.getElementById("db-table-output").style.display = "";
+        loadTable(sel.value);
+    }
     sel.addEventListener("change", reload);
     toggle.addEventListener("change", reload);
+
+    const searchInput = document.getElementById("db-global-search");
+    const searchBtn = document.getElementById("db-search-btn");
+
+    async function doSearch() {
+        const q = searchInput.value.trim();
+        if (!q) return;
+        const searchOut = document.getElementById("db-search-results");
+        const tableOut = document.getElementById("db-table-output");
+        tableOut.style.display = "none";
+        searchOut.style.display = "";
+        searchOut.innerHTML = "<p style='font-size:13px; color:#888;'>Searching...</p>";
+        document.getElementById("db-row-count").textContent = "";
+        try {
+            const resp = await fetch("/api/db-search?q=" + encodeURIComponent(q));
+            const data = await resp.json();
+            const results = data.results || [];
+            if (!results.length) {
+                searchOut.innerHTML = `<p style='font-size:13px; color:#888;'>No matches for "<b>${q.replace(/</g,"&lt;")}</b>".</p>`;
+                return;
+            }
+            const esc = (s) => s === null ? "<span style='color:#aaa;'>NULL</span>" : String(s).replace(/</g, "&lt;");
+            const highlight = (s) => {
+                if (s === null) return "<span style='color:#aaa;'>NULL</span>";
+                const str = String(s);
+                const re = new RegExp("(" + q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+                return str.replace(/</g, "&lt;").replace(re, "<mark style='background:#ffe066; padding:0 1px;'>$1</mark>");
+            };
+            let html = `<p style='font-size:13px; margin-bottom:8px;'>Found matches in <b>${results.length}</b> table${results.length !== 1 ? "s" : ""} for "<b>${q.replace(/</g,"&lt;")}</b>"</p>`;
+            for (const r of results) {
+                html += `<div style="margin-bottom:16px;"><p style="font-size:13px; font-weight:bold; margin:0 0 4px 0;">${esc(r.table)} <span style="font-weight:normal; color:#666;">(${r.rows.length} row${r.rows.length !== 1 ? "s" : ""})</span></p>`;
+                html += "<table><thead><tr>";
+                for (const c of r.columns) html += `<th>${esc(c)}</th>`;
+                html += "</tr></thead><tbody>";
+                for (const row of r.rows) {
+                    html += "<tr>";
+                    for (const c of r.columns) {
+                        const val = row[c];
+                        const display = highlight(val);
+                        const isNum = val !== null && val !== "" && !isNaN(val);
+                        html += `<td class="${isNum ? "td-num" : "td-text"}">${display}</td>`;
+                    }
+                    html += "</tr>";
+                }
+                html += "</tbody></table></div>";
+            }
+            searchOut.innerHTML = html;
+        } catch (e) {
+            searchOut.innerHTML = "<p style='color:red; font-size:13px;'>Search failed.</p>";
+        }
+    }
+
+    searchBtn.addEventListener("click", doSearch);
+    searchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
+
     if (tables.length) loadTable(initialTable);
 }
 

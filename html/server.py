@@ -1143,6 +1143,37 @@ def db_query_api():
         return jsonify({"error": str(exc)}), 500
 
 
+@app.route("/api/db-search")
+def db_search_api():
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify({"results": []})
+    conn = db._get_conn()
+    tables = [r["name"] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+    ).fetchall()]
+    pattern = f"%{q}%"
+    results = []
+    for tbl in tables:
+        try:
+            cols_info = conn.execute(f"PRAGMA table_info([{tbl}])").fetchall()
+            text_cols = [row[1] for row in cols_info if row[2].upper() in ("TEXT", "VARCHAR", "BLOB", "")]
+            if not text_cols:
+                continue
+            where = " OR ".join(f'CAST([{c}] AS TEXT) LIKE ?' for c in text_cols)
+            cur = conn.execute(
+                f"SELECT * FROM [{tbl}] WHERE {where}",  # noqa: S608
+                [pattern] * len(text_cols),
+            )
+            columns = [desc[0] for desc in cur.description]
+            rows = [dict(zip(columns, row)) for row in cur.fetchall()]
+            if rows:
+                results.append({"table": tbl, "columns": columns, "rows": rows})
+        except Exception:
+            continue
+    return jsonify({"results": results, "query": q})
+
+
 @app.route("/")
 def home():
     return render_template("index.html")
