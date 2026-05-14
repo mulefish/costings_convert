@@ -532,7 +532,11 @@ def _usd_consolidation_total_storage_for_port(port: str) -> float:
 
 
 def _drayage_field_for_port(port: str, field: str) -> float:
-    """Lookup numeric field in drayage.json by export Port (same mapping as consolidation; Weslaco → Houston)."""
+    """Lookup numeric field in the SQLite `drayage` table (in-memory `drayage` dict from db.get_drayage()) by export Port.
+
+    Port maps to a drayage region the same way as consolidation (Weslaco → Houston, etc.). Field names match
+    Jarvis / API keys: Bale, OceanBase, GRI, LineHaul, ChasSplit, Contrainer, Updated.
+    """
     region = _consolidation_region_key_for_port(port)
     if region and region in drayage:
         inner = drayage.get(region)

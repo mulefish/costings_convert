@@ -2059,7 +2059,7 @@ function createUsdColumnDiscussion() {
         "Flatbed, Late Fee — Looked up by Warehouse id in regions_and_ports.csv (“Flat Bed Fees” and “Late Fees”).",
         "Transit Truck — Take the FINAL rate from the OTR (OTR_Rates.csv, same as the OTR view) for that warehouse city and export port, then divide that value by 88. If there is no matching OTR lane, Transit Truck is 0.",
         "Total Transit — Flatbed + Late Fee + Transit Truck.",
-        "Consolidation — InAndOut (Consol_Block): per row, Port → consolidation.json region → bale. TotalStorage (Consol_Strg): same Port → region → TotalStorage column (stored key month = Storage × Days Storage). Port “Weslaco” uses Houston’s consolidation row. Unmapped ports use Jarvis fallbacks (InAndOut, TotalStorage). Interest (Consol_Interest): (Avg Purchase Price × EDF Interest Rate ÷ 100 × Avg Bale Weight) ÷ 52 × (Days Storage ÷ 7). Total Consol: InAndOut + TotalStorage + Interest for that row. Outbound — Dray: Port → drayage.json → Bale; Ocean: same mapping → OceanBase ÷ 88. Total_Out: Dray + Ocean. Documentation — Sight LC: China LC ÷ 20; Forwarding: Jarvis usa_forwarding TOTAL ((COO + FHTO) ÷ 88); Controlling: China CONT ÷ 20; Insurance: China INS ÷ 20 (all same every row). Total Doc: sum of those four. CIF — Dest Com: China COM ÷ 20; CoF: China COF ÷ 20; Qclaim: China CIQ_QC ÷ 20 (0 if null). Total CIF: sum of those three. Weslaco / Shelby transit — per server implementation.",
+        "Consolidation — InAndOut (Consol_Block): per row, Port → consolidation.json region → bale. TotalStorage (Consol_Strg): same Port → region → TotalStorage column (stored key month = Storage × Days Storage). Port “Weslaco” uses Houston’s consolidation row. Unmapped ports use Jarvis fallbacks (InAndOut, TotalStorage). Interest (Consol_Interest): (Avg Purchase Price × EDF Interest Rate ÷ 100 × Avg Bale Weight) ÷ 52 × (Days Storage ÷ 7). Total Consol: InAndOut + TotalStorage + Interest for that row. Outbound — Dray / Ocean: SQLite drayage table (Port→region) → Bale, and OceanBase ÷ 88 for Ocean USD. Total_Out: Dray + Ocean. Documentation — Sight LC: China LC ÷ 20; Forwarding: Jarvis usa_forwarding TOTAL ((COO + FHTO) ÷ 88); Controlling: China CONT ÷ 20; Insurance: China INS ÷ 20 (all same every row). Total Doc: sum of those four. CIF — Dest Com: China COM ÷ 20; CoF: China COF ÷ 20; Qclaim: China CIQ_QC ÷ 20 (0 if null). Total CIF: sum of those three. Weslaco / Shelby transit — per server implementation.",
     ];
     for (const text of items) {
         const li = document.createElement("li");
@@ -2137,6 +2137,7 @@ function createCifColumnDiscussion() {
         "Row order follows the <code>cif_regions</code> array in <code>usa_forwarding_cost.json</code>. " +
         "For each region label, every column except Total Terms is the average of that PTS column over rows whose Region matches " +
         "(Terms = most common). Weslaco and Shelby transit columns are omitted. " +
+        "For <strong>Outbound</strong>, each warehouse’s PTS <strong>Ocean</strong> is 20 × (USD Ocean), and USD Ocean = SQLite <strong>drayage</strong> for that warehouse’s Port → <strong>OceanBase ÷ 88</strong> (same as the USD view); the CIF cell is the mean of those PTS values for the region. " +
         "The <em>Ignore 0s</em> toggle controls whether zeros are excluded from averages (default: yes).</p>" +
 
         "<p><strong>WTXH special case:</strong> WTXH has no warehouses assigned in <code>regions_and_ports.csv</code>. " +
@@ -3473,6 +3474,8 @@ function showCellDerivation(row, column, value, rowIdx) {
         }
     } else if (viewName === "USD") {
         derivation = _usdDerivation(row, column);
+    } else if (viewName === "CIF") {
+        derivation = _cifDerivation(row, column);
     } else {
         derivation = `"${column}" from row ${rowIdx + 1}`;
     }
@@ -3554,8 +3557,12 @@ function _usdDerivation(row, column) {
     if (column === "Total_Consol") return `Consol InAndOut + Consol TotalStorage + Consol Interest`;
 
     // Outbound
-    if (column === "Dray") return `drayage.json [ Port="${port}" ] . "Bale"`;
-    if (column === "Ocean") return `drayage.json [ Port="${port}" ] . "OceanBase" ÷ 88`;
+    if (column === "Dray") {
+        return `SQLite drayage table (GET /api/drayage): export Port "${port}" → drayage region → "Bale" (USD; server.py _drayage_field_for_port).`;
+    }
+    if (column === "Ocean") {
+        return `SQLite drayage table (GET /api/drayage): Port "${port}" → region → "OceanBase" ÷ 88 = USD Ocean (server.py _build_usd_rows / _drayage_field_for_port).`;
+    }
     if (column === "Total_Out") return `Dray + Ocean base`;
 
     // Documentation
@@ -3575,6 +3582,52 @@ function _usdDerivation(row, column) {
     if (column === "Weslaco_Transit" || column === "Shelby_Transit") return `(placeholder — not yet computed)`;
 
     return `"${column}" from USD calculation`;
+}
+
+/**
+ * Click-to-explain text for CIF view (GET /api/cif — server.py _build_cif_rows).
+ * Region rows: each numeric column is the mean of that column over PTS rows for warehouses in that Region
+ * (except Origin block on WTXH, which uses WTX warehouses). Houston/Dallas rows are built from port logic, not averages.
+ */
+function _cifDerivation(row, column) {
+    const region = String(row.Region ?? "").trim();
+    const portRow = region === "Houston" || region === "Dallas";
+
+    if (column === "Ocean") {
+        if (portRow) {
+            return (
+                `CIF port row (${region}): Outbound Ocean in PTS = round(20 × USD Ocean). ` +
+                `USD Ocean = SQLite drayage for this port’s region → OceanBase ÷ 88 (same as USD view for that port). ` +
+                `See server.py _build_cif_port_row.`
+            );
+        }
+        return (
+            `CIF aggregate for Region "${region}": **mean** of the **PTS** "Ocean" value over every warehouse whose \`regions_and_ports\` **Region** is "${region}" ` +
+            `(see GET /api/usd → ×20 PTS per warehouse in server.py _build_cif_rows). ` +
+            `Each warehouse’s PTS Ocean = 20 × (USD Ocean), and USD Ocean = **SQLite drayage** for that warehouse’s **Port** → **OceanBase ÷ 88**. ` +
+            `With **Ignore 0s** on (default), warehouses with 0 in that column are omitted from the average. ` +
+            `So 210 is not “from CIF row 1”; it is the rounded average of those underlying PTS oceans.`
+        );
+    }
+    if (column === "Dray") {
+        if (portRow) {
+            return `CIF port row: PTS Dray = round(20 × SQLite drayage Bale for ${region}). _build_cif_port_row.`;
+        }
+        return `CIF aggregate (${region}): mean of PTS "Dray" for Region="${region}" (each = 20 × USD Dray from SQLite drayage Bale via port→region).`;
+    }
+    if (column === "Total_Out") {
+        if (portRow) {
+            return `CIF port row: Total_Out PTS = Dray + Ocean (both in PTS). _build_cif_port_row.`;
+        }
+        return `CIF aggregate (${region}): mean of PTS "Total_Out" for Region="${region}" (USD Total_Out = Dray + Ocean per warehouse, then ×20).`;
+    }
+    if (portRow) {
+        return `CIF port row (${region}): column "${column}" from server.py _build_cif_port_row (not a regional average).`;
+    }
+    return (
+        `CIF aggregate for Region "${region}": mean of PTS column "${column}" over warehouses with that Region ` +
+        `(Origin columns on WTXH use WTX warehouses only). GET /api/cif — server.py _build_cif_rows, _cif_pts_average_numeric.`
+    );
 }
 
 /* ── Export view ───────────────────────────────────────────── */
@@ -3712,7 +3765,7 @@ function _exportRowMatchesSearch(row, baseQuery, cifFeQuery) {
     if (b) {
         const group = String(row._exportBaseGroup ?? row.Base ?? "").trim().toLowerCase();
         if (!group.includes(b)) {
-            return false;
+            return subjfalse;
         }
     }
     if (c) {
@@ -4013,12 +4066,37 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         );
     }
 
-    if (_exportRegionColumnDeferred(abbr) && group !== "Documentation" && group !== "CIF") {
-        return `Column "${column}": EMOT, ME, and BRZ are blank here (no per-region CIF for these columns yet; Documentation and CIF rows still show country totals).`;
+    if (group === "Premium and Discounts") {
+        if (_exportRegionColumnDeferred(abbr)) {
+            return `Premium and Discounts (${abbr}): intentionally blank for EMOT, ME, and BRZ (no reconcile in these columns).`;
+        }
+        const cifRegion = EXPORT_REGION_TO_CIF[abbr];
+        let ttStr;
+        if (rowIdx < 0 && ctx && ctx.headerSampleOpts) {
+            ttStr = _exportHeaderSampleTotalTermsForAbbr(abbr, ctx.headerSampleOpts);
+        } else {
+            ttStr = row[`Total Terms|${abbr}`] ?? "";
+        }
+        const cifN = _exportCifTotalTermsCashNumber(cifByRegion, abbr);
+        const cifLabel = cifRegion ? `GET /api/cif [ Region="${cifRegion}" ] . Cash (Total Terms)` : "CIF region";
+        if (String(ttStr).trim() === "ERROR") {
+            return `Premium and Discounts (${abbr}): Export Total Terms is ERROR; cannot reconcile.`;
+        }
+        if (!Number.isFinite(cifN)) {
+            return `Premium and Discounts (${abbr}): no numeric CIF Cash for ${cifLabel}; cell blank.`;
+        }
+        const exN = _exportParseNumericCell(ttStr);
+        const ex = Number.isFinite(exN) ? exN : 0;
+        const diff = Math.round(cifN - ex);
+        return (
+            `Premium and Discounts (${abbr}): reconcile — ${cifLabel} = ${Math.round(cifN)}; ` +
+            `Export Total Terms (${abbr}) = ${ex}. Cell = round(CIF Cash − Export Total Terms) = ${diff}. ` +
+            `0 means Export Total Terms matches CIF Total Terms Cash for this region.`
+        );
     }
 
-    if (group === "Premium and Discounts") {
-        return `Premium and Discounts (${abbr}): not mapped to GET /api/cif yet; cells are blank (section is to the right of Total Terms and is not part of that sum).`;
+    if (_exportRegionColumnDeferred(abbr) && group !== "Documentation" && group !== "CIF") {
+        return `Column "${column}": EMOT, ME, and BRZ are blank here for Origin/Inland/Consol/Outbound (no per-region CIF yet); Documentation and CIF still show country totals; Premium and Discounts reconcile is omitted in these columns.`;
     }
 
     if (group === "Outbound Logistics" && _exportOutboundUsesCifDrayAndOceanHubPts(abbr)) {
@@ -4207,6 +4285,47 @@ function _exportFillTotalTermsCellsForRow(row) {
     });
 }
 
+/** CIF view Total Terms Cash (numeric) for the Export region column `abbr` (maps to CIF Region row). */
+function _exportCifTotalTermsCashNumber(cifByRegion, abbr) {
+    const cifRegion = EXPORT_REGION_TO_CIF[abbr];
+    const cifRow = cifRegion && cifByRegion ? cifByRegion[cifRegion] : null;
+    if (!cifRow) {
+        return NaN;
+    }
+    const raw = cifRow.Cash;
+    if (raw === undefined || raw === null || raw === "") {
+        return NaN;
+    }
+    const n = parseFloat(String(raw).replace(/,/g, ""));
+    return Number.isFinite(n) ? n : NaN;
+}
+
+/** Premium and Discounts: CIF Total Terms Cash minus this row’s Export Total Terms (same region). 0 = match. */
+function _exportPremiumDiscountsCell(cifByRegion, row, abbr) {
+    if (_exportRegionColumnDeferred(abbr)) {
+        return "";
+    }
+    const ttKey = "Total Terms|" + abbr;
+    const ttStr = row[ttKey];
+    if (String(ttStr).trim() === "ERROR") {
+        return "ERROR";
+    }
+    const cifN = _exportCifTotalTermsCashNumber(cifByRegion, abbr);
+    if (!Number.isFinite(cifN)) {
+        return "";
+    }
+    const exN = _exportParseNumericCell(ttStr);
+    const ex = Number.isFinite(exN) ? exN : 0;
+    return _exportWholeNumberString(Math.round(cifN - ex));
+}
+
+function _exportFillPremiumDiscountsCellsForRow(row, cifByRegion) {
+    const cif = cifByRegion || {};
+    EXPORT_REGIONS.forEach((abbr) => {
+        row["Premium and Discounts|" + abbr] = _exportPremiumDiscountsCell(cif, row, abbr);
+    });
+}
+
 /**
  * Export thead row 3: one cell’s displayed value (Documentation/CIF from EXPORT_DATA[0];
  * other groups via CIF row / _exportCellValueForGroupRegion — matches Outbound header, not body dray+ocean).
@@ -4240,6 +4359,22 @@ function _exportHeaderSampleCellDisplayValue(group, abbr, o) {
             samplePts = _exportCifSectionTotalPts(sampleBase, documentCifRows);
         }
         return _exportWholeNumberString(samplePts);
+    }
+    if (group === "Premium and Discounts") {
+        if (_exportRegionColumnDeferred(abbr)) {
+            return "";
+        }
+        const ttStr = _exportHeaderSampleTotalTermsForAbbr(abbr, o);
+        if (String(ttStr).trim() === "ERROR") {
+            return "ERROR";
+        }
+        const cifN = _exportCifTotalTermsCashNumber(cifByRegion, abbr);
+        if (!Number.isFinite(cifN)) {
+            return "";
+        }
+        const ttN = _exportParseNumericCell(ttStr);
+        const ex = Number.isFinite(ttN) ? ttN : 0;
+        return _exportWholeNumberString(Math.round(cifN - ex));
     }
     return _exportCellValueForGroupRegion(cifByRegion, group, abbr);
 }
@@ -4312,6 +4447,7 @@ function _buildExportRows(cifByRegion, exportOpts) {
             });
 
             _exportFillTotalTermsCellsForRow(row);
+            _exportFillPremiumDiscountsCellsForRow(row, cif);
 
             rows.push(row);
         });
@@ -4527,7 +4663,10 @@ async function renderExportTable() {
                     th.style.cursor = "pointer";
                     th.title = "Click for derivation (header uses first Export data row)";
                     th.addEventListener("click", () => {
-                        const val = group === "Total Terms" ? v : (headerSampleRow[col] ?? v);
+                        const val =
+                            group === "Total Terms" || group === "Premium and Discounts"
+                                ? v
+                                : (headerSampleRow[col] ?? v);
                         showExportDerivation(headerSampleRow, col, val, -1);
                     });
                 }
