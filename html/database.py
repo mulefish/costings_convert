@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sqlite3
 from pathlib import Path
 
@@ -347,12 +348,39 @@ def _ensure_themes_seeded(conn: sqlite3.Connection) -> None:
     )
 
 
+def _normalize_theme_color_hex(raw: object) -> str:
+    """Collapse ##hex to #hex; accept 3/6/8 hex digits. Pass through rgb()/hsl() unchanged."""
+    s = str(raw or "").strip()
+    if not s:
+        return ""
+    low = s.lower()
+    if low.startswith("rgb") or low.startswith("hsl"):
+        return s
+    t = s
+    while t.startswith("#"):
+        t = t[1:].strip()
+    if not t:
+        return ""
+    if re.fullmatch(r"[0-9a-fA-F]{3}", t) or re.fullmatch(r"[0-9a-fA-F]{6}", t) or re.fullmatch(
+        r"[0-9a-fA-F]{8}", t
+    ):
+        return "#" + t.lower()
+    return ""
+
+
 def get_themes() -> list[dict[str, str]]:
     conn = _get_conn()
     rows = conn.execute(
         'SELECT Country, CountryAbbr, Color, "type" AS type FROM themes ORDER BY CountryAbbr'
     ).fetchall()
-    return [dict(r) for r in rows]
+    out = []
+    for r in rows:
+        d = dict(r)
+        orig = str(d.get("Color") or "").strip()
+        fixed = _normalize_theme_color_hex(orig)
+        d["Color"] = fixed if fixed else orig
+        out.append(d)
+    return out
 
 
 def save_themes_rows(rows: list) -> int:
@@ -371,12 +399,14 @@ def save_themes_rows(rows: list) -> int:
             abbr = str(r.get("CountryAbbr", "")).strip().upper()
             if not abbr:
                 continue
+            color_raw = str(r.get("Color", "")).strip()
+            color = _normalize_theme_color_hex(color_raw) or color_raw
             conn.execute(
                 sql,
                 (
                     str(r.get("Country", "")).strip(),
                     abbr,
-                    str(r.get("Color", "")).strip(),
+                    color,
                     str(r.get("type", "")).strip(),
                 ),
             )

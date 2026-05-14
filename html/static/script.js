@@ -1154,6 +1154,18 @@ async function renderControlPanelView() {
     const themesTbody = document.createElement("tbody");
     themesTbody.id = "jarvis-themes-tbody";
 
+    function _jarvisThemeApplyCountryCellStyle(tr) {
+        const countryInp = tr.querySelector('input[data-theme-field="Country"]');
+        const colorInp = tr.querySelector('input[data-theme-field="Color"]');
+        if (!countryInp || !countryInp.parentElement) {
+            return;
+        }
+        const td = countryInp.parentElement;
+        const raw = colorInp ? String(colorInp.value ?? "").trim() : "";
+        const c = _normalizeThemeHexColor(raw) || raw;
+        td.style.backgroundColor = c || "";
+    }
+
     function addJarvisThemeRow(rowData) {
         const d = rowData || {};
         const tr = document.createElement("tr");
@@ -1193,12 +1205,14 @@ async function renderControlPanelView() {
         tdRm.appendChild(rmBtn);
         tr.appendChild(tdRm);
         const countryInp = tr.querySelector('input[data-theme-field="Country"]');
+        const colorInp = tr.querySelector('input[data-theme-field="Color"]');
         if (countryInp && countryInp.parentElement) {
-            applyCountryThemeToTd(countryInp.parentElement, countryInp.value);
-            countryInp.addEventListener("input", () => {
-                applyCountryThemeToTd(countryInp.parentElement, countryInp.value);
-            });
+            countryInp.addEventListener("input", () => _jarvisThemeApplyCountryCellStyle(tr));
         }
+        if (colorInp) {
+            colorInp.addEventListener("input", () => _jarvisThemeApplyCountryCellStyle(tr));
+        }
+        _jarvisThemeApplyCountryCellStyle(tr);
         themesTbody.appendChild(tr);
     }
 
@@ -3723,7 +3737,7 @@ function _cifDerivation(row, column) {
 /* ── Export view ───────────────────────────────────────────── */
 const EXPORT_DATA = [
     { base: "China",      code: "CN", c: "38", d: "18", ports: ["Qingdao","Xiamen","Nantong"] },
-    { base: "Vietnam",    code: "VN", c: "50", d: "14", ports: ["Ho Chi Minh","DaNang","Haiphong"] },
+    { base: "Vietnam",    code: "VN", c: "50", d: "14", ports: ["Ho Chi Minh","Da Nang","Haiphong"] },
     { base: "Korea",      code: "KO", c: "46", d: "18", ports: ["Busan","Kwangyang"] },
     { base: "Japan",      code: "JP", c: "43", d: "14", ports: ["Osaka","Kobe","Nagoya"] },
     { base: "Malaysia",   code: "MA", c: "40", d: "14", ports: ["Tanjung Pelepas","Penang","Port Klang"] },
@@ -3781,11 +3795,35 @@ const EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS =
         ? EXPORT_CIF_GROUP_LABELS.slice(0, _EXPORT_TOTAL_TERMS_INDEX)
         : [];
 
+/** Normalize theme Color for CSS (e.g. ##ff0044 → #ff0044). Leaves rgb()/hsl() unchanged. */
+function _normalizeThemeHexColor(raw) {
+    const s = String(raw ?? "").trim();
+    if (!s) {
+        return "";
+    }
+    const low = s.toLowerCase();
+    if (low.startsWith("rgb") || low.startsWith("hsl")) {
+        return s;
+    }
+    let t = s;
+    while (t.startsWith("#")) {
+        t = t.slice(1).trim();
+    }
+    if (!t) {
+        return "";
+    }
+    if (/^[0-9a-f]{3}$/i.test(t) || /^[0-9a-f]{6}$/i.test(t) || /^[0-9a-f]{8}$/i.test(t)) {
+        return `#${t.toLowerCase()}`;
+    }
+    return "";
+}
+
 /** Map themes.Country (lower) → Color. Export "Other" → themes "Other International". */
 function _exportThemeColorByCountry(themesRows) {
     const m = new Map();
     for (const t of themesRows || []) {
-        const color = String(t.Color ?? t.color ?? "").trim();
+        const raw = String(t.Color ?? t.color ?? "").trim();
+        const color = _normalizeThemeHexColor(raw) || raw;
         if (!color) {
             continue;
         }
@@ -3843,7 +3881,8 @@ function applyCountryThemeToTd(td, countryText) {
         return;
     }
     getThemeCountryColorMapCached().then((map) => {
-        const bg = _exportBaseCellBackground(String(countryText || ""), map);
+        const raw = _exportBaseCellBackground(String(countryText || ""), map);
+        const bg = _normalizeThemeHexColor(raw) || raw;
         if (bg) {
             td.style.backgroundColor = bg;
         }
