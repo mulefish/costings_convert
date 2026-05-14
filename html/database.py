@@ -47,6 +47,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     _ensure_themes_seeded(conn)
     _ensure_document_cif_gri_column(conn)
     _ensure_drayage_gri_column(conn)
+    _ensure_cif_regions_drop_brz_aus(conn)
     conn.commit()
 
 
@@ -226,6 +227,30 @@ def _ensure_document_cif_gri_column(conn: sqlite3.Connection) -> None:
     if "gri" not in cols:
         conn.execute("ALTER TABLE document_cif ADD COLUMN gri REAL NOT NULL DEFAULT 0")
         conn.commit()
+
+
+_RETIRED_CIF_REGIONS = frozenset({"BRZ", "AUS"})
+
+
+def _ensure_cif_regions_drop_brz_aus(conn: sqlite3.Connection) -> None:
+    """Remove retired BRZ/AUS rows from cif_regions and re-pack sort_order."""
+    try:
+        rows = conn.execute(
+            "SELECT region FROM cif_regions ORDER BY sort_order"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return
+    if not rows:
+        return
+    regions = [str(r["region"]).strip() for r in rows]
+    filtered = [r for r in regions if r and r not in _RETIRED_CIF_REGIONS]
+    if len(filtered) == len(regions):
+        return
+    conn.execute("DELETE FROM cif_regions")
+    conn.executemany(
+        "INSERT INTO cif_regions (sort_order, region) VALUES (?, ?)",
+        [(i, r) for i, r in enumerate(filtered)],
+    )
 
 
 def _ensure_drayage_gri_column(conn: sqlite3.Connection) -> None:
@@ -536,7 +561,11 @@ def save_usa_forwarding_cost(data: dict) -> None:
     for k, v in data.items():
         if k == "cif_regions":
             if isinstance(v, list):
-                cif_regions = v
+                cif_regions = [
+                    str(r).strip()
+                    for r in v
+                    if str(r).strip() and str(r).strip() not in _RETIRED_CIF_REGIONS
+                ]
             continue
         kv_rows.append((k, str(v)))
 

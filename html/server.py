@@ -96,8 +96,6 @@ CIF_REGIONS_DEFAULT: tuple[str, ...] = (
     "Memphis Equity",
     "Dallas",
     "Houston",
-    "BRZ",
-    "AUS",
 )
 USA_FORWARDING_COST_POST_KEYS = ("COO", "FHTO", "AVG_Shipment")
 USA_FORWARDING_COST_DEFAULTS: dict = {

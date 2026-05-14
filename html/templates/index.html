@@ -14,6 +14,16 @@
         tbody tr:nth-child(odd) { background: #ffffff; }
         tbody tr:nth-child(even) { background: #f2f2f2; }
         thead th:hover { background: #234a82; }
+        /* Exact sentinel text ERROR — class added in script.js (_applyCellErrorClass) */
+        td.cell-error,
+        tbody th.cell-error {
+            color: #b71c1c !important;
+            font-weight: 600;
+        }
+        thead th.cell-error {
+            color: #ffcdd2 !important;
+            font-weight: 700;
+        }
         input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; }
         table.usd-table thead tr:first-child th.usd-group-header {
             background: #1a73e8;
@@ -33,6 +43,42 @@
         }
         table.usd-table thead tr:nth-child(2) th.usd-sub-header:hover {
             background: #b8c9e8;
+        }
+        /* Export: collapsed CIF sections (narrow checkbox-only column) */
+        table.export-pricing-table thead tr:first-child th.usd-group-header .export-section-header-inner {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            flex-wrap: nowrap;
+        }
+        table.export-pricing-table thead tr:first-child th.export-section-collapsed-header .export-section-header-inner {
+            justify-content: center;
+        }
+        table.export-pricing-table thead tr:first-child th.export-section-collapsed-header .export-section-header-inner span {
+            display: none !important;
+        }
+        table.export-pricing-table th.export-section-collapsed-cell,
+        table.export-pricing-table td.export-section-collapsed-cell {
+            width: 2rem;
+            max-width: 2.75rem;
+            min-width: 1.75rem;
+            padding: 2px 4px;
+            overflow: hidden;
+            text-align: center;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        table.export-pricing-table thead tr:first-child th.export-section-collapsed-header {
+            padding: 4px 2px;
+        }
+        table.export-pricing-table thead tr:first-child th.export-section-collapsed-header input[type="checkbox"] {
+            margin: 0;
+            accent-color: #c8dcf8;
+        }
+        table.export-pricing-table thead tr:first-child th.usd-group-header input[type="checkbox"] {
+            flex-shrink: 0;
+            accent-color: #c8dcf8;
         }
         /* PTS include column: native checkbox tint (default OS green clashes with app blues) */
         #pts-table-host input[type="checkbox"] {
