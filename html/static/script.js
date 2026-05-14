@@ -1503,6 +1503,407 @@ async function select_view() {
     renderBasicTable(config.columns, config.rows);
 }
 
+let oceanExtractEditorGeneration = 0;
+
+/**
+ * Editable ocean_rates_extract grid for the Notes view: load, debounced search, row caps,
+ * add/remove/save. Uses page scroll (horizontal scroll only on wide table).
+ */
+async function mountOceanRatesExtractEditor(hostEl) {
+    oceanExtractEditorGeneration += 1;
+    const gen = oceanExtractEditorGeneration;
+    hostEl.replaceChildren();
+
+    const oceanExtractStatus = document.createElement("p");
+    oceanExtractStatus.style.fontSize = "13px";
+    oceanExtractStatus.style.minHeight = "1.2em";
+
+    const oceanIntro = document.createElement("p");
+    oceanIntro.style.fontSize = "13px";
+    oceanIntro.style.color = "#444";
+    oceanIntro.style.maxWidth = "900px";
+    oceanIntro.style.lineHeight = "1.45";
+    oceanIntro.innerHTML =
+        "<strong>ocean_rates_extract</strong> — same data as the Ocean view. " +
+        "Use <strong>Load / refresh</strong>, then search (debounced). Empty search previews the first rows; " +
+        "type to filter. Remove deletes immediately; Add row + Save upserts all rows in memory. " +
+        "Scroll the page vertically; this block only scrolls sideways if the table is wide.";
+
+    const oceanSearchRow = document.createElement("div");
+    oceanSearchRow.style.marginTop = "8px";
+    oceanSearchRow.style.display = "flex";
+    oceanSearchRow.style.alignItems = "center";
+    oceanSearchRow.style.gap = "10px";
+    oceanSearchRow.style.flexWrap = "wrap";
+    const oceanSearchLbl = document.createElement("label");
+    oceanSearchLbl.style.fontSize = "13px";
+    oceanSearchLbl.textContent = "Search:";
+    const oceanSearchInp = document.createElement("input");
+    oceanSearchInp.type = "text";
+    oceanSearchInp.placeholder = "Filter across all columns…";
+    oceanSearchInp.style.padding = "6px 10px";
+    oceanSearchInp.style.minWidth = "220px";
+    oceanSearchInp.style.border = "1px solid #ccc";
+    oceanSearchInp.style.borderRadius = "4px";
+    const oceanSearchMeta = document.createElement("span");
+    oceanSearchMeta.style.fontSize = "12px";
+    oceanSearchMeta.style.color = "#666";
+    oceanSearchRow.appendChild(oceanSearchLbl);
+    oceanSearchRow.appendChild(oceanSearchInp);
+    oceanSearchRow.appendChild(oceanSearchMeta);
+
+    const tableWrap = document.createElement("div");
+    tableWrap.style.overflowX = "auto";
+    tableWrap.style.marginTop = "8px";
+    tableWrap.style.border = "1px solid #ccc";
+    tableWrap.style.borderRadius = "4px";
+    tableWrap.style.background = "#fafafa";
+
+    const oceanTable = document.createElement("table");
+    oceanTable.style.borderCollapse = "collapse";
+    oceanTable.style.fontSize = "11px";
+    oceanTable.style.width = "100%";
+    oceanTable.style.minWidth = "max-content";
+    const oceanThead = document.createElement("thead");
+    const oceanTbody = document.createElement("tbody");
+    oceanTable.appendChild(oceanThead);
+    oceanTable.appendChild(oceanTbody);
+    tableWrap.appendChild(oceanTable);
+
+    let oceanExtractColumns = [];
+    let oceanExtractRows = [];
+    let oceanSearchDebounceTimer = null;
+    const OCEAN_EXTRACT_PREVIEW_CAP = 400;
+    const OCEAN_EXTRACT_MATCH_CAP = 600;
+    const OCEAN_SEARCH_DEBOUNCE_MS = 320;
+
+    function rebuildOceanHaystack(row) {
+        if (!oceanExtractColumns.length) {
+            return;
+        }
+        row._oceanHay = oceanExtractColumns.map((k) => String(row[k] ?? "").toLowerCase()).join("\u0001");
+    }
+
+    function rowMatchesOceanExtractSearch(row, qLower) {
+        if (!qLower) {
+            return true;
+        }
+        if (!oceanExtractColumns.length) {
+            return false;
+        }
+        if (row._oceanHay == null) {
+            rebuildOceanHaystack(row);
+        }
+        return row._oceanHay.includes(qLower);
+    }
+
+    function ensureOceanExtractThead() {
+        const sig = oceanExtractColumns.join("\x1f");
+        if (oceanThead.dataset.colsSig === sig) {
+            return;
+        }
+        oceanThead.dataset.colsSig = sig;
+        oceanThead.replaceChildren();
+        const headTr = document.createElement("tr");
+        const thAct = document.createElement("th");
+        thAct.textContent = "";
+        thAct.style.border = "1px solid #d9d9d9";
+        thAct.style.padding = "4px 6px";
+        thAct.style.background = "#2f5fa7";
+        thAct.style.color = "#fff";
+        thAct.style.position = "sticky";
+        thAct.style.left = "0";
+        thAct.style.zIndex = "2";
+        headTr.appendChild(thAct);
+        for (const col of oceanExtractColumns) {
+            const th = document.createElement("th");
+            th.textContent = col;
+            th.style.border = "1px solid #d9d9d9";
+            th.style.padding = "4px 6px";
+            th.style.background = "#2f5fa7";
+            th.style.color = "#fff";
+            th.style.whiteSpace = "nowrap";
+            headTr.appendChild(th);
+        }
+        oceanThead.appendChild(headTr);
+    }
+
+    function renderOceanExtractTableImmediate() {
+        if (gen !== oceanExtractEditorGeneration) {
+            return;
+        }
+        oceanTbody.replaceChildren();
+        const qTrim = oceanSearchInp.value.trim();
+        const qLower = qTrim.toLowerCase();
+
+        if (!oceanExtractColumns.length) {
+            const tr = document.createElement("tr");
+            const td = document.createElement("td");
+            td.textContent = oceanExtractRows.length ? "No columns." : "Not loaded — click “Load / refresh”.";
+            td.style.padding = "8px";
+            oceanTbody.appendChild(tr);
+            oceanSearchMeta.textContent = "";
+            return;
+        }
+
+        ensureOceanExtractThead();
+
+        const matched = qLower
+            ? oceanExtractRows.filter((row) => rowMatchesOceanExtractSearch(row, qLower))
+            : oceanExtractRows;
+
+        let toRender = matched;
+        let capNote = "";
+        if (!qLower && oceanExtractRows.length > OCEAN_EXTRACT_PREVIEW_CAP) {
+            toRender = matched.slice(0, OCEAN_EXTRACT_PREVIEW_CAP);
+            capNote = ` — preview ${OCEAN_EXTRACT_PREVIEW_CAP} of ${oceanExtractRows.length} (type in search to filter)`;
+        } else if (qLower && matched.length > OCEAN_EXTRACT_MATCH_CAP) {
+            toRender = matched.slice(0, OCEAN_EXTRACT_MATCH_CAP);
+            capNote = ` — showing ${OCEAN_EXTRACT_MATCH_CAP} of ${matched.length} matches (refine search)`;
+        }
+
+        const frag = document.createDocumentFragment();
+        for (const row of toRender) {
+            const tr = document.createElement("tr");
+            const tdRm = document.createElement("td");
+            tdRm.style.border = "1px solid #d9d9d9";
+            tdRm.style.padding = "2px 4px";
+            tdRm.style.background = "#fff";
+            tdRm.style.position = "sticky";
+            tdRm.style.left = "0";
+            tdRm.style.zIndex = "1";
+            const rmBtn = document.createElement("button");
+            rmBtn.type = "button";
+            rmBtn.textContent = "Remove";
+            rmBtn.style.fontSize = "10px";
+            rmBtn.style.cursor = "pointer";
+            rmBtn.addEventListener("click", async () => {
+                oceanExtractStatus.textContent = "";
+                oceanExtractStatus.style.color = "";
+                const rid = row.id;
+                if (rid != null && Number(rid) > 0) {
+                    try {
+                        const res = await fetch(`/api/ocean-rates-extract/${Number(rid)}`, { method: "DELETE" });
+                        if (!res.ok) {
+                            const err = await res.json().catch(() => ({}));
+                            throw new Error(err.error || res.statusText);
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        oceanExtractStatus.textContent = err.message || "Delete failed.";
+                        oceanExtractStatus.style.color = "#b00020";
+                        return;
+                    }
+                }
+                const ix = oceanExtractRows.indexOf(row);
+                if (ix >= 0) {
+                    oceanExtractRows.splice(ix, 1);
+                }
+                renderOceanExtractTableImmediate();
+            });
+            tdRm.appendChild(rmBtn);
+            tr.appendChild(tdRm);
+
+            for (const col of oceanExtractColumns) {
+                const td = document.createElement("td");
+                td.style.border = "1px solid #d9d9d9";
+                td.style.padding = "2px 4px";
+                td.style.background = "#fff";
+                const inp = document.createElement("input");
+                inp.type = "text";
+                inp.value = row[col] != null ? String(row[col]) : "";
+                inp.setAttribute("data-ocean-col", col);
+                inp.style.width = col === "id" ? "52px" : "96px";
+                inp.style.minWidth = col === "id" ? "48px" : "72px";
+                inp.style.maxWidth = col === "id" ? "64px" : "140px";
+                inp.style.fontSize = "11px";
+                inp.style.boxSizing = "border-box";
+                if (col === "id") {
+                    inp.readOnly = true;
+                    inp.style.background = "#f0f0f0";
+                }
+                inp.addEventListener("input", () => {
+                    if (col === "is_active") {
+                        const n = parseInt(inp.value, 10);
+                        row[col] = n === 0 ? 0 : 1;
+                        inp.value = String(row[col]);
+                    } else if (col !== "id") {
+                        row[col] = inp.value;
+                    }
+                    row._oceanHay = null;
+                });
+                td.appendChild(inp);
+                tr.appendChild(td);
+            }
+            frag.appendChild(tr);
+        }
+        oceanTbody.appendChild(frag);
+
+        const total = oceanExtractRows.length;
+        const shown = toRender.length;
+        const matchCount = matched.length;
+        if (!qLower) {
+            oceanSearchMeta.textContent = `Showing ${shown} row(s) in grid — ${total} in memory${capNote}`;
+        } else {
+            oceanSearchMeta.textContent = `Showing ${shown} in grid — ${matchCount} match(es) of ${total} total${capNote}`;
+        }
+    }
+
+    function scheduleOceanExtractRender() {
+        if (oceanSearchDebounceTimer) {
+            clearTimeout(oceanSearchDebounceTimer);
+        }
+        oceanSearchDebounceTimer = setTimeout(() => {
+            oceanSearchDebounceTimer = null;
+            if (gen !== oceanExtractEditorGeneration) {
+                return;
+            }
+            renderOceanExtractTableImmediate();
+        }, OCEAN_SEARCH_DEBOUNCE_MS);
+    }
+
+    oceanSearchInp.disabled = true;
+    oceanSearchInp.addEventListener("input", scheduleOceanExtractRender);
+
+    const oceanBtnRow = document.createElement("div");
+    oceanBtnRow.style.marginTop = "10px";
+    oceanBtnRow.style.display = "flex";
+    oceanBtnRow.style.gap = "8px";
+    oceanBtnRow.style.flexWrap = "wrap";
+    oceanBtnRow.style.alignItems = "center";
+
+    const oceanLoadBtn = document.createElement("button");
+    oceanLoadBtn.type = "button";
+    oceanLoadBtn.textContent = "Load / refresh";
+    oceanLoadBtn.style.padding = "8px 16px";
+    oceanLoadBtn.style.cursor = "pointer";
+    oceanLoadBtn.addEventListener("click", async () => {
+        oceanExtractStatus.textContent = "";
+        oceanExtractStatus.style.color = "";
+        oceanLoadBtn.disabled = true;
+        oceanSearchInp.disabled = true;
+        try {
+            const oRes = await fetch("/api/ocean-rates-extract");
+            if (!oRes.ok) {
+                throw new Error(oRes.statusText);
+            }
+            const oData = await oRes.json();
+            oceanExtractColumns = Array.isArray(oData.columns) ? oData.columns : [];
+            const raw = Array.isArray(oData.rows) ? oData.rows : [];
+            oceanExtractRows = raw.map((x) => {
+                const r = { ...x };
+                rebuildOceanHaystack(r);
+                return r;
+            });
+            oceanThead.dataset.colsSig = "";
+            oceanSearchInp.disabled = false;
+            oceanExtractStatus.textContent = `Loaded ${oceanExtractRows.length} row(s).`;
+            oceanExtractStatus.style.color = "#1b5e20";
+            renderOceanExtractTableImmediate();
+        } catch (err) {
+            console.error(err);
+            oceanExtractStatus.textContent = err.message || "Could not load ocean_rates_extract.";
+            oceanExtractStatus.style.color = "#b00020";
+            oceanExtractRows = [];
+            oceanExtractColumns = [];
+            oceanThead.dataset.colsSig = "";
+            renderOceanExtractTableImmediate();
+        } finally {
+            oceanLoadBtn.disabled = false;
+        }
+    });
+
+    const oceanAddBtn = document.createElement("button");
+    oceanAddBtn.type = "button";
+    oceanAddBtn.textContent = "Add row";
+    oceanAddBtn.style.padding = "8px 16px";
+    oceanAddBtn.style.cursor = "pointer";
+    oceanAddBtn.addEventListener("click", () => {
+        if (!oceanExtractColumns.length) {
+            oceanExtractStatus.textContent = "Load the table first.";
+            oceanExtractStatus.style.color = "#b00020";
+            return;
+        }
+        const nr = {};
+        for (const c of oceanExtractColumns) {
+            if (c === "id") {
+                continue;
+            }
+            nr[c] = c === "is_active" ? 1 : "";
+        }
+        nr._oceanHay = null;
+        oceanExtractRows.push(nr);
+        renderOceanExtractTableImmediate();
+    });
+
+    const oceanSaveBtn = document.createElement("button");
+    oceanSaveBtn.type = "button";
+    oceanSaveBtn.textContent = "Save changes";
+    oceanSaveBtn.style.padding = "8px 16px";
+    oceanSaveBtn.style.cursor = "pointer";
+    oceanSaveBtn.addEventListener("click", async () => {
+        oceanExtractStatus.textContent = "";
+        oceanExtractStatus.style.color = "";
+        if (!oceanExtractColumns.length) {
+            oceanExtractStatus.textContent = "Nothing to save.";
+            oceanExtractStatus.style.color = "#b00020";
+            return;
+        }
+        const rowsOut = oceanExtractRows.map((r) => {
+            const o = {};
+            for (const c of oceanExtractColumns) {
+                if (c === "id" && (r.id == null || r.id === "" || Number(r.id) <= 0)) {
+                    continue;
+                }
+                o[c] = r[c];
+            }
+            return o;
+        });
+        try {
+            const res = await fetch("/api/ocean-rates-extract/save", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rows: rowsOut }),
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(payload.error || res.statusText);
+            }
+            oceanExtractStatus.textContent = `Saved (${payload.inserted ?? 0} inserted, ${payload.updated ?? 0} updated).`;
+            oceanExtractStatus.style.color = "#1b5e20";
+            const reload = await fetch("/api/ocean-rates-extract");
+            if (reload.ok) {
+                const data = await reload.json();
+                oceanExtractColumns = Array.isArray(data.columns) ? data.columns : [];
+                const raw = Array.isArray(data.rows) ? data.rows : [];
+                oceanExtractRows = raw.map((x) => {
+                    const r = { ...x };
+                    rebuildOceanHaystack(r);
+                    return r;
+                });
+                oceanThead.dataset.colsSig = "";
+                renderOceanExtractTableImmediate();
+            }
+        } catch (err) {
+            console.error(err);
+            oceanExtractStatus.textContent = err.message || "Save failed.";
+            oceanExtractStatus.style.color = "#b00020";
+        }
+    });
+
+    oceanBtnRow.appendChild(oceanLoadBtn);
+    oceanBtnRow.appendChild(oceanAddBtn);
+    oceanBtnRow.appendChild(oceanSaveBtn);
+
+    hostEl.appendChild(oceanExtractStatus);
+    hostEl.appendChild(oceanIntro);
+    hostEl.appendChild(oceanSearchRow);
+    hostEl.appendChild(tableWrap);
+    hostEl.appendChild(oceanBtnRow);
+
+    renderOceanExtractTableImmediate();
+}
+
 async function renderNotesView() {
     const content = document.getElementById("content");
     content.innerHTML = "<p>Loading tables...</p>";
@@ -1516,7 +1917,10 @@ async function renderNotesView() {
         return;
     }
 
-    const tables = tablesRaw.filter((t) => t !== "ocean_costing_rules");
+    const rawList = Array.isArray(tablesRaw) ? tablesRaw : [];
+    const tables = [...new Set([...rawList.filter((t) => t !== "ocean_costing_rules"), "ocean_rates_extract"])].sort(
+        (a, b) => a.localeCompare(b)
+    );
     const initialTable = tables[0] || "";
 
     const options = tables
@@ -1525,6 +1929,7 @@ async function renderNotesView() {
     content.innerHTML = `<div style="font-family:Arial,sans-serif;">
         <p style="font-size:12px; color:#555; margin:0 0 10px 0;">
             Browse any SQLite table (versioned tables support <code>is_active</code> when the checkbox is on).
+            For <strong>ocean_rates_extract</strong>, pick that table to open the editable grid (load, search, add/remove, save) instead of a read-only preview.
         </p>
         <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
             <input type="text" id="db-global-search" placeholder="Search all tables..." style="padding:5px 10px; border:1px solid #ccc; border-radius:4px; font-size:13px; width:220px;" />
@@ -1550,9 +1955,18 @@ async function renderNotesView() {
     async function loadTable(tableName) {
         const out = document.getElementById("db-table-output");
         const countEl = document.getElementById("db-row-count");
+        const actToggle = document.getElementById("db-active-toggle");
         out.innerHTML = "<p style='font-size:13px; color:#888;'>Loading...</p>";
         countEl.textContent = "";
-        const activeOnly = toggle.checked ? "1" : "0";
+        if (tableName === "ocean_rates_extract") {
+            actToggle.disabled = true;
+            countEl.textContent = "(editable grid)";
+            out.innerHTML = "";
+            await mountOceanRatesExtractEditor(out);
+            return;
+        }
+        actToggle.disabled = false;
+        const activeOnly = actToggle.checked ? "1" : "0";
         try {
             const resp = await fetch("/api/db-query?table=" + encodeURIComponent(tableName) + "&active_only=" + activeOnly);
             const data = await resp.json();

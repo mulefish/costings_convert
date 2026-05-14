@@ -1524,6 +1524,34 @@ def ocean_rows():
     return jsonify({"rows": [_row_with_columns(r, OCEAN_COLUMNS) for r in rows]})
 
 
+@app.route("/api/ocean-rates-extract", methods=["GET"])
+def ocean_rates_extract_jarvis_get():
+    return jsonify(db.list_ocean_rates_extract_for_jarvis())
+
+
+@app.route("/api/ocean-rates-extract/<int:row_id>", methods=["DELETE"])
+def ocean_rates_extract_jarvis_delete(row_id):
+    if db.delete_ocean_rates_extract_row(row_id):
+        return jsonify({"ok": True})
+    return jsonify({"error": "Row not found"}), 404
+
+
+@app.route("/api/ocean-rates-extract/save", methods=["POST"])
+def ocean_rates_extract_jarvis_save():
+    payload = request.get_json(force=True, silent=True) or {}
+    rows = payload.get("rows")
+    if not isinstance(rows, list):
+        return jsonify({"error": "rows must be an array"}), 400
+    try:
+        counts = db.save_ocean_rates_extract_jarvis_rows(rows)
+        return jsonify({"ok": True, **counts})
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        traceback.print_exc()
+        return jsonify({"error": str(exc)}), 500
+
+
 @app.route("/api/ocean-costing-rules", methods=["GET"])
 def ocean_costing_rules_list():
     rows = db.get_ocean_costing_rules(active_only=True)

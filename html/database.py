@@ -962,6 +962,101 @@ def get_ocean_rates_extract_row_dicts(active_only: bool = True) -> list[dict[str
     return out
 
 
+def _ocean_rates_extract_ordered_columns(conn: sqlite3.Connection) -> list[str]:
+    rows = conn.execute("PRAGMA table_info(ocean_rates_extract)").fetchall()
+    return [r[1] for r in sorted(rows, key=lambda x: int(x[0]))]
+
+
+def _ocean_rates_extract_coerce_cell(col: str, raw: dict) -> object:
+    if col == "is_active":
+        try:
+            v = int(raw.get("is_active", 1))
+            return 1 if v not in (0, 1) else v
+        except (TypeError, ValueError):
+            return 1
+    v = raw.get(col)
+    if v is None:
+        return ""
+    return str(v)
+
+
+def list_ocean_rates_extract_for_jarvis() -> dict[str, object]:
+    """Full table for Jarvis editor: column order + one dict per row (includes id, is_active)."""
+    conn = _get_conn()
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ocean_rates_extract'"
+    ).fetchone():
+        return {"columns": [], "rows": []}
+    cols = _ocean_rates_extract_ordered_columns(conn)
+    if not cols:
+        return {"columns": [], "rows": []}
+    sel = ", ".join(_qident_sql(c) for c in cols)
+    out_rows: list[dict[str, object]] = []
+    for row in conn.execute(f"SELECT {sel} FROM ocean_rates_extract ORDER BY id"):
+        d = {cols[i]: row[i] for i in range(len(cols))}
+        if "id" in d and d["id"] is not None:
+            d["id"] = int(d["id"])
+        if "is_active" in d and d["is_active"] is not None:
+            d["is_active"] = int(d["is_active"])
+        out_rows.append(d)
+    return {"columns": cols, "rows": out_rows}
+
+
+def delete_ocean_rates_extract_row(row_id: int) -> bool:
+    conn = _get_conn()
+    cur = conn.execute("DELETE FROM ocean_rates_extract WHERE id = ?", (int(row_id),))
+    conn.commit()
+    return cur.rowcount > 0
+
+
+def save_ocean_rates_extract_jarvis_rows(rows: list) -> dict[str, int]:
+    """
+    Upsert rows from Jarvis: positive integer id → UPDATE all non-id columns; else INSERT.
+    """
+    conn = _get_conn()
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ocean_rates_extract'"
+    ).fetchone():
+        raise ValueError("ocean_rates_extract table does not exist")
+    cols_ordered = _ocean_rates_extract_ordered_columns(conn)
+    if "id" not in cols_ordered:
+        raise ValueError("ocean_rates_extract has no id column")
+    insert_cols = [c for c in cols_ordered if c != "id"]
+    if not insert_cols:
+        raise ValueError("ocean_rates_extract has no data columns")
+
+    upd_set = ", ".join(f"{_qident_sql(c)} = ?" for c in insert_cols)
+    upd_sql = f"UPDATE ocean_rates_extract SET {upd_set} WHERE id = ?"
+    ins_names = ", ".join(_qident_sql(c) for c in insert_cols)
+    ins_ph = ", ".join("?" for _ in insert_cols)
+    ins_sql = f"INSERT INTO ocean_rates_extract ({ins_names}) VALUES ({ins_ph})"
+
+    n_ins = 0
+    n_upd = 0
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        for raw in rows:
+            if not isinstance(raw, dict):
+                continue
+            vals = [_ocean_rates_extract_coerce_cell(c, raw) for c in insert_cols]
+            rid = raw.get("id")
+            try:
+                rid_int = int(rid) if rid is not None and str(rid).strip() != "" else 0
+            except (TypeError, ValueError):
+                rid_int = 0
+            if rid_int > 0:
+                conn.execute(upd_sql, (*vals, rid_int))
+                n_upd += 1
+            else:
+                conn.execute(ins_sql, vals)
+                n_ins += 1
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    return {"inserted": n_ins, "updated": n_upd}
+
+
 # ---------------------------------------------------------------------------
 # ocean_costing_rules (versioned: save deactivates prior row with same city/desc/country)
 # ---------------------------------------------------------------------------
