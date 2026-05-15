@@ -4,6 +4,21 @@
     <meta charset="UTF-8">
     <title>Costings - Jarvis</title>
     <script src="{{ url_for('static', filename='headers.js') }}"></script>
+    <script>
+        (function () {
+            const export_sections_toggle = {
+                "Origin Warehouse": false,
+                "Inland Logistics": false,
+                "Consolidation": false,
+                "Outbound Logistics": false,
+                "Documentation": false,
+                "CIF": false,
+                "Total Terms": true,
+                "Premium and Discounts": true,
+            };
+            window.EXPORT_SECTIONS_TOGGLE_DEFAULTS = export_sections_toggle;
+        })();
+    </script>
 
     <style>
         table { border-collapse: collapse; width: auto; font-family: Arial, sans-serif; font-size: 13px; }

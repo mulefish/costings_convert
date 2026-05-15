@@ -57,6 +57,68 @@ async function renderControlPanelView() {
         "They drive the OTR, OCEAN, USD, PTS, CIF, and Export views.";
     wrap.appendChild(p);
 
+    const hExportSec = document.createElement("h4");
+    hExportSec.style.margin = "14px 0 6px 0";
+    hExportSec.textContent = "Export view — section columns (this browser)";
+    wrap.appendChild(hExportSec);
+    const pExportSec = document.createElement("p");
+    pExportSec.style.fontSize = "12px";
+    pExportSec.style.color = "#555";
+    pExportSec.style.margin = "0 0 8px 0";
+    pExportSec.style.maxWidth = "720px";
+    pExportSec.style.lineHeight = "1.45";
+    pExportSec.textContent =
+        "Checked = show all region columns for that section. Unchecked = shrink to a narrow column. Defaults come from index.html (export_sections_toggle); changes are saved to localStorage only (not the server). Open the Export view to see the effect.";
+    wrap.appendChild(pExportSec);
+    const exportSecToggleStatus = document.createElement("p");
+    exportSecToggleStatus.style.fontSize = "12px";
+    exportSecToggleStatus.style.minHeight = "1.2em";
+    exportSecToggleStatus.style.margin = "0 0 10px 0";
+    wrap.appendChild(exportSecToggleStatus);
+    const exportSecTbl = document.createElement("table");
+    exportSecTbl.setAttribute("aria-label", "Export section column visibility");
+    const expThead = document.createElement("thead");
+    const expTrh = document.createElement("tr");
+    for (const ht of ["Section", "Show columns (open)"]) {
+        const th = document.createElement("th");
+        th.textContent = ht;
+        expTrh.appendChild(th);
+    }
+    expThead.appendChild(expTrh);
+    exportSecTbl.appendChild(expThead);
+    const expTbody = document.createElement("tbody");
+    const exportSecCbByLabel = new Map();
+    const exportSecState = loadExportSectionExpandedFromStorage();
+    EXPORT_CIF_GROUP_LABELS.forEach((label) => {
+        const tr = document.createElement("tr");
+        const tdName = document.createElement("td");
+        tdName.textContent = label;
+        const tdCb = document.createElement("td");
+        tdCb.style.textAlign = "center";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!exportSecState[label];
+        cb.title = "Show full section in Export view";
+        cb.setAttribute("aria-label", `Show columns for ${label}`);
+        cb.addEventListener("change", () => {
+            const next = {};
+            for (const lbl of EXPORT_CIF_GROUP_LABELS) {
+                const box = exportSecCbByLabel.get(lbl);
+                next[lbl] = box ? !!box.checked : true;
+            }
+            persistExportSectionExpandedState(next);
+            exportSecToggleStatus.textContent = "Saved to browser storage. Switch to Export to refresh the table if it is already open.";
+            exportSecToggleStatus.style.color = "#1b5e20";
+        });
+        exportSecCbByLabel.set(label, cb);
+        tdCb.appendChild(cb);
+        tr.appendChild(tdName);
+        tr.appendChild(tdCb);
+        expTbody.appendChild(tr);
+    });
+    exportSecTbl.appendChild(expTbody);
+    wrap.appendChild(exportSecTbl);
+
     const status = document.createElement("p");
     status.style.fontSize = "13px";
     status.style.minHeight = "1.2em";
@@ -4203,6 +4265,55 @@ const EXPORT_CIF_GROUP_LABELS = [
     "Total Terms", "Premium and Discounts"
 ];
 
+/** Browser-only: Export section header checkboxes (open vs collapsed). See index.html EXPORT_SECTIONS_TOGGLE_DEFAULTS. */
+const EXPORT_SECTIONS_TOGGLE_LS_KEY = "export_sections_toggle";
+
+function _getExportSectionToggleDefaults() {
+    const w = typeof window !== "undefined" && window.EXPORT_SECTIONS_TOGGLE_DEFAULTS;
+    const o = {};
+    for (const label of EXPORT_CIF_GROUP_LABELS) {
+        if (w && typeof w === "object" && !Array.isArray(w) && Object.prototype.hasOwnProperty.call(w, label)) {
+            o[label] = !!w[label];
+        } else {
+            o[label] = true;
+        }
+    }
+    return o;
+}
+
+function loadExportSectionExpandedFromStorage() {
+    const defaults = _getExportSectionToggleDefaults();
+    const out = { ...defaults };
+    try {
+        const raw = localStorage.getItem(EXPORT_SECTIONS_TOGGLE_LS_KEY);
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+                for (const label of EXPORT_CIF_GROUP_LABELS) {
+                    if (Object.prototype.hasOwnProperty.call(parsed, label)) {
+                        out[label] = !!parsed[label];
+                    }
+                }
+            }
+        }
+    } catch (_) {
+        /* ignore invalid JSON */
+    }
+    return out;
+}
+
+function persistExportSectionExpandedState(sectionExpanded) {
+    const toSave = {};
+    for (const label of EXPORT_CIF_GROUP_LABELS) {
+        toSave[label] = !!sectionExpanded[label];
+    }
+    try {
+        localStorage.setItem(EXPORT_SECTIONS_TOGGLE_LS_KEY, JSON.stringify(toSave));
+    } catch (_) {
+        /* quota / private mode */
+    }
+}
+
 /** Export Total Terms row: per region, sum of each section column to the left of Total Terms (same row & region). */
 const _EXPORT_TOTAL_TERMS_INDEX = EXPORT_CIF_GROUP_LABELS.indexOf("Total Terms");
 const EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS =
@@ -4388,13 +4499,16 @@ function _exportOceanPortMatchesHub(portRaw, abbr) {
     return p === hub || p.includes(hub);
 }
 
-/** Same port, alternate romanizations — align before Export CIF FE vs Ocean Destination match. */
+/** Same port / city label variants — align before Export CIF FE vs Ocean Destination match. */
 function _exportNormalizePortAliasesForMatch(normLower) {
     const s = String(normLower ?? "");
     if (!s) {
         return s;
     }
-    return s.replace(/\bkwangyang\b/g, "gwangyang");
+    return s
+        .replace(/\bkwangyang\b/g, "gwangyang")
+        .replace(/\btao-yuan\b/g, "taoyuan")
+        .replace(/\btao\s+yuan\b/g, "taoyuan");
 }
 
 function _exportDestinationMatchesExportCity(destRaw, cifFe) {
@@ -4496,7 +4610,8 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
                 ? "Header sample uses the first port row for that first country in EXPORT_DATA."
                 : "";
         return (
-            `Preset destination / foreign port from EXPORT_DATA.ports for this country; used with Base for Ocean Costing matches.` +
+            `Preset destination / foreign port from EXPORT_DATA.ports for this country; used with Base for Ocean Costing matches. ` +
+            `(This is a normal description, not a cell error.)` +
             (rowRef ? ` ${rowRef}` : "")
         );
     }
@@ -4644,7 +4759,10 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         const cifN = _exportCifTotalTermsCashNumber(cifByRegion, abbr);
         const cifLabel = cifRegion ? `GET /api/cif [ Region="${cifRegion}" ] . Cash (Total Terms)` : "CIF region";
         if (String(ttStr).trim() === "ERROR") {
-            return `Premium and Discounts (${abbr}): Export Total Terms is ERROR; cannot reconcile.`;
+            return (
+                `Premium and Discounts (${abbr}): Export Total Terms is ERROR, so reconcile is omitted — cell is blank. ` +
+                `Fix the contributing section(s) for Total Terms (${abbr}) first; Premium is round(CIF Cash − Export Total Terms) when Total Terms is numeric.`
+            );
         }
         if (!Number.isFinite(cifN)) {
             return `Premium and Discounts (${abbr}): no numeric CIF Cash for ${cifLabel}; cell blank.`;
@@ -4933,7 +5051,7 @@ function _exportPremiumDiscountsCell(cifByRegion, row, abbr) {
     const ttKey = "Total Terms|" + abbr;
     const ttStr = row[ttKey];
     if (String(ttStr).trim() === "ERROR") {
-        return "ERROR";
+        return "";
     }
     const cifN = _exportCifTotalTermsCashNumber(cifByRegion, abbr);
     if (!Number.isFinite(cifN)) {
@@ -5000,7 +5118,7 @@ function _exportHeaderSampleCellDisplayValue(group, abbr, o) {
         }
         const ttStr = _exportHeaderSampleTotalTermsForAbbr(abbr, o);
         if (String(ttStr).trim() === "ERROR") {
-            return "ERROR";
+            return "";
         }
         const cifN = _exportCifTotalTermsCashNumber(cifByRegion, abbr);
         if (!Number.isFinite(cifN)) {
@@ -5247,10 +5365,7 @@ async function renderExportTable() {
     const dividerBorder = "3px solid #333";
 
     /** When true, that CIF section shows all region columns; when false, one narrow placeholder column. */
-    const sectionExpanded = {};
-    EXPORT_CIF_GROUP_LABELS.forEach((g) => {
-        sectionExpanded[g] = true;
-    });
+    const sectionExpanded = loadExportSectionExpandedFromStorage();
 
     const headerSampleRow = rows.length > 0 ? rows[0] : null;
     const headerSampleOpts = derivationCtx.headerSampleOpts;
@@ -5282,6 +5397,7 @@ async function renderExportTable() {
             });
             cb.addEventListener("change", () => {
                 sectionExpanded[label] = cb.checked;
+                persistExportSectionExpandedState(sectionExpanded);
                 rebuildExportThead();
                 redrawExportBody();
             });
