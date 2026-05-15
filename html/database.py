@@ -28,6 +28,10 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     conn.execute("DROP TABLE IF EXISTS ocean_costing_lanes")
     _ensure_themes_type_column(conn)
     _ensure_themes_seeded(conn)
+    _ensure_additional_theme_countries(conn)
+    _ensure_export_data_seeded(conn)
+    _ensure_dthc_prepaid_country_code_column(conn)
+    _ensure_dthc_prepaid_seeded(conn)
     _ensure_document_cif_gri_column(conn)
     _ensure_drayage_gri_column(conn)
     _ensure_cif_regions_drop_brz_aus(conn)
@@ -233,6 +237,27 @@ CREATE TABLE IF NOT EXISTS otr_transit_lookup (
     is_active   INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
     PRIMARY KEY (origin_city, dest_port)
 );
+
+CREATE TABLE IF NOT EXISTS export_data (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    base        TEXT NOT NULL,
+    code        TEXT NOT NULL,
+    c           TEXT NOT NULL DEFAULT '',
+    d           TEXT NOT NULL DEFAULT '',
+    ports_json  TEXT NOT NULL DEFAULT '[]',
+    extra_json  TEXT,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    is_active   INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
+);
+
+CREATE TABLE IF NOT EXISTS dthc_prepaid (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    country_code TEXT NOT NULL DEFAULT '',
+    location     TEXT NOT NULL,
+    prepaid      TEXT NOT NULL CHECK (prepaid IN ('Yes', 'No')),
+    sort_order   INTEGER NOT NULL DEFAULT 0,
+    is_active    INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
+);
 """
 
 
@@ -241,6 +266,8 @@ _ALL_TABLES = (
     "drayage", "document_cif", "usa_forwarding_cost", "cif_regions", "notes",
     "otr_rates", "seam_tariffs", "regions_and_ports", "ocean_costing_rules",
     "portcode_portcity", "dischargeport_country", "countrycode_country", "ocean_rates_extract", "otr_transit_lookup",
+    "export_data",
+    "dthc_prepaid",
 )
 
 
@@ -346,6 +373,431 @@ def _ensure_themes_seeded(conn: sqlite3.Connection) -> None:
         'INSERT INTO themes (Country, CountryAbbr, Color, "type") VALUES (?, ?, ?, ?)',
         seed,
     )
+
+
+# New theme rows use mauve until colors are set in Jarvis → Themes.
+_THEME_NEW_COUNTRY_MAUVE = "#E0B0FF"
+
+# DTHC / ocean prepaid countries missing from original chart seed.
+_ADDITIONAL_THEME_COUNTRIES: tuple[tuple[str, str], ...] = (
+    ("Algeria", "DZ"),
+    ("Bahrain", "BH"),
+    ("Egypt", "EG"),
+    ("Greece", "GR"),
+    ("Hong Kong", "HK"),
+    ("Morocco", "MO"),  # ISO MA; themes already uses MA for Malaysia
+    ("Philippines", "PH"),
+    ("Portugal", "PT"),
+    ("Qatar", "QA"),
+    ("Saudi Arabia", "SA"),
+    ("Singapore", "SG"),
+    ("Sri Lanka", "LK"),
+    ("Tunisia", "TN"),
+    ("UAE", "AE"),
+)
+
+
+def _ensure_additional_theme_countries(conn: sqlite3.Connection) -> None:
+    """Insert theme rows for prepaid/chart countries not in the original seed."""
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='themes'"
+    ).fetchone():
+        return
+    for country, abbr in _ADDITIONAL_THEME_COUNTRIES:
+        abbr_u = abbr.upper()
+        hit = conn.execute(
+            """
+            SELECT CountryAbbr FROM themes
+            WHERE upper(trim(CountryAbbr)) = ? OR lower(trim(Country)) = lower(?)
+            LIMIT 1
+            """,
+            (abbr_u, country),
+        ).fetchone()
+        if hit:
+            conn.execute(
+                """
+                UPDATE themes SET "type" = ?
+                WHERE upper(trim(CountryAbbr)) = ? OR lower(trim(Country)) = lower(?)
+                """,
+                ("country", abbr_u, country),
+            )
+            continue
+        conn.execute(
+            'INSERT INTO themes (Country, CountryAbbr, Color, "type") VALUES (?, ?, ?, ?)',
+            (country, abbr_u, _THEME_NEW_COUNTRY_MAUVE, "country"),
+        )
+    conn.execute(
+        "UPDATE themes SET \"type\" = 'country' WHERE lower(trim(Country)) = 'ecuador'"
+    )
+    conn.execute(
+        """
+        UPDATE themes SET "type" = 'country'
+        WHERE lower(trim(Country)) IN ('uae', 'united arab emirates')
+        """
+    )
+    conn.commit()
+
+
+# Export view countries / CIF FE ports (was EXPORT_DATA in script.js).
+_EXPORT_DATA_MAUVE = _THEME_NEW_COUNTRY_MAUVE
+
+_EXPORT_DATA_SEED: tuple[dict[str, object], ...] = (
+    {"base": "China", "code": "CN", "c": "38", "d": "18", "ports": ["Qingdao", "Xiamen", "Nantong"]},
+    {"base": "Vietnam", "code": "VN", "c": "50", "d": "14", "ports": ["Ho Chi Minh", "Da Nang", "Haiphong"]},
+    {"base": "Korea", "code": "KO", "c": "46", "d": "18", "ports": ["Busan", "Kwangyang"]},
+    {"base": "Japan", "code": "JP", "c": "43", "d": "14", "ports": ["Osaka", "Kobe", "Nagoya"]},
+    {"base": "Malaysia", "code": "MA", "c": "40", "d": "14", "ports": ["Tanjung Pelepas", "Penang", "Port Klang"]},
+    {"base": "Taiwan", "code": "TW", "c": "45", "d": "21", "ports": ["Keelung", "Taichung", "Kaohsiung", "Tao Yuan"]},
+    {"base": "Indonesia", "code": "ID", "c": "38", "d": "14", "ports": ["Jakarta", "Semarang", "Cikarang", "Surabaya"]},
+    {"base": "Thailand", "code": "TH", "c": "45", "d": "14", "ports": ["Bangkok", "Lat Krabang", "Laem Chabang"]},
+    {"base": "Bangladesh", "code": "BD", "c": "52", "d": "14", "ports": ["Chittagong"]},
+    {"base": "Pakistan", "code": "PK", "c": "45", "d": "14", "ports": ["Port Qasim/Karachi"]},
+    {"base": "India", "code": "IN", "c": "50", "d": "14", "ports": ["Mundra", "Tuticorin", "Chennai"]},
+    {"base": "Turkey", "code": "TR", "c": "37", "d": "14", "ports": ["Iskenderun", "Mersin", "Izmir"]},
+    {
+        "base": "Mexico",
+        "code": "MX",
+        "c": "",
+        "d": "N/A",
+        "ports": ["Yecapixtla", "Parras", "CD Victoria"],
+        "extra": {"secondCode": "Weslaco"},
+    },
+    {"base": "Peru", "code": "PE", "c": "11", "d": "18", "ports": ["Callao"]},
+    {"base": "Guatemala", "code": "GU", "c": "8", "d": "21", "ports": ["Amatitlan", "Palin"]},
+    {"base": "Honduras", "code": "HO", "c": "11", "d": "18", "ports": ["Naco"]},
+    {"base": "Spain", "code": "ES", "c": "", "d": "14", "ports": ["Santa Barbara"]},
+    {"base": "Italy", "code": "IT", "c": "", "d": "14", "ports": ["Bergamo", "Salerno"]},
+    {"base": "Other", "code": "OT", "c": "-", "d": "-", "ports": ["Batumi"]},
+)
+
+
+def _export_data_row_to_api(row: sqlite3.Row | dict) -> dict[str, object]:
+    d = dict(row)
+    ports_raw = d.get("ports_json") or "[]"
+    try:
+        ports = json.loads(ports_raw) if isinstance(ports_raw, str) else list(ports_raw or [])
+    except json.JSONDecodeError:
+        ports = []
+    extra = None
+    extra_raw = d.get("extra_json")
+    if extra_raw:
+        try:
+            extra = json.loads(extra_raw) if isinstance(extra_raw, str) else extra_raw
+        except json.JSONDecodeError:
+            extra = None
+    return {
+        "base": str(d.get("base") or "").strip(),
+        "code": str(d.get("code") or "").strip(),
+        "c": str(d.get("c") if d.get("c") is not None else ""),
+        "d": str(d.get("d") if d.get("d") is not None else ""),
+        "ports": [str(p) for p in ports],
+        "extra": extra,
+    }
+
+
+def _ensure_export_data_seeded(conn: sqlite3.Connection) -> None:
+    """Ensure export_data rows exist for each built-in country; sync themes for export countries."""
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='export_data'"
+    ).fetchone():
+        return
+    for i, item in enumerate(_EXPORT_DATA_SEED):
+        code = str(item["code"]).upper()
+        exists = conn.execute(
+            "SELECT 1 FROM export_data WHERE upper(trim(code)) = ? AND is_active = 1 LIMIT 1",
+            (code,),
+        ).fetchone()
+        if exists:
+            continue
+        ports = item.get("ports") or []
+        extra = item.get("extra")
+        conn.execute(
+            """
+            INSERT INTO export_data (base, code, c, d, ports_json, extra_json, sort_order, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+            """,
+            (
+                str(item["base"]),
+                code,
+                str(item.get("c", "")),
+                str(item.get("d", "")),
+                json.dumps(list(ports)),
+                json.dumps(extra) if extra is not None else None,
+                i,
+            ),
+        )
+    _sync_themes_for_export_data(conn)
+    conn.commit()
+
+
+def _sync_themes_for_export_data(conn: sqlite3.Connection) -> None:
+    """Themes: existing export countries → type country; missing → insert with mauve."""
+    rows = conn.execute(
+        "SELECT base, code FROM export_data WHERE is_active = 1 ORDER BY sort_order, id"
+    ).fetchall()
+    theme_rows = conn.execute(
+        'SELECT Country, CountryAbbr, Color, "type" FROM themes'
+    ).fetchall()
+    by_abbr = {str(r["CountryAbbr"] or "").strip().upper(): dict(r) for r in theme_rows}
+    by_country = {str(r["Country"] or "").strip().lower(): dict(r) for r in theme_rows}
+
+    for er in rows:
+        base = str(er["base"] or "").strip()
+        code = str(er["code"] or "").strip().upper()
+        if not base or not code:
+            continue
+        hit = by_country.get(base.lower()) or by_abbr.get(code)
+        if hit:
+            abbr = str(hit["CountryAbbr"] or "").strip().upper()
+            conn.execute(
+                'UPDATE themes SET "type" = ? WHERE CountryAbbr = ?',
+                ("country", abbr),
+            )
+            by_abbr[abbr] = {**hit, "type": "country"}
+            continue
+        conn.execute(
+            'INSERT INTO themes (Country, CountryAbbr, Color, "type") VALUES (?, ?, ?, ?)',
+            (base, code, _EXPORT_DATA_MAUVE, "country"),
+        )
+        by_abbr[code] = {"Country": base, "CountryAbbr": code, "Color": _EXPORT_DATA_MAUVE, "type": "country"}
+        by_country[base.lower()] = by_abbr[code]
+
+
+def get_export_data(active_only: bool = True) -> list[dict[str, object]]:
+    conn = _get_conn()
+    q = "SELECT base, code, c, d, ports_json, extra_json FROM export_data"
+    if active_only:
+        q += " WHERE is_active = 1"
+    q += " ORDER BY sort_order, id"
+    return [_export_data_row_to_api(r) for r in conn.execute(q)]
+
+
+# DTHC prepaid: ISO 3166-1 alpha-2 (matches unDest[:2] / countrycode_country) -> Yes/No.
+# Ocean extract columns: Yes = ALLIN40HC (U) then ALLIN40FT (T); No = 40HC (Q) then 40FT (P).
+_DTHC_PREPAID_ALIASES: dict[str, str] = {
+    "korea, republic of": "KR",
+    "south korea": "KR",
+    "republic of korea": "KR",
+    "united arab emirates": "AE",
+}
+
+_DTHC_PREPAID_SEED: tuple[tuple[str, str, str], ...] = (
+    ("DZ", "Algeria", "Yes"),
+    ("BH", "Bahrain", "Yes"),
+    ("BD", "Bangladesh", "Yes"),
+    ("CN", "China", "Yes"),
+    ("CO", "Colombia", "Yes"),
+    ("EG", "Egypt", "Yes"),
+    ("EC", "Ecuador", "Yes"),
+    ("GR", "Greece", "Yes"),
+    ("GT", "Guatemala", "Yes"),
+    ("HK", "Hong Kong", "No"),
+    ("IN", "India", "No"),
+    ("ID", "Indonesia", "Yes"),
+    ("IT", "Italy", "Yes"),
+    ("JP", "Japan", "No"),
+    ("KR", "Korea", "No"),
+    ("MY", "Malaysia", "No"),
+    ("MA", "Morocco", "Yes"),
+    ("PK", "Pakistan", "Yes"),
+    ("PE", "Peru", "Yes"),
+    ("PH", "Philippines", "Yes"),
+    ("PT", "Portugal", "Yes"),
+    ("QA", "Qatar", "Yes"),
+    ("SA", "Saudi Arabia", "Yes"),
+    ("SG", "Singapore", "No"),
+    ("LK", "Sri Lanka", "No"),
+    ("TW", "Taiwan", "No"),
+    ("TH", "Thailand", "No"),
+    ("TN", "Tunisia", "Yes"),
+    ("TR", "Turkey", "Yes"),
+    ("AE", "UAE", "Yes"),
+    ("VN", "Vietnam", "Yes"),
+)
+
+_DTHC_LOCATION_TO_CODE: dict[str, str] = {
+    str(loc).strip().lower(): str(code).strip().upper()
+    for code, loc, _pre in _DTHC_PREPAID_SEED
+}
+
+
+def _ensure_dthc_prepaid_country_code_column(conn: sqlite3.Connection) -> None:
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='dthc_prepaid'"
+    ).fetchone():
+        return
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(dthc_prepaid)").fetchall()}
+    if "country_code" not in cols:
+        conn.execute("ALTER TABLE dthc_prepaid ADD COLUMN country_code TEXT NOT NULL DEFAULT ''")
+    for row in conn.execute("SELECT id, location FROM dthc_prepaid WHERE trim(country_code) = ''").fetchall():
+        loc = str(row["location"] or "").strip().lower()
+        code = _DTHC_LOCATION_TO_CODE.get(loc, "")
+        if not code:
+            hit = conn.execute(
+                "SELECT countrycode FROM countrycode_country WHERE lower(country) = ?",
+                (loc,),
+            ).fetchone()
+            if hit:
+                code = str(hit["countrycode"] or "").strip().upper()
+        if code:
+            conn.execute("UPDATE dthc_prepaid SET country_code = ? WHERE id = ?", (code, row["id"]))
+    conn.commit()
+
+
+def _ensure_dthc_prepaid_seeded(conn: sqlite3.Connection) -> None:
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='dthc_prepaid'"
+    ).fetchone():
+        return
+    for i, (code, location, prepaid) in enumerate(_DTHC_PREPAID_SEED):
+        cc = str(code).strip().upper()
+        loc = str(location).strip()
+        pre = str(prepaid).strip()
+        if not cc or not loc or pre not in ("Yes", "No"):
+            continue
+        exists = conn.execute(
+            """
+            SELECT 1 FROM dthc_prepaid
+            WHERE is_active = 1
+              AND (upper(trim(country_code)) = ? OR lower(trim(location)) = lower(?))
+            LIMIT 1
+            """,
+            (cc, loc),
+        ).fetchone()
+        if exists:
+            conn.execute(
+                """
+                UPDATE dthc_prepaid
+                SET country_code = ?, location = ?, prepaid = ?, sort_order = ?
+                WHERE is_active = 1
+                  AND (upper(trim(country_code)) = ? OR lower(trim(location)) = lower(?))
+                """,
+                (cc, loc, pre, i, cc, loc),
+            )
+            continue
+        conn.execute(
+            """
+            INSERT INTO dthc_prepaid (country_code, location, prepaid, sort_order, is_active)
+            VALUES (?, ?, ?, ?, 1)
+            """,
+            (cc, loc, pre, i),
+        )
+    conn.commit()
+
+
+def get_dthc_prepaid_lookup_by_code(active_only: bool = True) -> dict[str, str]:
+    """Uppercase ISO country code -> 'Yes' or 'No'."""
+    conn = _get_conn()
+    q = "SELECT country_code, prepaid FROM dthc_prepaid"
+    if active_only:
+        q += " WHERE is_active = 1"
+    out: dict[str, str] = {}
+    for row in conn.execute(q):
+        code = str(row["country_code"] or "").strip().upper()
+        pre = str(row["prepaid"] or "Yes").strip()
+        if code:
+            out[code] = pre if pre in ("Yes", "No") else "Yes"
+    return out
+
+
+def get_dthc_prepaid_lookup(active_only: bool = True) -> dict[str, str]:
+    """Lowercase location label -> 'Yes' or 'No' (Notes / legacy)."""
+    conn = _get_conn()
+    q = "SELECT location, prepaid FROM dthc_prepaid"
+    if active_only:
+        q += " WHERE is_active = 1"
+    out: dict[str, str] = {}
+    for row in conn.execute(q):
+        loc = str(row["location"] or "").strip().lower()
+        pre = str(row["prepaid"] or "Yes").strip()
+        if loc:
+            out[loc] = pre if pre in ("Yes", "No") else "Yes"
+    return out
+
+
+def get_dthc_prepaid_by_country_code(country_code: str, default: str = "Yes") -> str:
+    """Primary lookup: 2-letter code from unDest (same as countrycode_country.countrycode)."""
+    code = str(country_code or "").strip().upper()[:2]
+    if not code:
+        return default
+    lookup = get_dthc_prepaid_lookup_by_code()
+    if code in lookup:
+        return lookup[code]
+    return default
+
+
+def get_dthc_prepaid_for_country(country_name: str, default: str = "Yes") -> str:
+    """Resolve prepaid from full country name (countrycode_country) or dthc location label."""
+    key = str(country_name or "").strip().lower()
+    if not key:
+        return default
+    alias_code = _DTHC_PREPAID_ALIASES.get(key)
+    if alias_code:
+        return get_dthc_prepaid_by_country_code(alias_code, default)
+    conn = _get_conn()
+    hit = conn.execute(
+        "SELECT countrycode FROM countrycode_country WHERE lower(country) = ?",
+        (key,),
+    ).fetchone()
+    if hit:
+        return get_dthc_prepaid_by_country_code(str(hit["countrycode"]), default)
+    lookup = get_dthc_prepaid_lookup()
+    if key in lookup:
+        return lookup[key]
+    return default
+
+
+def _ocean_extract_rate_value(raw: dict, field: str) -> float | None:
+    """Return numeric rate if field is present and non-zero; else None."""
+    v = raw.get(field)
+    if v is None:
+        return None
+    s = str(v).strip()
+    if not s:
+        return None
+    try:
+        n = float(s.replace(",", ""))
+    except ValueError:
+        return None
+    if not (n == n):  # NaN
+        return None
+    if n == 0.0:
+        return None
+    return n
+
+
+def ocean_freight_from_extract_row(raw: dict, prepaid: str) -> float:
+    """
+  470OceanRatesExtract / ocean_rates_extract:
+    Prepaid Yes → ALLIN40HC (col U), else ALLIN40FT (col T).
+    Prepaid No  → 40HC (col Q), else 40FT (col P).
+    """
+    pre = str(prepaid or "Yes").strip()
+    if pre.lower() == "no":
+        keys = ("40HC", "40FT")
+    else:
+        keys = ("ALLIN40HC", "ALLIN40FT")
+    for k in keys:
+        val = _ocean_extract_rate_value(raw, k)
+        if val is not None:
+            return val
+    return 0.0
+
+
+def get_dthc_prepaid_rows(active_only: bool = True) -> list[dict[str, str]]:
+    conn = _get_conn()
+    q = "SELECT country_code, location, prepaid FROM dthc_prepaid"
+    if active_only:
+        q += " WHERE is_active = 1"
+    q += " ORDER BY sort_order, id"
+    return [
+        {
+            "country_code": str(r["country_code"] or "").strip().upper(),
+            "location": str(r["location"]),
+            "prepaid": str(r["prepaid"]),
+        }
+        for r in conn.execute(q)
+    ]
 
 
 def _normalize_theme_color_hex(raw: object) -> str:
@@ -932,6 +1384,137 @@ def get_countrycode_country_lookup(active_only: bool = True) -> dict[str, str]:
             continue
         out[code] = str(row[1] or "").strip()
     return out
+
+
+_OCEAN_EXTRACT_KEY_FIELDS: tuple[str, ...] = (
+    "unOrig",
+    "unVia",
+    "unDest",
+    "dischargePort",
+    "scacCode",
+    "contractNumber",
+    "rateType",
+    "amendmentNumber",
+    "effectiveDate",
+    "expirationDate",
+)
+
+_OCEAN_EXTRACT_DATA_FIELDS: tuple[str, ...] = (
+    "orig",
+    "via",
+    "dest",
+    "carrierName",
+    "updateTime",
+    "40FT",
+    "40HC",
+    "DTHC40FT",
+    "DTHC40HC",
+    "ALLIN40FT",
+    "ALLIN40HC",
+)
+
+
+def ocean_extract_compound_key(row: dict) -> str:
+    """Unique lane/rate identity for 470OceanRatesExtract rows."""
+    parts = [str(row.get(f, "") or "").strip().upper() for f in _OCEAN_EXTRACT_KEY_FIELDS]
+    return "|".join(parts)
+
+
+def ocean_extract_rows_differ(a: dict, b: dict) -> bool:
+    for f in _OCEAN_EXTRACT_DATA_FIELDS:
+        if str(a.get(f, "") or "").strip() != str(b.get(f, "") or "").strip():
+            return True
+    return False
+
+
+def get_ocean_rates_extract_indexed(active_only: bool = True) -> dict[str, dict]:
+    """compound_key -> {id, is_active?, ...extract columns}."""
+    conn = _get_conn()
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ocean_rates_extract'"
+    ).fetchone():
+        return {}
+    col_rows = conn.execute("PRAGMA table_info(ocean_rates_extract)").fetchall()
+    cols = [r[1] for r in col_rows]
+    sel_cols = [c for c in cols if c != "id"]
+    if not sel_cols:
+        return {}
+    has_active = "is_active" in cols
+    sel = "id, " + ", ".join(_qident_sql(c) for c in sel_cols)
+    q = f"SELECT {sel} FROM ocean_rates_extract"
+    if active_only and has_active:
+        q += " WHERE is_active = 1"
+    out: dict[str, dict] = {}
+    for row in conn.execute(q):
+        rid = int(row[0])
+        d = {sel_cols[i]: row[i + 1] for i in range(len(sel_cols))}
+        is_act = int(d.get("is_active", 1) or 0) if has_active else 1
+        data_only = {k: v for k, v in d.items() if k != "is_active"}
+        key = ocean_extract_compound_key(
+            {k: str(v or "").strip() if v is not None else "" for k, v in data_only.items()}
+        )
+        if not key.replace("|", "").strip():
+            continue
+        row_out = {
+            "id": rid,
+            **{k: str(v or "").strip() if v is not None else "" for k, v in data_only.items()},
+        }
+        if has_active:
+            row_out["is_active"] = is_act
+        out[key] = row_out
+    return out
+
+
+def apply_ocean_rates_extract_upload(uploaded_by_key: dict[str, dict]) -> dict[str, int]:
+    """Merge uploaded extract rows: update/insert active rows; deactivate missing keys."""
+    conn = _get_conn()
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='ocean_rates_extract'"
+    ).fetchone():
+        raise ValueError("ocean_rates_extract table does not exist")
+    current_all = get_ocean_rates_extract_indexed(active_only=False)
+    current_active = {k: v for k, v in current_all.items() if int(v.get("is_active", 1) or 0) == 1}
+    cols_ordered = _ocean_rates_extract_ordered_columns(conn)
+    insert_cols = [c for c in cols_ordered if c != "id"]
+    if not insert_cols:
+        raise ValueError("ocean_rates_extract has no data columns")
+
+    upd_set = ", ".join(f"{_qident_sql(c)} = ?" for c in insert_cols)
+    upd_sql = f"UPDATE ocean_rates_extract SET {upd_set} WHERE id = ?"
+    ins_names = ", ".join(_qident_sql(c) for c in insert_cols)
+    ins_ph = ", ".join("?" for _ in insert_cols)
+    ins_sql = f"INSERT INTO ocean_rates_extract ({ins_names}) VALUES ({ins_ph})"
+
+    updated = 0
+    new = 0
+    deactivated = 0
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        for key, up_row in uploaded_by_key.items():
+            payload = {c: _ocean_rates_extract_coerce_cell(c, up_row) for c in insert_cols}
+            if "is_active" in insert_cols:
+                payload["is_active"] = 1
+            if key in current_all:
+                ex = current_all[key]
+                if ocean_extract_rows_differ(ex, up_row) or int(ex.get("is_active", 1) or 0) != 1:
+                    vals = [payload[c] for c in insert_cols]
+                    conn.execute(upd_sql, (*vals, ex["id"]))
+                    updated += 1
+            else:
+                vals = [payload[c] for c in insert_cols]
+                conn.execute(ins_sql, vals)
+                new += 1
+        if "is_active" in insert_cols:
+            deact_sql = "UPDATE ocean_rates_extract SET is_active = 0 WHERE id = ?"
+            for key, ex in current_active.items():
+                if key not in uploaded_by_key:
+                    conn.execute(deact_sql, (ex["id"],))
+                    deactivated += 1
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    return {"updated": updated, "new": new, "deactivated": deactivated}
 
 
 def get_ocean_rates_extract_row_dicts(active_only: bool = True) -> list[dict[str, object]]:

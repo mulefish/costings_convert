@@ -142,6 +142,7 @@ OCEAN_COLUMNS = (
     "Port",
     "Destination",
     "Country",
+    "DTHC Prepaid",
     "Delivery Type",
     "Code",
     "SCAC",
@@ -708,6 +709,18 @@ def _init_drayage() -> None:
         db.save_drayage(drayage)
 
 
+def _document_cif_dthc_prepaid(row: dict) -> str:
+    """Yes/No from dthc_prepaid by ISO code (preferred) or country name."""
+    code = str(row.get("code", "")).strip().upper()
+    if len(code) >= 2:
+        return db.get_dthc_prepaid_by_country_code(code[:2], "Yes")
+    return db.get_dthc_prepaid_for_country(str(row.get("country", "")).strip(), "Yes")
+
+
+def _document_cif_with_prepaid(rows: list) -> list:
+    return [{**r, "dthc_prepaid": _document_cif_dthc_prepaid(r)} for r in rows]
+
+
 def _normalize_document_cif_row(raw: dict) -> dict:
     out: dict = {
         "country": str(raw.get("country", "")).strip(),
@@ -923,7 +936,7 @@ def usa_forwarding_cost_api():
 def document_cif_api():
     if request.method == "GET":
         _reload_document_cif()
-        return jsonify(document_cif)
+        return jsonify(_document_cif_with_prepaid(document_cif))
     payload = request.get_json(force=True, silent=True)
     if not isinstance(payload, list):
         return jsonify({"error": "JSON array required"}), 400
@@ -971,7 +984,7 @@ def document_cif_api():
     document_cif.clear()
     document_cif.extend(clean)
     _persist_document_cif()
-    return jsonify(document_cif)
+    return jsonify(_document_cif_with_prepaid(document_cif))
 
 
 @app.route("/api/control-panel", methods=["GET", "PUT", "POST"])
@@ -1119,10 +1132,61 @@ def db_tables_api():
     return jsonify([r["name"] for r in rows])
 
 
+@app.route("/api/db-active-counts")
+def db_active_counts_api():
+    """Per-table counts of is_active=1 and is_active=0 (Notes summary view)."""
+    conn = db._get_conn()
+    table_names = [
+        r["name"]
+        for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
+        ).fetchall()
+    ]
+    rows = []
+    for tbl in table_names:
+        table_cols = {row[1] for row in conn.execute(f"PRAGMA table_info([{tbl}])").fetchall()}
+        if "is_active" not in table_cols:
+            total = conn.execute(f"SELECT COUNT(*) AS n FROM [{tbl}]").fetchone()["n"]  # noqa: S608
+            rows.append(
+                {
+                    "table": tbl,
+                    "has_is_active": False,
+                    "active": None,
+                    "inactive": None,
+                    "total": int(total or 0),
+                }
+            )
+            continue
+        agg = conn.execute(
+            f"""
+            SELECT
+                SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS active_n,
+                SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) AS inactive_n,
+                COUNT(*) AS total_n
+            FROM [{tbl}]
+            """  # noqa: S608
+        ).fetchone()
+        rows.append(
+            {
+                "table": tbl,
+                "has_is_active": True,
+                "active": int(agg["active_n"] or 0),
+                "inactive": int(agg["inactive_n"] or 0),
+                "total": int(agg["total_n"] or 0),
+            }
+        )
+    return jsonify({"rows": rows})
+
+
 @app.route("/api/db-query")
 def db_query_api():
     table = request.args.get("table", "").strip()
-    active_only = request.args.get("active_only", "0") == "1"
+    active_filter = request.args.get("active_filter", "").strip().lower()
+    if not active_filter:
+        # Backward compat: active_only=1 → active; otherwise all rows.
+        active_filter = "active" if request.args.get("active_only", "0") == "1" else "all"
+    if active_filter not in ("active", "inactive", "all"):
+        return jsonify({"error": f"Invalid active_filter: {active_filter}"}), 400
     conn = db._get_conn()
     valid = {r["name"] for r in conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table'"
@@ -1132,8 +1196,10 @@ def db_query_api():
     try:
         table_cols = {row[1] for row in conn.execute(f"PRAGMA table_info([{table}])").fetchall()}
         has_is_active = "is_active" in table_cols
-        if active_only and has_is_active:
+        if has_is_active and active_filter == "active":
             cur = conn.execute(f"SELECT * FROM [{table}] WHERE is_active = 1")  # noqa: S608
+        elif has_is_active and active_filter == "inactive":
+            cur = conn.execute(f"SELECT * FROM [{table}] WHERE is_active = 0")  # noqa: S608
         else:
             cur = conn.execute(f"SELECT * FROM [{table}]")  # noqa: S608
         columns = [desc[0] for desc in cur.description]
@@ -1433,95 +1499,286 @@ def otr_apply_local():
     return jsonify({"ok": True, "updated": updated_count, "new": new_count})
 
 
-@app.route("/api/ocean")
-def ocean_rows():
+def _ocean_destination_from_extract(
+    raw: dict,
+    destination_lookup: dict[str, str],
+    undest: str,
+) -> str:
+    """dischargeport_country lookup, else city parsed from extract `dest` (e.g. Qingdao Pt, 32, CNQDG)."""
+    destination = str(destination_lookup.get(undest, "") or "").strip()
+    if destination:
+        return destination
+    dest_raw = str(raw.get("dest", "") or "").strip()
+    if not dest_raw:
+        return ""
+    city = dest_raw.split(",")[0].strip()
+    if city.lower().endswith(" pt"):
+        city = city[:-3].strip()
+    return city
+
+
+def _ocean_build_context() -> dict:
     _sync_control_panel_from_disk_if_needed()
     _reload_document_cif()
     _reload_drayage()
-    now_text = datetime.now().strftime("%Y-%m-%d %H:%M")
-
-    dthc_prepaid = {
-        "algeria": "Yes",
-        "bahrain": "Yes",
-        "bangladesh": "Yes",
-        "china": "Yes",
-        "colombia": "Yes",
-        "egypt": "Yes",
-        "ecuador": "Yes",
-        "greece": "Yes",
-        "guatemala": "Yes",
-        "hong kong": "No",
-        "india": "No",
-        "indonesia": "Yes",
-        "italy": "Yes",
-        "japan": "No",
-        "south korea": "No",
-        "malaysia": "No",
-        "morocco": "Yes",
-        "pakistan": "Yes",
-        "peru": "Yes",
-        "philippines": "Yes",
-        "portugal": "Yes",
-        "qatar": "Yes",
-        "saudi arabia": "Yes",
-        "singapore": "No",
-        "sri lanka": "No",
-        "taiwan": "No",
-        "thailand": "No",
-        "tunisia": "Yes",
-        "turkey": "Yes",
-        "united arab emirates": "Yes",
-        "vietnam": "Yes",
+    return {
+        "now_text": datetime.now().strftime("%Y-%m-%d %H:%M"),
+        "port_lookup": db.get_portcode_portcity_lookup(),
+        "destination_lookup": db.get_dischargeport_country_lookup(),
+        "country_lookup": db.get_countrycode_country_lookup(),
     }
 
-    port_lookup = db.get_portcode_portcity_lookup()
-    destination_lookup = db.get_dischargeport_country_lookup()
-    country_lookup = db.get_countrycode_country_lookup()
 
-    rows = []
-    raw_ocean = db.get_ocean_rates_extract_row_dicts()
-    row_num = 0
-    for raw in raw_ocean:
-        row_num += 1
+def _build_ocean_api_rows(
+    raw_ocean: list[dict],
+    *,
+    ctx: dict | None = None,
+) -> list[dict]:
+    """Turn ocean_rates_extract dicts into OCEAN view rows."""
+    if ctx is None:
+        ctx = _ocean_build_context()
+    now_text = ctx["now_text"]
+    port_lookup = ctx["port_lookup"]
+    destination_lookup = ctx["destination_lookup"]
+    country_lookup = ctx["country_lookup"]
+
+    rows: list[dict] = []
+    for row_num, raw in enumerate(raw_ocean, start=1):
         unorig = str(raw.get("unOrig", "")).strip().upper()
         undest = str(raw.get("unDest", "")).strip().upper()
         country_code = undest[:2]
 
         port = port_lookup.get(unorig, "")
-        destination = destination_lookup.get(undest, "")
+        destination = _ocean_destination_from_extract(raw, destination_lookup, undest)
         country = country_lookup.get(country_code, "")
 
-        allin_40hc = _to_float(raw.get("ALLIN40HC"), 0.0)
-        rate_40ft = _to_float(raw.get("40FT"), 0.0)
-        prepaid = dthc_prepaid.get(country.lower(), "Yes")
-        ocean_freight = allin_40hc if prepaid == "Yes" else rate_40ft
+        prepaid = db.get_dthc_prepaid_by_country_code(country_code, "Yes")
+        ocean_freight = db.ocean_freight_from_extract_row(raw, prepaid)
         doc_gri = _document_cif_float_for_country(country, "GRI")
         dray_gri = _drayage_field_for_port(port, "GRI")
         row_gri = doc_gri + dray_gri
         ocean_total = ocean_freight + row_gri
         total_pts = (ocean_total / 88.0) * 20.0
 
-        rows.append(
-            {
-                "Row": row_num,
-                "Port": port,
-                "Destination": destination,
-                "Country": country,
-                "Delivery Type": "EXPORT",
-                "Code": undest,
-                "SCAC": raw.get("scacCode", ""),
-                "Ocean Freight": _round2(ocean_freight),
-                "GRI": _round2(row_gri),
-                "Ocean Total": _round2(ocean_total),
-                "Total pts": _round2(total_pts),
-                "Updated": now_text,
-                "Expiration": raw.get("expirationDate", ""),
-                "Previous": "",
-                "Delta": "",
-            }
-        )
+        row = {
+            "Row": row_num,
+            "Port": port,
+            "Destination": destination,
+            "Country": country,
+            "DTHC Prepaid": prepaid,
+            "Delivery Type": "EXPORT",
+            "Code": undest,
+            "SCAC": raw.get("scacCode", ""),
+            "Ocean Freight": _round2(ocean_freight),
+            "GRI": _round2(row_gri),
+            "Ocean Total": _round2(ocean_total),
+            "Total pts": _round2(total_pts),
+            "Updated": now_text,
+            "Expiration": raw.get("expirationDate", ""),
+            "Previous": raw.get("Previous", ""),
+            "Delta": raw.get("Delta", ""),
+        }
+        for meta_key in ("_status", "_changed_fields", "_extract_key"):
+            if meta_key in raw:
+                row[meta_key] = raw[meta_key]
+        rows.append(row)
+    return rows
 
+
+@app.route("/api/ocean")
+def ocean_rows():
+    raw_ocean = db.get_ocean_rates_extract_row_dicts()
+    rows = _build_ocean_api_rows(raw_ocean)
     return jsonify({"rows": [_row_with_columns(r, OCEAN_COLUMNS) for r in rows]})
+
+
+# --- Ocean rates extract local CSV compare / apply (470OceanRatesExtract format) ---
+
+_OCEAN_EXTRACT_CSV_COLS: tuple[str, ...] = (
+    "unOrig",
+    "unVia",
+    "unDest",
+    "orig",
+    "via",
+    "dest",
+    "dischargePort",
+    "scacCode",
+    "carrierName",
+    "contractNumber",
+    "rateType",
+    "amendmentNumber",
+    "effectiveDate",
+    "expirationDate",
+    "updateTime",
+    "40FT",
+    "40HC",
+    "DTHC40FT",
+    "DTHC40HC",
+    "ALLIN40FT",
+    "ALLIN40HC",
+)
+
+_OCEAN_VIEW_COMPARE_FIELDS: tuple[str, ...] = (
+    "Ocean Freight",
+    "GRI",
+    "Ocean Total",
+    "Total pts",
+    "DTHC Prepaid",
+    "SCAC",
+    "Expiration",
+)
+
+
+def _parse_ocean_extract_upload(filepath: Path) -> dict[str, dict]:
+    """Parse 470OceanRatesExtract-style CSV into {compound_key: row_dict}."""
+    import io
+
+    text = filepath.read_text(encoding="utf-8-sig")
+    rows_by_key: dict[str, dict] = {}
+    reader = csv.DictReader(io.StringIO(text), skipinitialspace=True)
+    for raw in reader:
+        row = {col: str(raw.get(col, "") or "").strip() for col in _OCEAN_EXTRACT_CSV_COLS}
+        key = db.ocean_extract_compound_key(row)
+        if not key.replace("|", "").strip():
+            continue
+        rows_by_key[key] = row
+    return rows_by_key
+
+
+def _ocean_view_row_from_extract(raw: dict, ctx: dict) -> dict:
+    """Single OCEAN view row (no Row number) for diffing."""
+    built = _build_ocean_api_rows([raw], ctx=ctx)
+    return built[0] if built else {}
+
+
+def _ocean_view_changed_fields(old_raw: dict, new_raw: dict, ctx: dict) -> list[str]:
+    old_view = _ocean_view_row_from_extract(old_raw, ctx)
+    new_view = _ocean_view_row_from_extract(new_raw, ctx)
+    return [
+        f
+        for f in _OCEAN_VIEW_COMPARE_FIELDS
+        if str(old_view.get(f, "")).strip() != str(new_view.get(f, "")).strip()
+    ]
+
+
+def _resolve_ocean_local_path(filename: str) -> Path | None:
+    p = UPLOAD_DIR / filename
+    if p.exists() and p.resolve().parent == UPLOAD_DIR.resolve():
+        return p
+    return None
+
+
+@app.route("/api/ocean/local-files")
+def ocean_local_files():
+    files: list[str] = []
+    if UPLOAD_DIR.is_dir():
+        for p in sorted(UPLOAD_DIR.glob("*.csv")):
+            files.append(p.name)
+    return jsonify({"files": sorted(files)})
+
+
+@app.route("/api/ocean/compare-local", methods=["POST"])
+def ocean_compare_local():
+    """Compare local 470OceanRatesExtract CSV to SQLite ocean_rates_extract; return OCEAN view rows."""
+    filename = request.json.get("filename", "") if request.is_json else ""
+    if not filename:
+        return jsonify({"error": "No filename provided"}), 400
+    local_path = _resolve_ocean_local_path(filename)
+    if not local_path:
+        return jsonify({"error": "File not found"}), 404
+
+    uploaded = _parse_ocean_extract_upload(local_path)
+    current = db.get_ocean_rates_extract_indexed(active_only=True)
+    ctx = _ocean_build_context()
+
+    all_keys = set(current.keys()) | set(uploaded.keys())
+    extract_rows: list[dict] = []
+    for key in sorted(all_keys):
+        in_current = key in current
+        in_uploaded = key in uploaded
+        if in_current and in_uploaded:
+            cur = {k: v for k, v in current[key].items() if k not in ("id", "is_active")}
+            up = uploaded[key]
+            if db.ocean_extract_rows_differ(cur, up):
+                changed = _ocean_view_changed_fields(cur, up, ctx)
+                preview = dict(up)
+                preview["_status"] = "updated"
+                preview["_changed_fields"] = changed
+                preview["_extract_key"] = key
+                if "Ocean Freight" in changed:
+                    old_view = _ocean_view_row_from_extract(cur, ctx)
+                    new_view = _ocean_view_row_from_extract(up, ctx)
+                    old_f = _to_float(old_view.get("Ocean Freight"), None)
+                    new_f = _to_float(new_view.get("Ocean Freight"), None)
+                    if old_f is not None and new_f is not None:
+                        preview["Previous"] = _round2(old_f)
+                        preview["Delta"] = _round2(new_f - old_f)
+            else:
+                preview = dict(cur)
+                preview["_status"] = "unchanged"
+                preview["_extract_key"] = key
+        elif in_current and not in_uploaded:
+            preview = {k: v for k, v in current[key].items() if k not in ("id", "is_active")}
+            preview["_status"] = "removed"
+            preview["_extract_key"] = key
+        else:
+            preview = dict(uploaded[key])
+            preview["_status"] = "new"
+            preview["_extract_key"] = key
+        extract_rows.append(preview)
+
+    rows = _build_ocean_api_rows(extract_rows, ctx=ctx)
+    out_cols = OCEAN_COLUMNS + ("_status", "_changed_fields")
+
+    # --- Lookup-gap analysis for pre-apply impact modal ---
+    port_lookup = ctx["port_lookup"]
+    destination_lookup = ctx["destination_lookup"]
+    country_lookup = ctx["country_lookup"]
+
+    missing_ports = {}
+    missing_dests = {}
+    missing_countries = {}
+    for raw in extract_rows:
+        status = raw.get("_status", "")
+        if status in ("removed", "unchanged"):
+            continue
+        unorig = str(raw.get("unOrig", "")).strip().upper()
+        undest = str(raw.get("unDest", "")).strip().upper()
+        cc = undest[:2] if undest else ""
+        if unorig and unorig not in port_lookup:
+            missing_ports[unorig] = missing_ports.get(unorig, 0) + 1
+        if undest and undest not in destination_lookup:
+            missing_dests[undest] = missing_dests.get(undest, 0) + 1
+        if cc and cc not in country_lookup:
+            missing_countries[cc] = missing_countries.get(cc, 0) + 1
+
+    lookup_gaps = {}
+    if missing_ports:
+        lookup_gaps["missing_ports"] = missing_ports
+    if missing_dests:
+        lookup_gaps["missing_destinations"] = missing_dests
+    if missing_countries:
+        lookup_gaps["missing_countries"] = missing_countries
+
+    resp = {"rows": [_row_with_columns(r, out_cols) for r in rows]}
+    if lookup_gaps:
+        resp["lookup_gaps"] = lookup_gaps
+    return jsonify(resp)
+
+
+@app.route("/api/ocean/apply-local", methods=["POST"])
+def ocean_apply_local():
+    """Apply local 470OceanRatesExtract CSV into ocean_rates_extract."""
+    filename = request.json.get("filename", "") if request.is_json else ""
+    if not filename:
+        return jsonify({"error": "No filename provided"}), 400
+    local_path = _resolve_ocean_local_path(filename)
+    if not local_path:
+        return jsonify({"error": "File not found"}), 404
+
+    uploaded = _parse_ocean_extract_upload(local_path)
+    counts = db.apply_ocean_rates_extract_upload(uploaded)
+    return jsonify({"ok": True, **counts})
 
 
 @app.route("/api/ocean-rates-extract", methods=["GET"])
@@ -2002,6 +2259,20 @@ def export_cif_totals_api():
         k = _normalize_key(country)
         totals[k] = int(round(total_usd * pts))
     resp = jsonify(totals)
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
+
+
+@app.route("/api/dthc-prepaid")
+def dthc_prepaid_api():
+    resp = jsonify(db.get_dthc_prepaid_rows(active_only=True))
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    return resp
+
+
+@app.route("/api/export-data")
+def export_data_api():
+    resp = jsonify(db.get_export_data(active_only=True))
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     return resp
 

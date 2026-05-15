@@ -153,6 +153,8 @@ async function renderControlPanelView() {
     let cds = {};
     let drayageData = {};
     let documentCifData = [];
+    let dthcPrepaidByCode = {};
+    let dthcPrepaidByLocation = {};
     let usaFwdData = {};
     try {
         const cpRes = await fetch("/api/control-panel");
@@ -222,6 +224,53 @@ async function renderControlPanelView() {
         console.error(err);
         docCifStatus.textContent = "Could not load document / CIF.";
         docCifStatus.style.color = "#b00020";
+    }
+
+    try {
+        const dpRes = await fetch("/api/dthc-prepaid");
+        if (dpRes.ok) {
+            const dpRows = await dpRes.json();
+            if (Array.isArray(dpRows)) {
+                for (const r of dpRows) {
+                    const code = String(r.country_code ?? "").trim().toUpperCase();
+                    const loc = String(r.location ?? "").trim().toLowerCase();
+                    const pre = String(r.prepaid ?? "Yes").trim();
+                    if (code) {
+                        dthcPrepaidByCode[code] = pre;
+                    }
+                    if (loc) {
+                        dthcPrepaidByLocation[loc] = pre;
+                    }
+                }
+            }
+        }
+    } catch (err) {
+        console.error(err);
+    }
+
+    function resolveDocCifDthcPrepaid(country, code) {
+        const cc = String(code ?? "").trim().toUpperCase();
+        if (cc.length >= 2 && dthcPrepaidByCode[cc.slice(0, 2)]) {
+            return dthcPrepaidByCode[cc.slice(0, 2)];
+        }
+        const loc = String(country ?? "").trim().toLowerCase();
+        if (loc && dthcPrepaidByLocation[loc]) {
+            return dthcPrepaidByLocation[loc];
+        }
+        return "Yes";
+    }
+
+    function refreshDocCifDthcPrepaidForRow(tr) {
+        const countryInp = tr.querySelector('input[data-doc-cif-field="country"]');
+        const codeInp = tr.querySelector('input[data-doc-cif-field="code"]');
+        const prepaidInp = tr.querySelector('input[data-doc-cif-field="dthc_prepaid"]');
+        if (!prepaidInp) {
+            return;
+        }
+        prepaidInp.value = resolveDocCifDthcPrepaid(
+            countryInp ? countryInp.value : "",
+            codeInp ? codeInp.value : ""
+        );
     }
 
     try {
@@ -807,6 +856,7 @@ async function renderControlPanelView() {
         { key: "country", label: "Country", kind: "text" },
         { key: "GRI", label: "GRI", kind: "number", defaultZero: true },
         { key: "code", label: "Code", kind: "text" },
+        { key: "dthc_prepaid", label: "DTHC Prepaid", kind: "readonly" },
         { key: "LC", label: "LC", kind: "number" },
         { key: "INS", label: "INS", kind: "number" },
         { key: "CONT", label: "CONT", kind: "number" },
@@ -827,7 +877,7 @@ async function renderControlPanelView() {
     pDocCif.style.maxWidth = "960px";
     pDocCif.style.lineHeight = "1.45";
     pDocCif.textContent =
-        "Per-country GRI (defaults to 0), sight LC, insurance, controlling, commission, cost of funds, and CIQ/QC factors are stored in SQLite (document_cif). Leave other numeric cells blank to store null. Add or remove rows as needed, then save.";
+        "Per-country GRI (defaults to 0), sight LC, insurance, controlling, commission, cost of funds, and CIQ/QC factors are stored in SQLite (document_cif). DTHC Prepaid is read-only (from dthc_prepaid by Code or Country). Leave other numeric cells blank to store null. Add or remove rows as needed, then save.";
     wrap.appendChild(pDocCif);
 
     wrap.appendChild(docCifStatus);
@@ -868,25 +918,37 @@ async function renderControlPanelView() {
             td.style.border = "1px solid #d9d9d9";
             td.style.padding = "6px 10px";
             const inp = document.createElement("input");
-            inp.type = kind === "text" ? "text" : "number";
-            if (kind === "number") {
-                inp.step = "any";
-            }
-            const raw = d[key];
-            if (kind === "number") {
-                if (defaultZero) {
-                    inp.value =
-                        raw !== undefined && raw !== null && raw !== ""
-                            ? raw
-                            : "0";
-                } else {
-                    inp.value =
-                        raw !== undefined && raw !== null && raw !== ""
-                            ? raw
-                            : "";
-                }
+            if (kind === "readonly") {
+                inp.type = "text";
+                inp.readOnly = true;
+                inp.tabIndex = -1;
+                inp.style.background = "#f5f5f5";
+                inp.style.color = "#333";
+                inp.value =
+                    d[key] !== undefined && d[key] !== null && String(d[key]).trim() !== ""
+                        ? String(d[key])
+                        : resolveDocCifDthcPrepaid(d.country, d.code);
             } else {
-                inp.value = raw !== undefined && raw !== null ? String(raw) : "";
+                inp.type = kind === "text" ? "text" : "number";
+                if (kind === "number") {
+                    inp.step = "any";
+                }
+                const raw = d[key];
+                if (kind === "number") {
+                    if (defaultZero) {
+                        inp.value =
+                            raw !== undefined && raw !== null && raw !== ""
+                                ? raw
+                                : "0";
+                    } else {
+                        inp.value =
+                            raw !== undefined && raw !== null && raw !== ""
+                                ? raw
+                                : "";
+                    }
+                } else {
+                    inp.value = raw !== undefined && raw !== null ? String(raw) : "";
+                }
             }
             inp.dataset.docCifField = key;
             inp.style.width = "100%";
@@ -895,7 +957,13 @@ async function renderControlPanelView() {
             td.appendChild(inp);
             if (key === "country") {
                 applyCountryThemeToTd(td, inp.value);
-                inp.addEventListener("input", () => applyCountryThemeToTd(td, inp.value));
+                inp.addEventListener("input", () => {
+                    applyCountryThemeToTd(td, inp.value);
+                    refreshDocCifDthcPrepaidForRow(tr);
+                });
+            }
+            if (key === "code") {
+                inp.addEventListener("input", () => refreshDocCifDthcPrepaidForRow(tr));
             }
             tr.appendChild(td);
         });
@@ -950,6 +1018,9 @@ async function renderControlPanelView() {
         for (const tr of docCifTbody.querySelectorAll("tr")) {
             const rowObj = {};
             for (const { key, kind, defaultZero } of DOC_CIF_FIELDS) {
+                if (kind === "readonly") {
+                    continue;
+                }
                 const inp = tr.querySelector(`input[data-doc-cif-field="${key}"]`);
                 if (!inp) {
                     continue;
@@ -1531,6 +1602,11 @@ async function select_view() {
         return;
     }
 
+    if (viewName === "Documentation") {
+        await renderDocumentationView();
+        return;
+    }
+
     const config = getViewConfig(viewName);
     if (!config) {
         return;
@@ -2017,12 +2093,13 @@ async function renderNotesView() {
     );
     const initialTable = tables[0] || "";
 
-    const options = tables
-        .map((t) => `<option value="${t}"${t === initialTable ? " selected" : ""}>${t}</option>`)
-        .join("");
+    const NOTES_ACTIVE_INACTIVE_COUNT = "__active_inactive_count__";
+    const options =
+        `<option value="${NOTES_ACTIVE_INACTIVE_COUNT}">Active inactive count</option>` +
+        tables.map((t) => `<option value="${t}"${t === initialTable ? " selected" : ""}>${t}</option>`).join("");
     content.innerHTML = `<div style="font-family:Arial,sans-serif;">
         <p style="font-size:12px; color:#555; margin:0 0 10px 0;">
-            Browse any SQLite table (versioned tables support <code>is_active</code> when the checkbox is on).
+            Browse any SQLite table (versioned tables support <code>is_active</code>: Active only, Inactive only, or All).
             For <strong>ocean_rates_extract</strong>, pick that table to open the editable grid (load, search, add/remove, save) instead of a read-only preview.
         </p>
         <div style="margin-bottom:12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -2033,10 +2110,12 @@ async function renderNotesView() {
             <select id="db-table-select" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
                 ${options}
             </select>
-            <label style="font-size:13px; cursor:pointer;">
-                <input type="checkbox" id="db-active-toggle" checked style="margin-right:4px; cursor:pointer;" />
-                Active only
-            </label>
+            <label style="font-size:13px; font-weight:bold; margin-right:4px;">Rows:</label>
+            <select id="db-active-filter" style="padding:5px 8px; border:1px solid #ccc; border-radius:4px; font-size:13px;">
+                <option value="active" selected>Active only</option>
+                <option value="inactive">Inactive only</option>
+                <option value="all">All</option>
+            </select>
             <span id="db-row-count" style="margin-left:4px; font-size:12px; color:#666;"></span>
         </div>
         <div id="db-search-results" style="display:none; margin-bottom:16px;"></div>
@@ -2044,25 +2123,87 @@ async function renderNotesView() {
     </div>`;
 
     const sel = document.getElementById("db-table-select");
-    const toggle = document.getElementById("db-active-toggle");
+    const activeFilterSel = document.getElementById("db-active-filter");
+
+    async function loadActiveInactiveCountSummary() {
+        const out = document.getElementById("db-table-output");
+        const countEl = document.getElementById("db-row-count");
+        out.innerHTML = "<p style='font-size:13px; color:#888;'>Loading counts...</p>";
+        countEl.textContent = "";
+        try {
+            const resp = await fetch("/api/db-active-counts");
+            const data = await resp.json();
+            if (data.error) {
+                out.innerHTML = `<p style='color:red; font-size:13px;'>${data.error}</p>`;
+                return;
+            }
+            const rows = data.rows || [];
+            let sumActive = 0;
+            let sumInactive = 0;
+            let sumTotal = 0;
+            let thtml =
+                "<table><thead><tr>" +
+                "<th>Table</th><th class='td-num'>is_active = 1</th><th class='td-num'>is_active = 0</th><th class='td-num'>Total rows</th>" +
+                "</tr></thead><tbody>";
+            for (const r of rows) {
+                const esc = (s) => String(s).replace(/</g, "&lt;");
+                const activeCell = r.has_is_active ? String(r.active) : "—";
+                const inactiveCell = r.has_is_active ? String(r.inactive) : "—";
+                if (r.has_is_active) {
+                    sumActive += r.active;
+                    sumInactive += r.inactive;
+                }
+                sumTotal += r.total;
+                const rowStyle = !r.has_is_active ? " style='color:#888;'" : "";
+                thtml +=
+                    `<tr${rowStyle}>` +
+                    `<td class="td-text">${esc(r.table)}</td>` +
+                    `<td class="td-num">${activeCell}</td>` +
+                    `<td class="td-num">${inactiveCell}</td>` +
+                    `<td class="td-num">${r.total}</td>` +
+                    "</tr>";
+            }
+            thtml +=
+                "</tbody><tfoot><tr style='font-weight:600; background:#e8eef7;'>" +
+                "<td class='td-text'>Total (tables with is_active)</td>" +
+                `<td class='td-num'>${sumActive}</td>` +
+                `<td class='td-num'>${sumInactive}</td>` +
+                `<td class='td-num'>${sumTotal}</td>` +
+                "</tr></tfoot></table>";
+            out.innerHTML = thtml;
+            countEl.textContent = `(${rows.length} table${rows.length !== 1 ? "s" : ""})`;
+        } catch (e) {
+            out.innerHTML = "<p style='color:red; font-size:13px;'>Request failed.</p>";
+        }
+    }
 
     async function loadTable(tableName) {
         const out = document.getElementById("db-table-output");
         const countEl = document.getElementById("db-row-count");
-        const actToggle = document.getElementById("db-active-toggle");
+        const actFilterEl = document.getElementById("db-active-filter");
         out.innerHTML = "<p style='font-size:13px; color:#888;'>Loading...</p>";
         countEl.textContent = "";
+        if (tableName === NOTES_ACTIVE_INACTIVE_COUNT) {
+            actFilterEl.disabled = true;
+            await loadActiveInactiveCountSummary();
+            return;
+        }
         if (tableName === "ocean_rates_extract") {
-            actToggle.disabled = true;
+            actFilterEl.disabled = true;
             countEl.textContent = "(editable grid)";
             out.innerHTML = "";
             await mountOceanRatesExtractEditor(out);
             return;
         }
-        actToggle.disabled = false;
-        const activeOnly = actToggle.checked ? "1" : "0";
+        actFilterEl.disabled = false;
+        const activeFilter = actFilterEl.value || "active";
         try {
-            const resp = await fetch("/api/db-query?table=" + encodeURIComponent(tableName) + "&active_only=" + activeOnly);
+            const resp = await fetch(
+                "/api/db-query?table=" +
+                    encodeURIComponent(tableName) +
+                    "&active_filter=" +
+                    encodeURIComponent(activeFilter),
+            );
             const data = await resp.json();
             if (data.error) {
                 out.innerHTML = `<p style='color:red; font-size:13px;'>${data.error}</p>`;
@@ -2109,10 +2250,18 @@ async function renderNotesView() {
     function reload() {
         document.getElementById("db-search-results").style.display = "none";
         document.getElementById("db-table-output").style.display = "";
+        if (sel.value === NOTES_ACTIVE_INACTIVE_COUNT) {
+            activeFilterSel.disabled = true;
+        }
         loadTable(sel.value);
     }
     sel.addEventListener("change", reload);
-    toggle.addEventListener("change", reload);
+    activeFilterSel.addEventListener("change", () => {
+        if (sel.value === NOTES_ACTIVE_INACTIVE_COUNT) {
+            return;
+        }
+        reload();
+    });
 
     const searchInput = document.getElementById("db-global-search");
     const searchBtn = document.getElementById("db-search-btn");
@@ -2169,6 +2318,155 @@ async function renderNotesView() {
     searchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") doSearch(); });
 
     if (tables.length) loadTable(initialTable);
+}
+
+let _mermaidLoadPromise = null;
+
+function _loadMermaidLibrary() {
+    if (window.mermaid) {
+        return Promise.resolve(window.mermaid);
+    }
+    if (_mermaidLoadPromise) {
+        return _mermaidLoadPromise;
+    }
+    _mermaidLoadPromise = new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js";
+        s.async = true;
+        s.onload = () => {
+            window.mermaid.initialize({
+                startOnLoad: false,
+                theme: "default",
+                securityLevel: "loose",
+            });
+            resolve(window.mermaid);
+        };
+        s.onerror = () => reject(new Error("Failed to load Mermaid"));
+        document.head.appendChild(s);
+    });
+    return _mermaidLoadPromise;
+}
+
+const _DOCUMENTATION_DIAGRAMS = [
+    {
+        title: "SEAM + OTR through USD, PTS, and CIF to Export",
+        blurb:
+            "Warehouse-level costing starts from regions_and_ports joined with seam_tariffs; OTR lanes supply transit. USD rows are converted to PTS, then averaged by CIF region. Export reads CIF plus ocean and document data per country/city.",
+        chart: `flowchart TB
+    subgraph sqlite["SQLite tables"]
+        OTR[("otr_rates")]
+        SEAM[("seam_tariffs")]
+        RAP[("regions_and_ports")]
+        OCEAN[("ocean_rates_extract")]
+        DRAY[("drayage")]
+        DOC[("document_cif")]
+        CP[("control_panel + consolidation")]
+    end
+
+    subgraph apis["Flask APIs — server.py"]
+        API_OTR["GET /api/otr"]
+        API_SEAM["GET /api/seam-tariffs"]
+        API_RAP["GET /api/regions-and-ports"]
+        API_USD["GET /api/usd"]
+        API_PTS["GET /api/pts"]
+        API_CIF["GET /api/cif"]
+        API_OCEAN["GET /api/ocean"]
+    end
+
+    OTR --> API_OTR
+    SEAM --> API_SEAM
+    RAP --> API_RAP
+    CP --> API_USD
+    DRAY --> API_USD
+    DOC --> API_USD
+
+    API_OTR --> BUILD_USD["_build_usd_rows"]
+    API_SEAM --> BUILD_USD
+    API_RAP --> BUILD_USD
+    BUILD_USD --> API_USD
+    API_USD --> API_PTS
+    API_PTS --> BUILD_CIF["_build_cif_rows — PTS averages by Region"]
+    BUILD_CIF --> API_CIF
+
+    API_CIF --> EXPORT["Export view — script.js"]
+    API_OCEAN --> EXPORT
+    OCEAN --> API_OCEAN
+    DOC --> EXPORT
+    API_USD --> EXPORT`,
+    },
+    {
+        title: "How SEAM and OTR feed each USD warehouse row",
+        blurb:
+            "_build_usd_rows merges regions_and_ports with seam_tariffs by Warehouse id. Transit Truck uses OTR Final for warehouse City + export Port, divided by 88. Selected warehouses are duplicated as WTXH / Houston for CIF.",
+        chart: `flowchart LR
+    RAP[("regions_and_ports")]
+    SEAM[("seam_tariffs")]
+    OTR[("otr_rates")]
+    JARVIS[("control_panel, consolidation, drayage, document_cif")]
+
+    RAP -->|Region, Export, Port, ESO, fees| MERGE["Merge by Warehouse"]
+    SEAM -->|Terms, Recv, Load, Compr, Class, Mark, Strg| MERGE
+    OTR -->|City + Port lane lookup| MERGE
+    JARVIS -->|Interest, Origin Comm, Consol, Outbound doc/CIF| MERGE
+
+    MERGE --> USDROW["USD row per warehouse"]
+    USDROW --> DUP["Optional WTXH duplicate rows"]
+    DUP --> PTS["PTS = USD × 20"]`,
+    },
+    {
+        title: "Export view sections and data sources",
+        blurb:
+            'Export rows come from EXPORT_DATA (countries and CIF FE cities). Each section column maps to CIF region rows, ocean costing, or document_cif. The Export section named "Documentation" is doc-fee points — not this diagram view.',
+        chart: `flowchart TB
+    EXPORT_DATA["EXPORT_DATA — countries + CIF FE ports"]
+    CIF["GET /api/cif — by Region"]
+    OCEAN["GET /api/ocean — deduped Total pts"]
+    DOC["document_cif + usa_forwarding_cost"]
+    THEMES["themes — Base cell color"]
+
+    EXPORT_DATA --> ROWS["_buildExportRows"]
+
+    CIF -->|Origin, Inland, Consolidation, most Outbound| ROWS
+    OCEAN -->|Outbound hub cols — WTX, HOU, DAL, MR5, ER5| ROWS
+    CIF -->|Dray + Ocean pts| ROWS
+    DOC -->|Documentation section pts| ROWS
+    DOC -->|CIF section pts| ROWS
+    THEMES --> ROWS
+
+    ROWS --> TT["Total Terms — sum sections per region"]
+    CIF -->|Cash| PREM["Premium and Discounts — Export TT − CIF Cash"]
+    TT --> PREM
+    PREM --> TABLE["Export pricing table"]`,
+    },
+];
+
+async function renderDocumentationView() {
+    const content = document.getElementById("content");
+    const cards = _DOCUMENTATION_DIAGRAMS.map(
+        (d) =>
+            `<section class="doc-diagram-card">` +
+            `<h3>${d.title}</h3>` +
+            `<p>${d.blurb}</p>` +
+            `<pre class="mermaid doc-mermaid">${d.chart}</pre>` +
+            `</section>`,
+    ).join("");
+
+    content.innerHTML =
+        `<div class="doc-view">` +
+        `<h2>Data flow documentation</h2>` +
+        `<p class="doc-lead">How <strong>SEAM</strong> (warehouse tariffs) and <strong>OTR</strong> (lane rates) combine with <strong>regions_and_ports</strong> and Jarvis settings, then flow through <strong>USD</strong> → <strong>PTS</strong> → <strong>CIF</strong> into the <strong>Export</strong> pricing grid. Implementation: <code>server.py</code> for APIs; <code>script.js</code> for Export assembly.</p>` +
+        cards +
+        `</div>`;
+
+    try {
+        const mermaid = await _loadMermaidLibrary();
+        await mermaid.run({ querySelector: ".doc-mermaid" });
+    } catch (e) {
+        content.insertAdjacentHTML(
+            "beforeend",
+            `<p style="color:#b71c1c; margin-top:12px;">Could not render diagrams: ${String(e.message || e).replace(/</g, "&lt;")}</p>`,
+        );
+    }
 }
 
 async function loadOtrRows(config) {
@@ -2280,6 +2578,140 @@ function _oceanCostingFreightRuleForCountry(countryRaw) {
         return "cmdumaeu_top3_mean";
     }
     return "cheapest";
+}
+
+function _formatOceanCostingCountryList(countrySet) {
+    return [...countrySet]
+        .map((c) =>
+            c
+                .split(" ")
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(" ")
+        )
+        .sort((a, b) => a.localeCompare(b))
+        .join(", ");
+}
+
+function _oceanCostingFreightRuleDescription(rule) {
+    if (rule === "cmdumaeu_mean") {
+        return (
+            "Mean Ocean Freight of CMDU and MAEU rows only (CMA CGM / Maersk). " +
+            "If neither carrier is present, falls back to cheapest across all carriers."
+        );
+    }
+    if (rule === "cmdumaeu_top3_mean") {
+        return (
+            "Among CMDU and MAEU rows only, take the three lowest Ocean Freight values and average them. " +
+            "If no CMDU/MAEU rows exist, falls back to cheapest across all carriers."
+        );
+    }
+    return "Lowest Ocean Freight among all carrier rows in the group (any SCAC).";
+}
+
+function _oceanCostingFreightRuleLabel(countryRaw) {
+    const rule = _oceanCostingFreightRuleForCountry(countryRaw);
+    if (rule === "cmdumaeu_mean") {
+        return "CMDU + MAEU average";
+    }
+    if (rule === "cmdumaeu_top3_mean") {
+        return "mean of 3 lowest CMDU/MAEU rates";
+    }
+    return "cheapest rate (any carrier)";
+}
+
+/**
+ * Helper text for Ocean Costing: how country/region rules collapse many OCEAN rows into one freight value.
+ */
+function createOceanCostingHelpNote() {
+    const details = document.createElement("details");
+    details.open = true;
+    details.style.marginBottom = "10px";
+    details.style.maxWidth = "980px";
+    details.style.fontSize = "12px";
+    details.style.lineHeight = "1.55";
+    details.style.color = "#444";
+
+    const summary = document.createElement("summary");
+    summary.textContent = "How Ocean Freight is derived (varies by country)";
+    summary.style.cursor = "pointer";
+    summary.style.fontWeight = "600";
+    summary.style.color = "#333";
+    details.appendChild(summary);
+
+    const box = document.createElement("div");
+    box.style.marginTop = "8px";
+    box.style.padding = "10px 12px";
+    box.style.border = "1px solid #d9d9d9";
+    box.style.borderRadius = "6px";
+    box.style.background = "#f8f9fb";
+
+    const pIntro = document.createElement("p");
+    pIntro.style.marginTop = "0";
+    pIntro.innerHTML =
+        "This view starts from the same data as <strong>OCEAN</strong> (one row per carrier contract in " +
+        "<code>ocean_rates_extract</code>), then <strong>collapses</strong> to one costing row per " +
+        "<strong>Port + Destination + Country</strong>. The displayed <strong>Ocean Freight</strong> is not a single " +
+        "CSV cell — it is chosen by <strong>country-specific rules</strong> from all carrier rows in that group.";
+    box.appendChild(pIntro);
+
+    const pStep1 = document.createElement("p");
+    pStep1.innerHTML =
+        "<strong>Step 1 — per-carrier Ocean Freight (OCEAN view):</strong> Each underlying row’s freight comes from " +
+        "the extract file using <strong>DTHC Prepaid</strong> for the destination country: " +
+        "<em>Yes</em> → ALLIN40HC, else ALLIN40FT; <em>No</em> → 40HC, else 40FT (zero/blank uses the fallback column). " +
+        "See the OCEAN view <strong>DTHC Prepaid</strong> column.";
+    box.appendChild(pStep1);
+
+    const pStep2 = document.createElement("p");
+    pStep2.innerHTML =
+        "<strong>Step 2 — country rule (this view):</strong> All carrier rows sharing the same Port, Destination, and " +
+        "Country are combined. The rule depends on the <strong>Country</strong> name (after normalizing aliases such as " +
+        "“Korea, Republic of” → Korea). Countries not listed below also use the <strong>cheapest</strong> rule.";
+    box.appendChild(pStep2);
+
+    const rules = document.createElement("ul");
+    rules.style.margin = "6px 0 0 0";
+    rules.style.paddingLeft = "1.25em";
+
+    const ruleItems = [
+        {
+            title: "Cheapest (any carrier)",
+            countries: _formatOceanCostingCountryList(OCEAN_COSTING_RULE_CHEAPEST),
+            detail: _oceanCostingFreightRuleDescription("cheapest"),
+        },
+        {
+            title: "CMDU + MAEU average",
+            countries: _formatOceanCostingCountryList(OCEAN_COSTING_RULE_CMDU_MAEU_MEAN),
+            detail: _oceanCostingFreightRuleDescription("cmdumaeu_mean"),
+        },
+        {
+            title: "Mean of 3 lowest CMDU / MAEU rates",
+            countries: _formatOceanCostingCountryList(OCEAN_COSTING_RULE_TOP3_CMDU_MAEU_MEAN),
+            detail: _oceanCostingFreightRuleDescription("cmdumaeu_top3_mean"),
+        },
+    ];
+
+    for (const { title, countries, detail } of ruleItems) {
+        const li = document.createElement("li");
+        li.style.marginBottom = "8px";
+        li.innerHTML =
+            `<strong>${title}</strong> — ${detail}<br>` +
+            `<span style="color:#555;">Countries: ${countries}</span>`;
+        rules.appendChild(li);
+    }
+    box.appendChild(rules);
+
+    const pScac = document.createElement("p");
+    pScac.style.marginBottom = "0";
+    pScac.innerHTML =
+        "<strong>CMDU / MAEU</strong> are carrier SCAC codes in the extract (<code>scacCode</code>): CMA CGM (CMDU) and " +
+        "Maersk (MAEU). <strong>GRI</strong> = Documentation/CIF GRI for Country + Drayage GRI for Port (same mapping as USD). " +
+        "<strong>Ocean Total</strong> = Ocean Freight + GRI; <strong>Total pts</strong> = (Ocean Total ÷ 88) × 20. " +
+        "Export Outbound uses these deduped values when matching Base + CIF FE to a lane.";
+    box.appendChild(pScac);
+
+    details.appendChild(box);
+    return details;
 }
 
 function _parseOceanCostingNumber(value) {
@@ -2933,17 +3365,70 @@ function renderOceanTable(config) {
     controls.style.display = "flex";
     controls.style.gap = "8px";
     controls.style.marginBottom = "10px";
+    controls.style.flexWrap = "wrap";
+    controls.style.alignItems = "center";
+
+    const localSelect = document.createElement("select");
+    localSelect.style.fontSize = "12px";
+    localSelect.innerHTML = '<option value="">-- select local CSV --</option>';
+    controls.appendChild(localSelect);
+
+    const localCompareBtn = document.createElement("button");
+    localCompareBtn.textContent = "Compare Local";
+    localCompareBtn.style.padding = "6px 12px";
+    localCompareBtn.style.fontSize = "12px";
+    controls.appendChild(localCompareBtn);
+
+    const applyBtn = document.createElement("button");
+    applyBtn.textContent = "Apply Changes";
+    applyBtn.style.padding = "6px 12px";
+    applyBtn.style.fontSize = "12px";
+    applyBtn.style.display = "none";
+    controls.appendChild(applyBtn);
+
+    const statusMsg = document.createElement("span");
+    statusMsg.style.fontSize = "12px";
+    statusMsg.style.color = "#555";
+    controls.appendChild(statusMsg);
+
+    fetch("/api/ocean/local-files")
+        .then((r) => r.json())
+        .then((data) => {
+            (data.files || []).forEach((f) => {
+                const opt = document.createElement("option");
+                opt.value = f;
+                opt.textContent = f;
+                localSelect.appendChild(opt);
+            });
+        })
+        .catch(() => {});
+
     content.appendChild(controls);
+
+    const legend = document.createElement("div");
+    legend.style.fontSize = "11px";
+    legend.style.marginBottom = "8px";
+    legend.style.display = "none";
+    legend.innerHTML =
+        '<span style="background:#d4edda;padding:2px 6px;margin-right:8px;">Updated</span>' +
+        '<span style="background:#d6eaf8;padding:2px 6px;margin-right:8px;">Unchanged</span>' +
+        '<span style="background:#f8d7da;padding:2px 6px;margin-right:8px;">In system, not in CSV</span>' +
+        '<span style="background:#fff9c4;padding:2px 6px;">New (in CSV, not in system)</span>' +
+        '<span style="margin-left:8px;color:#555;">CSV: 470OceanRatesExtract format</span>';
+    content.appendChild(legend);
 
     const tableHost = document.createElement("div");
     tableHost.id = "ocean-table-host";
     content.appendChild(tableHost);
 
+    let displayColumns = config.columns.filter((c) => c !== "_status" && c !== "_changed_fields");
     const sortState = { column: null, ascending: true };
+    let lastLocalFile = null;
+
     const draw = () => {
         const filteredRows = filterOceanRows(config.rows, portInput.value, countryInput.value);
         const sortedRows = sortRows(filteredRows, sortState);
-        drawTable(tableHost, config.columns, sortedRows, {
+        drawTable(tableHost, displayColumns, sortedRows, {
             sortState,
             onHeaderClick: (column) => {
                 toggleSort(sortState, column);
@@ -2954,19 +3439,67 @@ function renderOceanTable(config) {
 
     portInput.addEventListener("input", draw);
     countryInput.addEventListener("input", draw);
+
+    localCompareBtn.addEventListener("click", async () => {
+        const filename = localSelect.value;
+        if (!filename) {
+            statusMsg.textContent = "Please select a local CSV file first.";
+            return;
+        }
+        lastLocalFile = filename;
+        statusMsg.textContent = "Comparing...";
+        try {
+            const resp = await fetch("/api/ocean/compare-local", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename })
+            });
+            if (!resp.ok) throw new Error(`Compare failed (${resp.status})`);
+            const payload = await resp.json();
+            config.rows = Array.isArray(payload.rows) ? payload.rows : [];
+            legend.style.display = "block";
+            applyBtn.style.display = "inline-block";
+            const counts = { updated: 0, unchanged: 0, removed: 0, "new": 0 };
+            config.rows.forEach((r) => { if (r._status) counts[r._status]++; });
+            statusMsg.textContent = `${counts.updated} updated, ${counts["new"]} new, ${counts.removed} removed, ${counts.unchanged} unchanged`;
+            draw();
+        } catch (err) {
+            statusMsg.textContent = err.message;
+        }
+    });
+
+    applyBtn.addEventListener("click", async () => {
+        if (!lastLocalFile) return;
+        showProgressModal("Saving ocean rates...");
+        try {
+            const resp = await fetch("/api/ocean/apply-local", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ filename: lastLocalFile })
+            });
+            if (!resp.ok) throw new Error(`Apply failed (${resp.status})`);
+            const payload = await resp.json();
+            document.getElementById("progress-modal-msg").textContent = "Reloading data...";
+            await loadOceanRows(config);
+            hideProgressModal();
+            const deact = payload.deactivated != null ? `, ${payload.deactivated} deactivated` : "";
+            statusMsg.textContent = `Applied. ${payload.updated || 0} updated, ${payload.new || 0} new${deact}.`;
+            applyBtn.style.display = "none";
+            legend.style.display = "none";
+            draw();
+        } catch (err) {
+            hideProgressModal();
+            statusMsg.textContent = err.message;
+        }
+    });
+
     draw();
 }
 
 function renderOceanCostingTable(config) {
     const content = document.getElementById("content");
 
-    const note = document.createElement("p");
-    note.style.fontSize = "12px";
-    note.style.color = "#555";
-    note.style.marginBottom = "8px";
-    note.textContent =
-        "Same ocean data as OCEAN: one row per Port + Destination + Country. Ocean Freight is chosen by country rules (cheapest, CMDU/MAEU mean, or mean of the three lowest CMDU/MAEU rates). GRI = Documentation / CIF GRI for Country plus Drayage GRI for the row’s Port (same Port→region mapping as USD). Use the search boxes to filter.";
-    content.appendChild(note);
+    content.appendChild(createOceanCostingHelpNote());
 
     const controls = document.createElement("div");
     const portInput = document.createElement("input");
@@ -4074,12 +4607,29 @@ function showCellDerivation(row, column, value, rowIdx) {
     } else if (viewName === "OCEAN") {
         if (column === "GRI") {
             derivation = `GRI = document_cif (Country="${row.Country || "?"}") . "GRI" + drayage (Port="${row.Port || "?"}" → region) . "GRI" (GET /api/ocean)`;
+        } else if (column === "DTHC Prepaid") {
+            const destCode = String(row.Code ?? "").trim().toUpperCase();
+            const cc = destCode.length >= 2 ? destCode.slice(0, 2) : "?";
+            derivation = `dthc_prepaid (country_code="${cc}" from Code) → ${row[column] ?? "?"}; Yes = ALLIN40HC/ALLIN40FT, No = 40HC/40FT (GET /api/ocean)`;
         } else {
             derivation = `GET /api/ocean [ row ${rowIdx + 1} ] . "${column}"`;
         }
     } else if (viewName === "Ocean Costing") {
         if (column === "GRI") {
             derivation = `GRI = document_cif (Country="${row.Country || "?"}") . "GRI" + drayage (Port="${row.Port || "?"}" → region) . "GRI" (GET /api/ocean)`;
+        } else if (column === "DTHC Prepaid") {
+            const destCode = String(row.Code ?? "").trim().toUpperCase();
+            const cc = destCode.length >= 2 ? destCode.slice(0, 2) : "?";
+            derivation = `dthc_prepaid (country_code="${cc}") → ${row[column] ?? "?"}; carried from GET /api/ocean source rows`;
+        } else if (column === "Ocean Freight") {
+            const ruleLabel = _oceanCostingFreightRuleLabel(row.Country);
+            derivation =
+                `Country "${row.Country || "?"}": ${_oceanCostingFreightRuleDescription(_oceanCostingFreightRuleForCountry(row.Country))} ` +
+                `(rule: ${ruleLabel}). Built from all GET /api/ocean rows with same Port="${row.Port || "?"}" + Destination="${row.Destination || "?"}" + Country.`;
+        } else if (column === "Ocean Total") {
+            derivation = `Ocean Total = Ocean Freight + GRI (after country freight rule applied; deduped row ${rowIdx + 1})`;
+        } else if (column === "Total pts") {
+            derivation = `Total pts = (Ocean Total ÷ 88) × 20 (deduped Ocean Costing row ${rowIdx + 1})`;
         } else {
             derivation = `GET /api/ocean (deduped by Port+Destination+Country) [ row ${rowIdx + 1} ] . "${column}"`;
         }
@@ -4242,7 +4792,7 @@ function _cifDerivation(row, column) {
 }
 
 /* ── Export view ───────────────────────────────────────────── */
-const EXPORT_DATA = [
+const EXPORT_DATA_FALLBACK = [
     { base: "China",      code: "CN", c: "38", d: "18", ports: ["Qingdao","Xiamen","Nantong"] },
     { base: "Vietnam",    code: "VN", c: "50", d: "14", ports: ["Ho Chi Minh","Da Nang","Haiphong"] },
     { base: "Korea",      code: "KO", c: "46", d: "18", ports: ["Busan","Kwangyang"] },
@@ -4263,6 +4813,31 @@ const EXPORT_DATA = [
     { base: "Italy",      code: "IT", c: "",   d: "14", ports: ["Bergamo","Salerno"] },
     { base: "Other",      code: "OT", c: "-",  d: "-",  ports: ["Batumi"] },
 ];
+
+let EXPORT_DATA = EXPORT_DATA_FALLBACK.map((row) => ({ ...row, ports: [...(row.ports || [])] }));
+
+async function loadExportDataFromApi() {
+    try {
+        const res = await fetch("/api/export-data");
+        if (!res.ok) {
+            return;
+        }
+        const rows = await res.json();
+        if (!Array.isArray(rows) || !rows.length) {
+            return;
+        }
+        EXPORT_DATA = rows.map((r) => ({
+            base: String(r.base || "").trim(),
+            code: String(r.code || "").trim(),
+            c: r.c === undefined || r.c === null ? "" : String(r.c),
+            d: r.d === undefined || r.d === null ? "" : String(r.d),
+            ports: Array.isArray(r.ports) ? r.ports.map((p) => String(p)) : [],
+            extra: r.extra && typeof r.extra === "object" ? r.extra : undefined,
+        }));
+    } catch (e) {
+        /* keep fallback */
+    }
+}
 
 const EXPORT_REGIONS = ["WTX","WTXH","STX","MR5","GA","ER5","EMOT","ME","HOU","DAL"];
 
@@ -4374,7 +4949,7 @@ function _normalizeThemeHexColor(raw) {
     return "";
 }
 
-/** Map themes.Country (lower) → Color. Export "Other" → themes "Other International". */
+/** Map themes Country / CountryAbbr (lower) → Color. Export "Other" → themes "Other International". */
 function _exportThemeColorByCountry(themesRows) {
     const m = new Map();
     for (const t of themesRows || []) {
@@ -4384,8 +4959,12 @@ function _exportThemeColorByCountry(themesRows) {
             continue;
         }
         const name = String(t.Country ?? t.country ?? "").trim().toLowerCase();
+        const abbr = String(t.CountryAbbr ?? t.countryAbbr ?? "").trim().toLowerCase();
         if (name) {
             m.set(name, color);
+        }
+        if (abbr) {
+            m.set(abbr, color);
         }
     }
     return m;
@@ -4400,7 +4979,10 @@ function _exportBaseCellBackground(baseText, colorByCountry) {
         return "";
     }
     if (key === "other") {
-        return colorByCountry.get("other international") || "";
+        return colorByCountry.get("other international") || colorByCountry.get("ot") || "";
+    }
+    if (key === "uae") {
+        return colorByCountry.get("uae") || colorByCountry.get("ae") || colorByCountry.get("united arab emirates") || "";
     }
     return colorByCountry.get(key) || "";
 }
@@ -4426,10 +5008,12 @@ function _isThemeCountryColumn(columnName) {
         return false;
     }
     const s = String(columnName);
-    if (s === "Country") {
+    const low = s.toLowerCase();
+    if (s === "Country" || low === "country") {
         return true;
     }
-    return s.toLowerCase() === "country";
+    /* dthc_prepaid: country_code or location */
+    return low === "location" || low === "country_code";
 }
 
 function applyCountryThemeToTd(td, countryText) {
@@ -4494,31 +5078,38 @@ const EXPORT_OUTBOUND_CIF_OCEAN_HUB_ABBRS = new Set([
     "WTX", "WTXH", "STX", "MR5", "ER5", "HOU", "DAL",
 ]);
 
-/** Ocean row Port must match this hub (normalized substring) for the export column.
- *  HOU / DAL hubs are taken from EXPORT_REGION_TO_CIF ("Houston", "Dallas"). */
-const EXPORT_OUTBOUND_OCEAN_HUB_PORT = {
-    WTX: "dallas",
-    WTXH: "houston",
-    STX: "houston",
-    MR5: "memphis",
-    ER5: "savannah",
+/** Ocean row Port must match one of these hubs (in order) for the export column.
+ *  WTXH/STX prefer Houston; if no lane exists (e.g. China→Qingdao is often Dallas-only), try Dallas next.
+ *  HOU / DAL use EXPORT_REGION_TO_CIF labels directly. */
+const EXPORT_OUTBOUND_OCEAN_HUB_PORTS_TRY = {
+    WTX: ["dallas"],
+    WTXH: ["houston", "dallas"],
+    STX: ["houston", "dallas"],
+    MR5: ["memphis"],
+    ER5: ["savannah"],
 };
 
 function _exportOutboundUsesCifDrayAndOceanHubPts(abbr) {
     return EXPORT_OUTBOUND_CIF_OCEAN_HUB_ABBRS.has(String(abbr ?? "").trim());
 }
 
-function _exportOceanHubPortNorm(abbr) {
+function _exportOceanHubPortsToTry(abbr) {
     const a = String(abbr ?? "").trim();
     if (a === "HOU" || a === "DAL") {
         const cifLabel = EXPORT_REGION_TO_CIF[a];
-        return cifLabel ? _exportNormLoose(cifLabel) : "";
+        return cifLabel ? [_exportNormLoose(cifLabel)] : [];
     }
-    return EXPORT_OUTBOUND_OCEAN_HUB_PORT[a] || "";
+    return EXPORT_OUTBOUND_OCEAN_HUB_PORTS_TRY[a] || [];
 }
 
-function _exportOceanPortMatchesHub(portRaw, abbr) {
-    const hub = _exportOceanHubPortNorm(abbr);
+/** Primary hub label for messages (first in try list). */
+function _exportOceanHubPortNorm(abbr) {
+    const hubs = _exportOceanHubPortsToTry(abbr);
+    return hubs.length ? hubs[0] : "";
+}
+
+function _exportOceanPortMatchesHubNorm(portRaw, hubNorm) {
+    const hub = _exportNormLoose(hubNorm);
     if (!hub) {
         return false;
     }
@@ -4527,6 +5118,10 @@ function _exportOceanPortMatchesHub(portRaw, abbr) {
         return false;
     }
     return p === hub || p.includes(hub);
+}
+
+function _exportOceanPortMatchesHub(portRaw, abbr) {
+    return _exportOceanHubPortsToTry(abbr).some((hub) => _exportOceanPortMatchesHubNorm(portRaw, hub));
 }
 
 /** Same port / city label variants — align before Export CIF FE vs Ocean Destination match. */
@@ -4577,25 +5172,28 @@ function _exportOceanTotalPtsForOutboundRow(oceanCostingRows, baseGroup, cifFe, 
     if (!country || !fe) {
         return "ERROR";
     }
-    for (const r of oceanCostingRows) {
-        if (!_exportOceanCountryKeysMatch(r.Country, baseGroup)) {
-            continue;
+    const hubs = _exportOceanHubPortsToTry(abbr);
+    for (const hub of hubs) {
+        for (const r of oceanCostingRows) {
+            if (!_exportOceanCountryKeysMatch(r.Country, baseGroup)) {
+                continue;
+            }
+            if (!_exportOceanPortMatchesHubNorm(r.Port, hub)) {
+                continue;
+            }
+            if (!_exportDestinationMatchesExportCity(r.Destination, fe)) {
+                continue;
+            }
+            const tp = r["Total pts"];
+            if (tp === undefined || tp === null || tp === "") {
+                continue;
+            }
+            const tps = String(tp).trim();
+            if (tps.toUpperCase() === "ERROR") {
+                continue;
+            }
+            return tps;
         }
-        if (!_exportOceanPortMatchesHub(r.Port, abbr)) {
-            continue;
-        }
-        if (!_exportDestinationMatchesExportCity(r.Destination, fe)) {
-            continue;
-        }
-        const tp = r["Total pts"];
-        if (tp === undefined || tp === null || tp === "") {
-            return "ERROR";
-        }
-        const tps = String(tp).trim();
-        if (tps.toUpperCase() === "ERROR") {
-            return "ERROR";
-        }
-        return tps;
     }
     return "ERROR";
 }
@@ -4825,14 +5423,19 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         if (!baseG || !cifFe) {
             return "ERROR: Base (country) or CIF FE (city) is blank on this row; cannot match Ocean Costing.";
         }
+        const hubsTry = _exportOceanHubPortsToTry(abbr);
         const hub = _exportOceanHubPortNorm(abbr);
         const drayStr = _exportCifDrayForAbbr(cifByRegion, abbr);
         const ptsStr = _exportOceanTotalPtsForOutboundRow(oceanRows, baseG, cifFe, abbr);
-        const loc = `Country="${baseG}", Destination≈"${cifFe}", Port hub "${hub || "?"}"`;
+        const hubNote =
+            hubsTry.length > 1
+                ? ` Port hubs tried in order: ${hubsTry.map((h) => `"${h}"`).join(", ")}.`
+                : "";
+        const loc = `Country="${baseG}", Destination≈"${cifFe}", primary hub "${hub || "?"}"`;
         const ptsTrim = String(ptsStr ?? "").trim();
         if (!ptsTrim || ptsTrim.toUpperCase() === "ERROR") {
             return (
-                `ERROR: no matching deduped GET /api/ocean row for ${loc}, or ocean Total pts is missing/invalid. ` +
+                `ERROR: no matching deduped GET /api/ocean row for ${loc}, or ocean Total pts is missing/invalid.${hubNote} ` +
                 `Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.`
             );
         }
@@ -5257,6 +5860,7 @@ async function renderExportTable() {
     const content = document.getElementById("content");
     content.innerHTML = "";
 
+    await loadExportDataFromApi();
     invalidateThemeCountryColorMapCache();
 
     const derivPanel = document.createElement("div");
