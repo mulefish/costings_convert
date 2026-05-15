@@ -1,0 +1,210 @@
+table {
+    border-collapse: collapse;
+    width: auto;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+}
+
+th,
+td {
+    border: 1px solid #d9d9d9;
+    padding: 6px 8px;
+    text-align: left;
+    white-space: nowrap;
+}
+
+td.td-num {
+    text-align: right;
+}
+
+td.td-text {
+    text-align: left;
+}
+
+thead th {
+    background: #2f5fa7;
+    color: #ffffff;
+}
+
+tbody tr:nth-child(odd) {
+    background: #ffffff;
+}
+
+tbody tr:nth-child(even) {
+    background: #f2f2f2;
+}
+
+thead th:hover {
+    background: #234a82;
+}
+
+/* Exact sentinel text ERROR — class added in script.js (_applyCellErrorClass) */
+td.cell-error,
+tbody th.cell-error {
+    color: #b71c1c !important;
+    font-weight: 600;
+}
+
+thead th.cell-error {
+    color: #ffcdd2 !important;
+    font-weight: 700;
+}
+
+input {
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* App-wide checkbox accent (browser default is often green on Windows) */
+input[type="checkbox"] {
+    accent-color: #2f5fa7;
+    cursor: pointer;
+}
+
+table.usd-table thead tr:first-child th.usd-group-header {
+    background: #1a73e8;
+    color: #ffffff;
+    text-align: center;
+    font-weight: bold;
+    font-size: 12px;
+}
+
+table.usd-table thead tr:first-child th.usd-group-empty {
+    background: #e8eef7;
+    color: #333333;
+}
+
+table.usd-table thead tr:nth-child(2) th.usd-sub-header {
+    background: #d0dbf0;
+    color: #111111;
+    font-size: 11px;
+}
+
+table.usd-table thead tr:nth-child(2) th.usd-sub-header:hover {
+    background: #b8c9e8;
+}
+
+/* Export: collapsed CIF sections (narrow checkbox-only column) */
+table.export-pricing-table thead tr:first-child th.usd-group-header .export-section-header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+}
+
+table.export-pricing-table thead tr:first-child th.export-section-collapsed-header .export-section-header-inner {
+    justify-content: center;
+}
+
+table.export-pricing-table thead tr:first-child th.export-section-collapsed-header .export-section-header-inner span {
+    display: none !important;
+}
+
+table.export-pricing-table th.export-section-collapsed-cell,
+table.export-pricing-table td.export-section-collapsed-cell {
+    width: 2rem;
+    max-width: 2.75rem;
+    min-width: 1.75rem;
+    padding: 2px 4px;
+    overflow: hidden;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+table.export-pricing-table thead tr:first-child th.export-section-collapsed-header {
+    padding: 4px 2px;
+}
+
+table.export-pricing-table thead tr:first-child th.export-section-collapsed-header input[type="checkbox"] {
+    margin: 0;
+}
+
+table.export-pricing-table thead tr:first-child th.usd-group-header input[type="checkbox"] {
+    flex-shrink: 0;
+}
+
+/* Export: center numeric header + body cells (overrides global td.td-num right) */
+table.export-pricing-table td.td-num,
+table.export-pricing-table thead th.td-num {
+    text-align: center !important;
+}
+
+.note {
+    font-size: 12px;
+    color: #555;
+    margin: 0;
+    padding: 8px 16px;
+    background: #f4f6f9;
+    border-bottom: 1px solid #e2e6ec;
+}
+
+.app-header {
+    display: flex;
+    align-items: center;
+    gap: 12px 20px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    background: #1e3a6e;
+    color: #fff;
+    border-bottom: 3px solid #2f5fa7;
+}
+
+.app-brand {
+    margin: 0;
+    font-size: 1.35rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+}
+
+.app-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    flex: 1;
+}
+
+.app-nav-btn {
+    font-family: Arial, sans-serif;
+    font-size: 12px;
+    padding: 6px 11px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #e8eef7;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.app-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: rgba(255, 255, 255, 0.55);
+}
+
+.app-nav-btn.is-active {
+    background: #fff;
+    color: #1e3a6e;
+    border-color: #fff;
+    font-weight: 600;
+}
+
+.app-main {
+    padding: 12px 16px 24px;
+}
+
+#cell-derivation {
+    font-family: monospace;
+    font-size: 12px;
+    background: #f8f8f0;
+    border: 1px solid #ddd;
+    padding: 8px 12px;
+    margin: 0 0 8px 0;
+    min-height: 1.4em;
+    color: #333;
+    display: none;
+}

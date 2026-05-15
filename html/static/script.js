@@ -1480,9 +1480,40 @@ async function renderControlPanelView() {
     content.appendChild(wrap);
 }
 
+function getActiveViewName() {
+    const active = document.querySelector(".app-nav-btn.is-active");
+    if (active) {
+        return active.getAttribute("data-view") || active.textContent.trim();
+    }
+    return "Jarvis";
+}
+
+function setActiveViewName(viewName) {
+    document.querySelectorAll(".app-nav-btn").forEach((btn) => {
+        const v = btn.getAttribute("data-view") || btn.textContent.trim();
+        btn.classList.toggle("is-active", v === viewName);
+    });
+}
+
+function initAppNav() {
+    const nav = document.getElementById("app_nav");
+    if (!nav) {
+        return;
+    }
+    nav.querySelectorAll(".app-nav-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            const viewName = btn.getAttribute("data-view") || btn.textContent.trim();
+            if (viewName === getActiveViewName()) {
+                return;
+            }
+            setActiveViewName(viewName);
+            select_view();
+        });
+    });
+}
+
 async function select_view() {
-    const selectElement = document.getElementById("select_view");
-    const viewName = selectElement.options[selectElement.selectedIndex].text;
+    const viewName = getActiveViewName();
     document.title = "Costings - " + viewName;
     const content = document.getElementById("content");
     content.innerHTML = "";
@@ -4027,8 +4058,7 @@ function showCellDerivation(row, column, value, rowIdx) {
     const rowId = row["Warehouse"] || row["Row"] || `row ${rowIdx + 1}`;
 
     // Determine current view
-    const sel = document.getElementById("select_view");
-    const viewName = sel ? sel.options[sel.selectedIndex].text : "";
+    const viewName = getActiveViewName();
 
     // Build derivation description based on view
     let derivation = "";
@@ -5578,20 +5608,16 @@ async function renderExportTable() {
 
 function openViewFromHash() {
     const h = location.hash.toLowerCase();
-    const sel = document.getElementById("select_view");
-    if (!sel) return;
-
-    if (h === "#jarvis" || h === "#javis" || h === "#control-panel" || !h) {
-        for (let i = 0; i < sel.options.length; i++) {
-            if (sel.options[i].text === "Jarvis") { sel.selectedIndex = i; break; }
-        }
-    } else if (h === "#notes") {
-        for (let i = 0; i < sel.options.length; i++) {
-            if (sel.options[i].text === "Notes") { sel.selectedIndex = i; break; }
-        }
+    let viewName = "Jarvis";
+    if (h === "#notes") {
+        viewName = "Notes";
     }
+    setActiveViewName(viewName);
     select_view();
 }
 
-document.addEventListener("DOMContentLoaded", openViewFromHash);
+document.addEventListener("DOMContentLoaded", () => {
+    initAppNav();
+    openViewFromHash();
+});
 window.addEventListener("hashchange", openViewFromHash);

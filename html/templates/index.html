@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Costings - Jarvis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <script src="{{ url_for('static', filename='headers.js') }}"></script>
     <script>
         (function () {
@@ -19,119 +20,31 @@
             window.EXPORT_SECTIONS_TOGGLE_DEFAULTS = export_sections_toggle;
         })();
     </script>
-
-    <style>
-        table { border-collapse: collapse; width: auto; font-family: Arial, sans-serif; font-size: 13px; }
-        th, td { border: 1px solid #d9d9d9; padding: 6px 8px; text-align: left; white-space: nowrap; }
-        td.td-num { text-align: right; }
-        td.td-text { text-align: left; }
-        thead th { background: #2f5fa7; color: #ffffff; }
-        tbody tr:nth-child(odd) { background: #ffffff; }
-        tbody tr:nth-child(even) { background: #f2f2f2; }
-        thead th:hover { background: #234a82; }
-        /* Exact sentinel text ERROR — class added in script.js (_applyCellErrorClass) */
-        td.cell-error,
-        tbody th.cell-error {
-            color: #b71c1c !important;
-            font-weight: 600;
-        }
-        thead th.cell-error {
-            color: #ffcdd2 !important;
-            font-weight: 700;
-        }
-        input { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; }
-        table.usd-table thead tr:first-child th.usd-group-header {
-            background: #1a73e8;
-            color: #ffffff;
-            text-align: center;
-            font-weight: bold;
-            font-size: 12px;
-        }
-        table.usd-table thead tr:first-child th.usd-group-empty {
-            background: #e8eef7;
-            color: #333333;
-        }
-        table.usd-table thead tr:nth-child(2) th.usd-sub-header {
-            background: #d0dbf0;
-            color: #111111;
-            font-size: 11px;
-        }
-        table.usd-table thead tr:nth-child(2) th.usd-sub-header:hover {
-            background: #b8c9e8;
-        }
-        /* Export: collapsed CIF sections (narrow checkbox-only column) */
-        table.export-pricing-table thead tr:first-child th.usd-group-header .export-section-header-inner {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            flex-wrap: nowrap;
-        }
-        table.export-pricing-table thead tr:first-child th.export-section-collapsed-header .export-section-header-inner {
-            justify-content: center;
-        }
-        table.export-pricing-table thead tr:first-child th.export-section-collapsed-header .export-section-header-inner span {
-            display: none !important;
-        }
-        table.export-pricing-table th.export-section-collapsed-cell,
-        table.export-pricing-table td.export-section-collapsed-cell {
-            width: 2rem;
-            max-width: 2.75rem;
-            min-width: 1.75rem;
-            padding: 2px 4px;
-            overflow: hidden;
-            text-align: center;
-            vertical-align: middle;
-            white-space: nowrap;
-        }
-        table.export-pricing-table thead tr:first-child th.export-section-collapsed-header {
-            padding: 4px 2px;
-        }
-        table.export-pricing-table thead tr:first-child th.export-section-collapsed-header input[type="checkbox"] {
-            margin: 0;
-            accent-color: #c8dcf8;
-        }
-        table.export-pricing-table thead tr:first-child th.usd-group-header input[type="checkbox"] {
-            flex-shrink: 0;
-            accent-color: #c8dcf8;
-        }
-        /* Export: center numeric header + body cells (overrides global td.td-num right) */
-        table.export-pricing-table td.td-num,
-        table.export-pricing-table thead th.td-num {
-            text-align: center !important;
-        }
-        /* PTS include column: native checkbox tint (default OS green clashes with app blues) */
-        #pts-table-host input[type="checkbox"] {
-            accent-color: #4f6f8f;
-        }
-	.note { 
-		font-size:12px;
-		color:#555;
-		margin:6px 0 0 0;
-	}
-    </style>
 </head>
 <body>
-	<select onchange='select_view()' id='select_view' >
-        <option selected>Jarvis</option>
-        <option>Notes</option>
-        <option>OTR</option>
-	<option>OCEAN</option>
-        <option>Ocean Costing</option>
-        <option>Seam Tariffs</option>
-        <option>Cert Tariffs</option>
-        <option>USD</option>
-        <option>PTS</option>
-        <option>CIF</option>
-        <option>Regions and Ports</option>
-        <option>Export</option>
-	</select>
-	<p class='note'>Global rates and USD inputs: choose <strong>Jarvis</strong>, edit numbers, click <strong>Save</strong> (writes to the SQLite database). In <strong>USD</strong> Outbound, <strong>Ocean base</strong> uses the <strong>drayage</strong> table: each row’s export <strong>Port</strong> maps to a drayage region, then <strong>OceanBase &divide; 88</strong>. Or open <a href="#jarvis">#jarvis</a>.</p>
-    <div id="cell-derivation" style="font-family:monospace; font-size:12px; background:#f8f8f0; border:1px solid #ddd; padding:8px 12px; margin:8px 0; min-height:1.4em; color:#333; display:none;"></div>
-    <hr>
-    <div id="content">
 
-    </div>
+    <header class="app-header">
+        <h1 class="app-brand">Jarvis</h1>
+        <nav class="app-nav" id="app_nav" aria-label="Views">
+            <button type="button" class="app-nav-btn is-active" data-view="Jarvis">Jarvis</button>
+            <button type="button" class="app-nav-btn" data-view="Notes">Notes</button>
+            <button type="button" class="app-nav-btn" data-view="OTR">OTR</button>
+            <button type="button" class="app-nav-btn" data-view="OCEAN">OCEAN</button>
+            <button type="button" class="app-nav-btn" data-view="Ocean Costing">Ocean Costing</button>
+            <button type="button" class="app-nav-btn" data-view="Seam Tariffs">Seam Tariffs</button>
+            <button type="button" class="app-nav-btn" data-view="Cert Tariffs">Cert Tariffs</button>
+            <button type="button" class="app-nav-btn" data-view="USD">USD</button>
+            <button type="button" class="app-nav-btn" data-view="PTS">PTS</button>
+            <button type="button" class="app-nav-btn" data-view="CIF">CIF</button>
+            <button type="button" class="app-nav-btn" data-view="Regions and Ports">Regions and Ports</button>
+            <button type="button" class="app-nav-btn" data-view="Export">Export</button>
+        </nav>
+    </header>
+	<p class='note'>Global rates and USD inputs: choose <strong>Jarvis</strong>, edit numbers, click <strong>Save</strong> (writes to the SQLite database). In <strong>USD</strong> Outbound, <strong>Ocean base</strong> uses the <strong>drayage</strong> table: each row’s export <strong>Port</strong> maps to a drayage region, then <strong>OceanBase &divide; 88</strong>. Or open <a href="#jarvis">#jarvis</a>.</p>
+    <main class="app-main">
+        <div id="cell-derivation"></div>
+        <div id="content"></div>
+    </main>
 
     <script src="{{ url_for('static', filename='usd.js') }}"></script>
     <script src="{{ url_for('static', filename='pts.js') }}"></script>
