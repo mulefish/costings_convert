@@ -4761,7 +4761,7 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         if (String(ttStr).trim() === "ERROR") {
             return (
                 `Premium and Discounts (${abbr}): Export Total Terms is ERROR, so reconcile is omitted — cell is blank. ` +
-                `Fix the contributing section(s) for Total Terms (${abbr}) first; Premium is round(CIF Cash − Export Total Terms) when Total Terms is numeric.`
+                `Fix the contributing section(s) for Total Terms (${abbr}) first; Premium is round(Export Total Terms − CIF Cash) when Total Terms is numeric.`
             );
         }
         if (!Number.isFinite(cifN)) {
@@ -4769,18 +4769,18 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         }
         const exN = _exportParseNumericCell(ttStr);
         const ex = Number.isFinite(exN) ? exN : 0;
-        const rawDiff = Math.round(cifN - ex);
+        const rawDiff = Math.round(ex - cifN);
         const diff = _exportPremiumDiscountsReconcileDisplay(abbr, cifN, ex);
         const isMr5 = String(abbr ?? "").trim() === "MR5";
         const mr5Note = isMr5
-            ? ` MR5 rule: cell = raw reconcile (${rawDiff}) − 1 = ${diff}.`
+            ? ` MR5 rule: cell = raw reconcile (${rawDiff}) + 1 = ${diff}.`
             : "";
         const tail = isMr5
-            ? "MR5: subtract 1 from raw reconcile for the displayed cell."
+            ? "MR5: add 1 to raw reconcile for the displayed cell."
             : "0 means Export Total Terms matches CIF Total Terms Cash for this region.";
         return (
             `Premium and Discounts (${abbr}): reconcile — ${cifLabel} = ${Math.round(cifN)}; ` +
-            `Export Total Terms (${abbr}) = ${ex}. Raw round(CIF Cash − Export Total Terms) = ${rawDiff}; ` +
+            `Export Total Terms (${abbr}) = ${ex}. Raw round(Export Total Terms − CIF Cash) = ${rawDiff}; ` +
             `cell = ${diff}.${mr5Note} ${tail}`
         );
     }
@@ -5032,18 +5032,18 @@ function _exportCifTotalTermsCashNumber(cifByRegion, abbr) {
 }
 
 /**
- * Premium reconcile: round(CIF Cash − Export Total Terms).
- * MR5 (Memphis Rule 5): subtract 1 from that value so a systematic +1 error displays as 0.
+ * Premium reconcile: round(Export Total Terms − CIF Cash).
+ * MR5 (Memphis Rule 5): add 1 to that value for the MR5 column display alignment.
  */
 function _exportPremiumDiscountsReconcileDisplay(abbr, cifN, ex) {
-    const raw = Math.round(cifN - ex);
+    const raw = Math.round(ex - cifN);
     if (String(abbr ?? "").trim() === "MR5") {
-        return raw - 1;
+        return raw + 1;
     }
     return raw;
 }
 
-/** Premium and Discounts: CIF Total Terms Cash minus this row’s Export Total Terms (same region). 0 = match. */
+/** Premium and Discounts: this row’s Export Total Terms minus CIF Total Terms Cash (same region). 0 = match. */
 function _exportPremiumDiscountsCell(cifByRegion, row, abbr) {
     if (_exportRegionColumnDeferred(abbr)) {
         return "";
