@@ -37,6 +37,59 @@ function hideProgressModal() {
     }
 }
 
+/* --- Pre-apply impact modal (read-only) for ocean rates upload --- */
+function showOceanImpactModal(gaps) {
+    let overlay = document.getElementById("ocean-impact-overlay");
+    if (overlay) overlay.remove();
+    overlay = document.createElement("div");
+    overlay.id = "ocean-impact-overlay";
+    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;";
+
+    const box = document.createElement("div");
+    box.style.cssText = "background:#fff;border-radius:8px;padding:28px 36px;max-width:640px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 4px 24px rgba(0,0,0,0.3);font-family:Calibri,Arial,sans-serif;";
+
+    const th = "text-align:left;padding:4px 8px;border:1px solid #ddd;";
+    const td = "padding:4px 8px;border:1px solid #eee;";
+    const tbl = "width:100%;border-collapse:collapse;margin-top:4px;font-size:13px;";
+
+    let html = '<h3 style="margin:0 0 8px;color:#b45309;">Lookup Gaps Detected</h3>';
+    html += '<p style="margin:0 0 14px;font-size:13px;color:#666;">The uploaded CSV contains codes not found in lookup tables. These will produce blank Port, Destination, or Country fields and may cause <b>ERROR</b> in Export view Total Terms.</p>';
+
+    if (gaps.missing_ports) {
+        html += `<div style="margin-bottom:14px;"><b style="color:#c2410c;">Missing Port codes</b> <span style="font-size:11px;color:#888;">unOrig not in portcode_portcity</span>`;
+        html += `<table style="${tbl}"><tr style="background:#fef3c7;"><th style="${th}">unOrig</th><th style="${th}text-align:right;">Rows affected</th></tr>`;
+        for (const [code, cnt] of Object.entries(gaps.missing_ports)) {
+            html += `<tr><td style="${td}font-family:monospace;">${code}</td><td style="${td}text-align:right;">${cnt}</td></tr>`;
+        }
+        html += '</table></div>';
+    }
+    if (gaps.missing_destinations) {
+        html += `<div style="margin-bottom:14px;"><b style="color:#c2410c;">Missing Destination codes</b> <span style="font-size:11px;color:#888;">unDest not in dischargeport_country</span>`;
+        html += `<table style="${tbl}"><tr style="background:#fef3c7;"><th style="${th}">unDest</th><th style="${th}text-align:right;">Rows affected</th></tr>`;
+        for (const [code, cnt] of Object.entries(gaps.missing_destinations)) {
+            html += `<tr><td style="${td}font-family:monospace;">${code}</td><td style="${td}text-align:right;">${cnt}</td></tr>`;
+        }
+        html += '</table></div>';
+    }
+    if (gaps.missing_countries) {
+        html += `<div style="margin-bottom:14px;"><b style="color:#c2410c;">Missing Country codes</b> <span style="font-size:11px;color:#888;">unDest[:2] not in countrycode_country</span>`;
+        html += `<table style="${tbl}"><tr style="background:#fef3c7;"><th style="${th}">Code</th><th style="${th}text-align:right;">Rows affected</th></tr>`;
+        for (const [code, cnt] of Object.entries(gaps.missing_countries)) {
+            html += `<tr><td style="${td}font-family:monospace;">${code}</td><td style="${td}text-align:right;">${cnt}</td></tr>`;
+        }
+        html += '</table></div>';
+    }
+
+    html += '<div style="text-align:right;margin-top:14px;"><button id="ocean-impact-close-btn" style="padding:6px 20px;border:1px solid #ccc;border-radius:4px;background:#f5f5f5;cursor:pointer;font-size:13px;">OK</button></div>';
+
+    box.innerHTML = html;
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    document.getElementById("ocean-impact-close-btn").addEventListener("click", () => overlay.remove());
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
+}
+
 async function renderControlPanelView() {
     const content = document.getElementById("content");
     const wrap = document.createElement("div");
@@ -3463,6 +3516,9 @@ function renderOceanTable(config) {
             config.rows.forEach((r) => { if (r._status) counts[r._status]++; });
             statusMsg.textContent = `${counts.updated} updated, ${counts["new"]} new, ${counts.removed} removed, ${counts.unchanged} unchanged`;
             draw();
+            if (payload.lookup_gaps && Object.keys(payload.lookup_gaps).length > 0) {
+                showOceanImpactModal(payload.lookup_gaps);
+            }
         } catch (err) {
             statusMsg.textContent = err.message;
         }
