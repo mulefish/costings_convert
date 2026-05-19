@@ -40,6 +40,27 @@ const VIEW_CONFIG = {
         ],
         rows: []
     },
+    "Ocean API": {
+        columns: [
+            "Row",
+            "Port",
+            "Destination",
+            "Country",
+            "DTHC Prepaid",
+            "Delivery Type",
+            "Code",
+            "SCAC",
+            "Ocean Freight",
+            "GRI",
+            "Ocean Total",
+            "Total pts",
+            "Updated",
+            "Expiration",
+            "Previous",
+            "Delta"
+        ],
+        rows: []
+    },
     "Ocean Costing": {
         columns: [
             "Row",

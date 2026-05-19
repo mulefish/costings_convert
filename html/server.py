@@ -2,6 +2,7 @@ import copy
 import csv
 import math
 import os
+import sys
 import traceback
 from collections import Counter
 from decimal import ROUND_HALF_UP, Decimal
@@ -13,6 +14,10 @@ DATA_DIR = BASE_DIR / "data"
 DATABASE_DIR = BASE_DIR / "database"
 os.environ.setdefault("COSTINGS_DB_PATH", str(DATABASE_DIR / "costings.db"))
 DATABASE_DIR.mkdir(parents=True, exist_ok=True)
+
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+from api import ocean_api as cargo_ocean_api  # noqa: E402
 
 from flask import Flask, current_app, jsonify, render_template, request
 import database as db
@@ -1499,6 +1504,14 @@ def otr_apply_local():
     return jsonify({"ok": True, "updated": updated_count, "new": new_count})
 
 
+def _country_name_from_undest(undest: str, country_lookup: dict[str, str]) -> str:
+    """Country name from unDest[:2] via countrycode_country."""
+    cc = db.country_code_from_undest(undest)
+    if not cc:
+        return ""
+    return str(country_lookup.get(cc, "") or "").strip()
+
+
 def _ocean_destination_from_extract(
     raw: dict,
     destination_lookup: dict[str, str],
@@ -1546,11 +1559,11 @@ def _build_ocean_api_rows(
     for row_num, raw in enumerate(raw_ocean, start=1):
         unorig = str(raw.get("unOrig", "")).strip().upper()
         undest = str(raw.get("unDest", "")).strip().upper()
-        country_code = undest[:2]
+        country_code = db.country_code_from_undest(undest)
 
         port = port_lookup.get(unorig, "")
         destination = _ocean_destination_from_extract(raw, destination_lookup, undest)
-        country = country_lookup.get(country_code, "")
+        country = _country_name_from_undest(undest, country_lookup)
 
         prepaid = db.get_dthc_prepaid_by_country_code(country_code, "Yes")
         ocean_freight = db.ocean_freight_from_extract_row(raw, prepaid)
@@ -1645,6 +1658,156 @@ def _parse_ocean_extract_upload(filepath: Path) -> dict[str, dict]:
     return rows_by_key
 
 
+def _extract_rows_to_uploaded(rows: list[dict]) -> dict[str, dict]:
+    """Index extract-shaped row dicts by compound key."""
+    rows_by_key: dict[str, dict] = {}
+    for raw in rows:
+        row = {col: str(raw.get(col, "") or "").strip() for col in _OCEAN_EXTRACT_CSV_COLS}
+        key = db.ocean_extract_compound_key(row)
+        if not key.replace("|", "").strip():
+            continue
+        rows_by_key[key] = row
+    return rows_by_key
+
+
+def _ocean_api_params_from_body(body: dict | None) -> dict:
+    body = body or {}
+    dest_port = str(body.get("dest_port") or "").strip().upper() or None
+    all_adi = bool(body.get("all_adi_origins"))
+    fetch_all = bool(body.get("fetch_all"))
+    origins_raw = body.get("origins")
+    origins = None
+    if isinstance(origins_raw, list) and origins_raw:
+        origins = [str(o).strip().upper() for o in origins_raw if str(o).strip()]
+    return {
+        "dest_port": dest_port,
+        "all_adi_origins": all_adi,
+        "fetch_all": fetch_all,
+        "origins": origins,
+    }
+
+
+def _fetch_ocean_uploaded_from_cargo_api(body: dict | None) -> tuple[dict[str, dict], list[dict]]:
+    """Call Cargo Savings oceanRatesAPI; return indexed extract rows + per-origin stats."""
+    params = _ocean_api_params_from_body(body)
+    rows, stats = cargo_ocean_api.collect_all_rates(
+        params.get("origins"),
+        dest_port=params.get("dest_port"),
+        all_adi_origins=params.get("all_adi_origins", False),
+        fetch_all=params.get("fetch_all", False),
+    )
+    return _extract_rows_to_uploaded(rows), stats
+
+
+def _ocean_compare_uploaded(
+    uploaded: dict[str, dict],
+    *,
+    current: dict[str, dict] | None = None,
+) -> dict:
+    """Compare uploaded extract rows to active DB; same payload as compare-local."""
+    if current is None:
+        current = db.get_ocean_rates_extract_indexed(active_only=True)
+    ctx = _ocean_build_context()
+
+    all_keys = set(current.keys()) | set(uploaded.keys())
+    extract_rows: list[dict] = []
+    for key in sorted(all_keys):
+        in_current = key in current
+        in_uploaded = key in uploaded
+        if in_current and in_uploaded:
+            cur = {k: v for k, v in current[key].items() if k not in ("id", "is_active")}
+            up = uploaded[key]
+            if db.ocean_extract_rows_differ(cur, up):
+                changed = _ocean_view_changed_fields(cur, up, ctx)
+                preview = dict(up)
+                preview["_status"] = "updated"
+                preview["_changed_fields"] = changed
+                preview["_extract_key"] = key
+                if "Ocean Freight" in changed:
+                    old_view = _ocean_view_row_from_extract(cur, ctx)
+                    new_view = _ocean_view_row_from_extract(up, ctx)
+                    old_f = _to_float(old_view.get("Ocean Freight"), None)
+                    new_f = _to_float(new_view.get("Ocean Freight"), None)
+                    if old_f is not None and new_f is not None:
+                        preview["Previous"] = _round2(old_f)
+                        preview["Delta"] = _round2(new_f - old_f)
+            else:
+                preview = dict(cur)
+                preview["_status"] = "unchanged"
+                preview["_extract_key"] = key
+        elif in_current and not in_uploaded:
+            preview = {k: v for k, v in current[key].items() if k not in ("id", "is_active")}
+            preview["_status"] = "removed"
+            preview["_extract_key"] = key
+        else:
+            preview = dict(uploaded[key])
+            preview["_status"] = "new"
+            preview["_extract_key"] = key
+        extract_rows.append(preview)
+
+    rows = _build_ocean_api_rows(extract_rows, ctx=ctx)
+    out_cols = OCEAN_COLUMNS + ("_status", "_changed_fields")
+
+    port_lookup = ctx["port_lookup"]
+    destination_lookup = ctx["destination_lookup"]
+    country_lookup = ctx["country_lookup"]
+
+    missing_ports: dict[str, int] = {}
+    missing_dests: dict[str, dict] = {}
+    missing_countries: dict[str, int] = {}
+    for raw in extract_rows:
+        status = raw.get("_status", "")
+        if status in ("removed", "unchanged"):
+            continue
+        unorig = str(raw.get("unOrig", "")).strip().upper()
+        undest = str(raw.get("unDest", "")).strip().upper()
+        cc = db.country_code_from_undest(undest)
+        if unorig and unorig not in port_lookup:
+            missing_ports[unorig] = missing_ports.get(unorig, 0) + 1
+        if undest and undest not in destination_lookup:
+            entry = missing_dests.get(undest)
+            if not entry:
+                entry = {
+                    "count": 0,
+                    "country_code": cc,
+                    "country": _country_name_from_undest(undest, country_lookup),
+                }
+                missing_dests[undest] = entry
+            entry["count"] += 1
+        if cc and cc not in country_lookup:
+            missing_countries[cc] = missing_countries.get(cc, 0) + 1
+
+    strict_overlap = len(set(current.keys()) & set(uploaded.keys()))
+    current_lane = {db.ocean_extract_lane_key(v): k for k, v in current.items()}
+    uploaded_lane = {db.ocean_extract_lane_key(v): k for k, v in uploaded.items()}
+    lane_overlap = len(set(current_lane.keys()) & set(uploaded_lane.keys()))
+
+    lookup_gaps: dict = {}
+    if missing_ports:
+        lookup_gaps["missing_ports"] = missing_ports
+    if missing_dests:
+        lookup_gaps["missing_destinations"] = missing_dests
+    if missing_countries:
+        lookup_gaps["missing_countries"] = missing_countries
+
+    resp: dict = {
+        "rows": [_row_with_columns(r, out_cols) for r in rows],
+        "compare_stats": {
+            "strict_key_overlap": strict_overlap,
+            "lane_key_overlap": lane_overlap,
+            "uploaded_rows": len(uploaded),
+            "current_active_rows": len(current),
+            "note": (
+                "Row match uses full contract key (includes effective/expiration dates and "
+                "amendment). Country in the table always uses unDest[:2] -> countrycode_country."
+            ),
+        },
+    }
+    if lookup_gaps:
+        resp["lookup_gaps"] = lookup_gaps
+    return resp
+
+
 def _ocean_view_row_from_extract(raw: dict, ctx: dict) -> dict:
     """Single OCEAN view row (no Row number) for diffing."""
     built = _build_ocean_api_rows([raw], ctx=ctx)
@@ -1688,82 +1851,43 @@ def ocean_compare_local():
         return jsonify({"error": "File not found"}), 404
 
     uploaded = _parse_ocean_extract_upload(local_path)
-    current = db.get_ocean_rates_extract_indexed(active_only=True)
-    ctx = _ocean_build_context()
+    return jsonify(_ocean_compare_uploaded(uploaded))
 
-    all_keys = set(current.keys()) | set(uploaded.keys())
-    extract_rows: list[dict] = []
-    for key in sorted(all_keys):
-        in_current = key in current
-        in_uploaded = key in uploaded
-        if in_current and in_uploaded:
-            cur = {k: v for k, v in current[key].items() if k not in ("id", "is_active")}
-            up = uploaded[key]
-            if db.ocean_extract_rows_differ(cur, up):
-                changed = _ocean_view_changed_fields(cur, up, ctx)
-                preview = dict(up)
-                preview["_status"] = "updated"
-                preview["_changed_fields"] = changed
-                preview["_extract_key"] = key
-                if "Ocean Freight" in changed:
-                    old_view = _ocean_view_row_from_extract(cur, ctx)
-                    new_view = _ocean_view_row_from_extract(up, ctx)
-                    old_f = _to_float(old_view.get("Ocean Freight"), None)
-                    new_f = _to_float(new_view.get("Ocean Freight"), None)
-                    if old_f is not None and new_f is not None:
-                        preview["Previous"] = _round2(old_f)
-                        preview["Delta"] = _round2(new_f - old_f)
-            else:
-                preview = dict(cur)
-                preview["_status"] = "unchanged"
-                preview["_extract_key"] = key
-        elif in_current and not in_uploaded:
-            preview = {k: v for k, v in current[key].items() if k not in ("id", "is_active")}
-            preview["_status"] = "removed"
-            preview["_extract_key"] = key
-        else:
-            preview = dict(uploaded[key])
-            preview["_status"] = "new"
-            preview["_extract_key"] = key
-        extract_rows.append(preview)
 
-    rows = _build_ocean_api_rows(extract_rows, ctx=ctx)
-    out_cols = OCEAN_COLUMNS + ("_status", "_changed_fields")
+@app.route("/api/ocean-api/compare", methods=["POST"])
+def ocean_api_compare():
+    """Fetch Cargo Savings oceanRatesAPI and compare to active ocean_rates_extract."""
+    body = request.get_json(silent=True) or {}
+    try:
+        uploaded, fetch_stats = _fetch_ocean_uploaded_from_cargo_api(body)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 502
 
-    # --- Lookup-gap analysis for pre-apply impact modal ---
-    port_lookup = ctx["port_lookup"]
-    destination_lookup = ctx["destination_lookup"]
-    country_lookup = ctx["country_lookup"]
+    if not uploaded:
+        errors = [s for s in fetch_stats if s.get("error")]
+        detail = errors[0]["error"] if errors else "No rates returned from API."
+        return jsonify({"error": detail, "fetch_stats": fetch_stats}), 502
 
-    missing_ports = {}
-    missing_dests = {}
-    missing_countries = {}
-    for raw in extract_rows:
-        status = raw.get("_status", "")
-        if status in ("removed", "unchanged"):
-            continue
-        unorig = str(raw.get("unOrig", "")).strip().upper()
-        undest = str(raw.get("unDest", "")).strip().upper()
-        cc = undest[:2] if undest else ""
-        if unorig and unorig not in port_lookup:
-            missing_ports[unorig] = missing_ports.get(unorig, 0) + 1
-        if undest and undest not in destination_lookup:
-            missing_dests[undest] = missing_dests.get(undest, 0) + 1
-        if cc and cc not in country_lookup:
-            missing_countries[cc] = missing_countries.get(cc, 0) + 1
-
-    lookup_gaps = {}
-    if missing_ports:
-        lookup_gaps["missing_ports"] = missing_ports
-    if missing_dests:
-        lookup_gaps["missing_destinations"] = missing_dests
-    if missing_countries:
-        lookup_gaps["missing_countries"] = missing_countries
-
-    resp = {"rows": [_row_with_columns(r, out_cols) for r in rows]}
-    if lookup_gaps:
-        resp["lookup_gaps"] = lookup_gaps
+    resp = _ocean_compare_uploaded(uploaded)
+    resp["fetch_stats"] = fetch_stats
+    resp["api_deduped_rows"] = len(uploaded)
     return jsonify(resp)
+
+
+@app.route("/api/ocean-api/apply", methods=["POST"])
+def ocean_api_apply():
+    """Fetch from Cargo Savings API and apply into ocean_rates_extract."""
+    body = request.get_json(silent=True) or {}
+    try:
+        uploaded, fetch_stats = _fetch_ocean_uploaded_from_cargo_api(body)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 502
+
+    if not uploaded:
+        return jsonify({"error": "No rates returned from API.", "fetch_stats": fetch_stats}), 502
+
+    counts = db.apply_ocean_rates_extract_upload(uploaded)
+    return jsonify({"ok": True, "fetch_stats": fetch_stats, "api_deduped_rows": len(uploaded), **counts})
 
 
 @app.route("/api/ocean/apply-local", methods=["POST"])

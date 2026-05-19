@@ -132,6 +132,31 @@ table.export-pricing-table thead th.td-num {
     text-align: center !important;
 }
 
+/* Export: Premium and Discounts header row — reconcile vs CIF Cash (0 = OK) */
+table.export-pricing-table thead tr:nth-child(3) th.export-premium-reconcile-ok {
+    background: #c8e6c9 !important;
+    color: #1b5e20 !important;
+    font-weight: 600;
+}
+
+table.export-pricing-table thead tr:nth-child(3) th.export-premium-reconcile-mismatch-low {
+    background: #fff9c4 !important;
+    color: #5d4037 !important;
+    font-weight: 600;
+}
+
+table.export-pricing-table thead tr:nth-child(3) th.export-premium-reconcile-mismatch-mid {
+    background: #ffcc80 !important;
+    color: #4e342e !important;
+    font-weight: 700;
+}
+
+table.export-pricing-table thead tr:nth-child(3) th.export-premium-reconcile-mismatch-high {
+    background: #ef9a9a !important;
+    color: #b71c1c !important;
+    font-weight: 700;
+}
+
 .note {
     font-size: 12px;
     color: #555;

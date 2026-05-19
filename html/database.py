@@ -1420,6 +1420,28 @@ def ocean_extract_compound_key(row: dict) -> str:
     return "|".join(parts)
 
 
+_OCEAN_EXTRACT_LANE_KEY_FIELDS: tuple[str, ...] = (
+    "unOrig",
+    "unVia",
+    "unDest",
+    "dischargePort",
+    "scacCode",
+    "contractNumber",
+    "rateType",
+)
+
+
+def ocean_extract_lane_key(row: dict) -> str:
+    """Lane identity without contract dates/amendment (for compare diagnostics)."""
+    parts = [str(row.get(f, "") or "").strip().upper() for f in _OCEAN_EXTRACT_LANE_KEY_FIELDS]
+    return "|".join(parts)
+
+
+def country_code_from_undest(undest: str) -> str:
+    """ISO country code from unDest (first two characters, e.g. CNQDG -> CN)."""
+    return str(undest or "").strip().upper()[:2]
+
+
 def ocean_extract_rows_differ(a: dict, b: dict) -> bool:
     for f in _OCEAN_EXTRACT_DATA_FIELDS:
         if str(a.get(f, "") or "").strip() != str(b.get(f, "") or "").strip():

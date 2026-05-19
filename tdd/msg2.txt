@@ -1,0 +1,66 @@
+﻿
+script.js:6276 WTX: -37 (Δ=-37, |Δ|=37, high)
+  Export Total Terms (header col WTX) = 930; CIF Cash = 967. round(Total Terms − Cash) = -37. Non-zero = reconcile gap (large mismatch).
+script.js:6276 WTXH: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col WTXH) = 1149; CIF Cash = 1166. round(Total Terms − Cash) = -17. Non-zero = reconcile gap (moderate mismatch).
+script.js:6276 STX: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col STX) = 1193; CIF Cash = 1210. round(Total Terms − Cash) = -17. Non-zero = reconcile gap (moderate mismatch).
+script.js:6276 MR5: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col MR5) = 869; CIF Cash = 887. round(Total Terms − Cash) + 1 (MR5) = -17. Non-zero = reconcile gap (moderate mismatch). MR5 column adds +1 after the round for display alignment.
+script.js:6276 ER5: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col ER5) = 758; CIF Cash = 775. round(Total Terms − Cash) = -17. Non-zero = reconcile gap (moderate mismatch).
+script.js:6276 HOU: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col HOU) = 519; CIF Cash = 536. round(Total Terms − Cash) = -17. Non-zero = reconcile gap (moderate mismatch).
+script.js:6276 DAL: -37 (Δ=-37, |Δ|=37, high)
+  Export Total Terms (header col DAL) = 597; CIF Cash = 634. round(Total Terms − Cash) = -37. Non-zero = reconcile gap (large mismatch).
+script.js:6280 
+(index)
+region
+value
+delta
+absDelta
+severity
+why
+0	'WTX'	'-37'	-37	37	'high'	'Export Total Terms (header col WTX) = 930; CIF Cas…= -37. Non-zero = reconcile gap (large mismatch).'
+1	'WTXH'	'-17'	-17	17	'mid'	'Export Total Terms (header col WTXH) = 1149; CIF C…17. Non-zero = reconcile gap (moderate mismatch).'
+2	'STX'	'-17'	-17	17	'mid'	'Export Total Terms (header col STX) = 1193; CIF Ca…17. Non-zero = reconcile gap (moderate mismatch).'
+3	'MR5'	'-17'	-17	17	'mid'	'Export Total Terms (header col MR5) = 869; CIF Cas…mn adds +1 after the round for display alignment.'
+4	'ER5'	'-17'	-17	17	'mid'	'Export Total Terms (header col ER5) = 758; CIF Cas…17. Non-zero = reconcile gap (moderate mismatch).'
+5	'HOU'	'-17'	-17	17	'mid'	'Export Total Terms (header col HOU) = 519; CIF Cas…17. Non-zero = reconcile gap (moderate mismatch).'
+6	'DAL'	'-37'	-37	37	'high'	'Export Total Terms (header col DAL) = 597; CIF Cas…= -37. Non-zero = reconcile gap (large mismatch).'
+Array(7)
+﻿
+
+
+
+
+﻿
+script.js:6276 WTX: -37 (Δ=-37, |Δ|=37, high)
+  Export Total Terms (header col WTX) = 930; CIF Cash = 967. round(Total Terms − Cash) = -37. Non-zero = reconcile gap (large mismatch).
+script.js:6276 WTXH: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col WTXH) = 1149; CIF Cash = 1166. round(Total Terms − Cash) = -17. Non-zero = reconcile gap (moderate mismatch).
+script.js:6276 STX: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col STX) = 1193; CIF Cash = 1210. round(Total Terms − Cash) = -17. Non-zero = reconcile gap (moderate mismatch).
+script.js:6276 MR5: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col MR5) = 869; CIF Cash = 887. round(Total Terms − Cash) + 1 (MR5) = -17. Non-zero = reconcile gap (moderate mismatch). MR5 column adds +1 after the round for display alignment.
+script.js:6276 ER5: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col ER5) = 758; CIF Cash = 775. round(Total Terms − Cash) = -17. Non-zero = reconcile gap (moderate mismatch).
+script.js:6276 HOU: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col HOU) = 519; CIF Cash = 536. round(Total Terms − Cash) = -17. Non-zero = reconcile gap (moderate mismatch).
+script.js:6276 DAL: -37 (Δ=-37, |Δ|=37, high)
+  Export Total Terms (header col DAL) = 597; CIF Cash = 634. round(Total Terms − Cash) = -37. Non-zero = reconcile gap (large mismatch).
+script.js:6280
+(index)
+region
+value
+delta
+absDelta
+severity
+why
+0	'WTX'	'-37'	-37	37	'high'	'Export Total Terms (header col WTX) = 930; CIF Cas…= -37. Non-zero = reconcile gap (large mismatch).'
+1	'WTXH'	'-17'	-17	17	'mid'	'Export Total Terms (header col WTXH) = 1149; CIF C…17. Non-zero = reconcile gap (moderate mismatch).'
+2	'STX'	'-17'	-17	17	'mid'	'Export Total Terms (header col STX) = 1193; CIF Ca…17. Non-zero = reconcile gap (moderate mismatch).'
+3	'MR5'	'-17'	-17	17	'mid'	'Export Total Terms (header col MR5) = 869; CIF Cas…mn adds +1 after the round for display alignment.'
+4	'ER5'	'-17'	-17	17	'mid'	'Export Total Terms (header col ER5) = 758; CIF Cas…17. Non-zero = reconcile gap (moderate mismatch).'
+5	'HOU'	'-17'	-17	17	'mid'	'Export Total Terms (header col HOU) = 519; CIF Cas…17. Non-zero = reconcile gap (moderate mismatch).'
+6	'DAL'	'-37'	-37	37	'high'	'Export Total Terms (h

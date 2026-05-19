@@ -53,7 +53,24 @@ function showOceanImpactModal(gaps) {
     const tbl = "width:100%;border-collapse:collapse;margin-top:4px;font-size:13px;";
 
     let html = '<h3 style="margin:0 0 8px;color:#b45309;">Lookup Gaps Detected</h3>';
-    html += '<p style="margin:0 0 14px;font-size:13px;color:#666;">The uploaded CSV contains codes not found in lookup tables. These will produce blank Port, Destination, or Country fields and may cause <b>ERROR</b> in Export view Total Terms.</p>';
+    html += '<p style="margin:0 0 14px;font-size:13px;color:#666;">';
+    html += '<b>Country</b> is always taken from the first two characters of <code>unDest</code> ';
+    html += '(e.g. <code>CNQDG</code> → <code>CN</code>) using the <code>countrycode_country</code> table. ';
+    html += 'Missing <code>dischargeport_country</code> codes only affect the <b>Destination</b> city label ';
+    html += '(the CSV <code>dest</code> column may still supply a city). Missing port codes leave <b>Port</b> blank. ';
+    html += 'Export Outbound needs Country + Destination + Port hub; a resolved Country from <code>unDest[:2]</code> ';
+    html += 'helps even when the destination code is not in <code>dischargeport_country</code>.</p>';
+
+    if (gaps.compare_stats) {
+        const cs = gaps.compare_stats;
+        html += '<div style="margin-bottom:14px;padding:10px 12px;background:#eef4fc;border:1px solid #c5d9f0;border-radius:6px;font-size:13px;">';
+        html += '<b>Compare key note:</b> ';
+        html += `Strict row matches (same contract dates/amendment): <b>${cs.strict_key_overlap ?? 0}</b>. `;
+        html += `Same lane without dates (unOrig+unDest+SCAC+…): <b>${cs.lane_key_overlap ?? 0}</b>. `;
+        html += `Uploaded ${cs.uploaded_rows ?? "?"} rows vs ${cs.current_active_rows ?? "?"} active in DB. `;
+        html += "Many yellow/green rows often mean new contract dates or SCAC codes, not missing countries.";
+        html += "</div>";
+    }
 
     if (gaps.missing_ports) {
         html += `<div style="margin-bottom:14px;"><b style="color:#c2410c;">Missing Port codes</b> <span style="font-size:11px;color:#888;">unOrig not in portcode_portcity</span>`;
@@ -64,10 +81,16 @@ function showOceanImpactModal(gaps) {
         html += '</table></div>';
     }
     if (gaps.missing_destinations) {
-        html += `<div style="margin-bottom:14px;"><b style="color:#c2410c;">Missing Destination codes</b> <span style="font-size:11px;color:#888;">unDest not in dischargeport_country</span>`;
-        html += `<table style="${tbl}"><tr style="background:#fef3c7;"><th style="${th}">unDest</th><th style="${th}text-align:right;">Rows affected</th></tr>`;
-        for (const [code, cnt] of Object.entries(gaps.missing_destinations)) {
-            html += `<tr><td style="${td}font-family:monospace;">${code}</td><td style="${td}text-align:right;">${cnt}</td></tr>`;
+        html += `<div style="margin-bottom:14px;"><b style="color:#c2410c;">Missing Destination codes</b> <span style="font-size:11px;color:#888;">unDest not in dischargeport_country (Country still from unDest[:2])</span>`;
+        html += `<table style="${tbl}"><tr style="background:#fef3c7;"><th style="${th}">unDest</th><th style="${th}">Code</th><th style="${th}">Country</th><th style="${th}text-align:right;">Rows</th></tr>`;
+        for (const [code, info] of Object.entries(gaps.missing_destinations)) {
+            const cnt = typeof info === "object" && info !== null ? info.count : info;
+            const cc = typeof info === "object" && info !== null ? (info.country_code || "") : "";
+            const country = typeof info === "object" && info !== null ? (info.country || "") : "";
+            const countryCell = country
+                ? country
+                : (cc ? `<span style="color:#b45309;">(code ${cc} not in countrycode_country)</span>` : "");
+            html += `<tr><td style="${td}font-family:monospace;">${code}</td><td style="${td}font-family:monospace;">${cc}</td><td style="${td}">${countryCell}</td><td style="${td}text-align:right;">${cnt}</td></tr>`;
         }
         html += '</table></div>';
     }
@@ -1677,6 +1700,12 @@ async function select_view() {
         return;
     }
 
+    if (viewName === "Ocean API") {
+        await loadOceanRows(config);
+        renderOceanApiTable(config);
+        return;
+    }
+
     if (viewName === "Ocean Costing") {
         await loadOceanCostingRows(config);
         renderOceanCostingTable(config);
@@ -2469,7 +2498,8 @@ const _DOCUMENTATION_DIAGRAMS = [
     {
         title: "Export view sections and data sources",
         blurb:
-            'Export rows come from EXPORT_DATA (countries and CIF FE cities). Each section column maps to CIF region rows, ocean costing, or document_cif. The Export section named "Documentation" is doc-fee points — not this diagram view.',
+            'Export rows come from EXPORT_DATA (countries and CIF FE cities). Each section column maps to CIF region rows, ocean costing, or document_cif. The Export section named "Documentation" is doc-fee points — not this diagram view. ' +
+            'Header row 3 Outbound uses CIF Total_Out for ALL regions (including hubs) so that the header Total Terms equals CIF Cash and Premium reconcile = 0. Body rows for hub columns (WTX, WTXH, STX, MR5, ER5, HOU, DAL) still use CIF Dray + Ocean Costing Total pts for per-destination detail.',
         chart: `flowchart TB
     EXPORT_DATA["EXPORT_DATA — countries + CIF FE ports"]
     CIF["GET /api/cif — by Region"]
@@ -2479,9 +2509,9 @@ const _DOCUMENTATION_DIAGRAMS = [
 
     EXPORT_DATA --> ROWS["_buildExportRows"]
 
-    CIF -->|Origin, Inland, Consolidation, most Outbound| ROWS
-    OCEAN -->|Outbound hub cols — WTX, HOU, DAL, MR5, ER5| ROWS
-    CIF -->|Dray + Ocean pts| ROWS
+    CIF -->|Origin, Inland, Consolidation, Outbound header| ROWS
+    OCEAN -->|Outbound body hub cols — WTX, HOU, DAL, etc.| ROWS
+    CIF -->|Dray for body hub cols| ROWS
     DOC -->|Documentation section pts| ROWS
     DOC -->|CIF section pts| ROWS
     THEMES --> ROWS
@@ -3516,8 +3546,16 @@ function renderOceanTable(config) {
             config.rows.forEach((r) => { if (r._status) counts[r._status]++; });
             statusMsg.textContent = `${counts.updated} updated, ${counts["new"]} new, ${counts.removed} removed, ${counts.unchanged} unchanged`;
             draw();
-            if (payload.lookup_gaps && Object.keys(payload.lookup_gaps).length > 0) {
-                showOceanImpactModal(payload.lookup_gaps);
+            const gapPayload = { ...(payload.lookup_gaps || {}), compare_stats: payload.compare_stats };
+            const hasLookupGaps = payload.lookup_gaps && Object.keys(payload.lookup_gaps).length > 0;
+            const cs = payload.compare_stats;
+            const manyStrictMisses =
+                cs &&
+                cs.uploaded_rows > 0 &&
+                (cs.strict_key_overlap || 0) === 0 &&
+                (cs.lane_key_overlap || 0) > 0;
+            if (hasLookupGaps || manyStrictMisses) {
+                showOceanImpactModal(gapPayload);
             }
         } catch (err) {
             statusMsg.textContent = err.message;
@@ -3542,6 +3580,228 @@ function renderOceanTable(config) {
             statusMsg.textContent = `Applied. ${payload.updated || 0} updated, ${payload.new || 0} new${deact}.`;
             applyBtn.style.display = "none";
             legend.style.display = "none";
+            draw();
+        } catch (err) {
+            hideProgressModal();
+            statusMsg.textContent = err.message;
+        }
+    });
+
+    draw();
+}
+
+function renderOceanApiTable(config) {
+    const content = document.getElementById("content");
+    const controls = document.createElement("div");
+    const portInput = document.createElement("input");
+    const countryInput = document.createElement("input");
+
+    portInput.placeholder = "Search Port";
+    countryInput.placeholder = "Search Country or Destination";
+
+    controls.appendChild(portInput);
+    controls.appendChild(countryInput);
+    controls.style.display = "flex";
+    controls.style.gap = "8px";
+    controls.style.marginBottom = "10px";
+    controls.style.flexWrap = "wrap";
+    controls.style.alignItems = "center";
+
+    const destPortInput = document.createElement("input");
+    destPortInput.placeholder = "destPort (optional, e.g. VNSGN)";
+    destPortInput.style.fontSize = "12px";
+    destPortInput.style.width = "200px";
+    destPortInput.title = "Optional Cargo Savings destPort filter; leave blank for all destinations per origin.";
+    controls.appendChild(destPortInput);
+
+    const allAdiLabel = document.createElement("label");
+    allAdiLabel.style.fontSize = "12px";
+    allAdiLabel.style.display = "inline-flex";
+    allAdiLabel.style.alignItems = "center";
+    allAdiLabel.style.gap = "4px";
+    const allAdiCheck = document.createElement("input");
+    allAdiCheck.type = "checkbox";
+    allAdiCheck.title = "Use all US origins from api/ocean_api.py; otherwise USCHS, USDAL, USHOU, USMEM, USORF, USSAV.";
+    allAdiLabel.appendChild(allAdiCheck);
+    allAdiLabel.appendChild(document.createTextNode("All ADI origins"));
+    controls.appendChild(allAdiLabel);
+
+    const fetchAllLabel = document.createElement("label");
+    fetchAllLabel.style.fontSize = "12px";
+    fetchAllLabel.style.display = "inline-flex";
+    fetchAllLabel.style.alignItems = "center";
+    fetchAllLabel.style.gap = "4px";
+    const fetchAllCheck = document.createElement("input");
+    fetchAllCheck.type = "checkbox";
+    fetchAllCheck.checked = true;
+    fetchAllCheck.title = "Single API call without origLocation — returns all origins at once (faster).";
+    fetchAllLabel.appendChild(fetchAllCheck);
+    fetchAllLabel.appendChild(document.createTextNode("Fetch all (single call)"));
+    controls.appendChild(fetchAllLabel);
+
+    const fetchCompareBtn = document.createElement("button");
+    fetchCompareBtn.textContent = "Fetch from API & Compare";
+    fetchCompareBtn.style.padding = "6px 12px";
+    fetchCompareBtn.style.fontSize = "12px";
+    controls.appendChild(fetchCompareBtn);
+
+    const applyBtn = document.createElement("button");
+    applyBtn.textContent = "Apply Changes";
+    applyBtn.style.padding = "6px 12px";
+    applyBtn.style.fontSize = "12px";
+    applyBtn.style.display = "none";
+    controls.appendChild(applyBtn);
+
+    const statusMsg = document.createElement("span");
+    statusMsg.style.fontSize = "12px";
+    statusMsg.style.color = "#555";
+    controls.appendChild(statusMsg);
+
+    content.appendChild(controls);
+
+    const note = document.createElement("p");
+    note.className = "note";
+    note.style.marginBottom = "8px";
+    note.textContent =
+        "Loads rates from Cargo Savings oceanRatesAPI (api/ocean_api.py). Compare highlights diffs vs the database; Apply writes API rows and deactivates active lanes not in the fetch.";
+    content.appendChild(note);
+
+    const legend = document.createElement("div");
+    legend.style.fontSize = "11px";
+    legend.style.marginBottom = "8px";
+    legend.style.display = "none";
+    legend.innerHTML =
+        '<span style="background:#d4edda;padding:2px 6px;margin-right:8px;">Updated</span>' +
+        '<span style="background:#d6eaf8;padding:2px 6px;margin-right:8px;">Unchanged</span>' +
+        '<span style="background:#f8d7da;padding:2px 6px;margin-right:8px;">In system, not in API</span>' +
+        '<span style="background:#fff9c4;padding:2px 6px;">New (in API, not in system)</span>';
+    content.appendChild(legend);
+
+    const tableHost = document.createElement("div");
+    tableHost.id = "ocean-api-table-host";
+    content.appendChild(tableHost);
+
+    let displayColumns = config.columns.filter((c) => c !== "_status" && c !== "_changed_fields");
+    const sortState = { column: null, ascending: true };
+    let lastApiBody = null;
+
+    const draw = () => {
+        const filteredRows = filterOceanRows(config.rows, portInput.value, countryInput.value);
+        const sortedRows = sortRows(filteredRows, sortState);
+        drawTable(tableHost, displayColumns, sortedRows, {
+            sortState,
+            onHeaderClick: (column) => {
+                toggleSort(sortState, column);
+                draw();
+            },
+        });
+    };
+
+    portInput.addEventListener("input", draw);
+    countryInput.addEventListener("input", draw);
+
+    function apiRequestBody() {
+        const dest = destPortInput.value.trim().toUpperCase();
+        return {
+            dest_port: dest || "",
+            all_adi_origins: !!allAdiCheck.checked,
+            fetch_all: !!fetchAllCheck.checked,
+        };
+    }
+
+    function formatFetchStats(stats) {
+        if (!Array.isArray(stats) || !stats.length) {
+            return "";
+        }
+        const parts = stats.map((s) => {
+            if (s.error) {
+                return `${s.origin}: error`;
+            }
+            return `${s.origin}: ${s.count ?? 0}`;
+        });
+        return parts.join("; ");
+    }
+
+    function handleComparePayload(payload) {
+        config.rows = Array.isArray(payload.rows) ? payload.rows : [];
+        legend.style.display = "block";
+        applyBtn.style.display = "inline-block";
+        const counts = { updated: 0, unchanged: 0, removed: 0, new: 0 };
+        config.rows.forEach((r) => {
+            if (r._status) {
+                counts[r._status]++;
+            }
+        });
+        const fetchNote = payload.api_deduped_rows != null ? ` | ${payload.api_deduped_rows} API rows` : "";
+        statusMsg.textContent =
+            `${counts.updated} updated, ${counts.new} new, ${counts.removed} removed, ${counts.unchanged} unchanged${fetchNote}`;
+        draw();
+        const gapPayload = { ...(payload.lookup_gaps || {}), compare_stats: payload.compare_stats };
+        const hasLookupGaps = payload.lookup_gaps && Object.keys(payload.lookup_gaps).length > 0;
+        const cs = payload.compare_stats;
+        const manyStrictMisses =
+            cs &&
+            cs.uploaded_rows > 0 &&
+            (cs.strict_key_overlap || 0) === 0 &&
+            (cs.lane_key_overlap || 0) > 0;
+        if (hasLookupGaps || manyStrictMisses) {
+            showOceanImpactModal(gapPayload);
+        }
+    }
+
+    fetchCompareBtn.addEventListener("click", async () => {
+        lastApiBody = apiRequestBody();
+        showProgressModal("Fetching ocean rates from Cargo Savings API...");
+        statusMsg.textContent = "";
+        try {
+            const resp = await fetch("/api/ocean-api/compare", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(lastApiBody),
+            });
+            const payload = await resp.json();
+            if (!resp.ok) {
+                throw new Error(payload.error || `Compare failed (${resp.status})`);
+            }
+            handleComparePayload(payload);
+            const fs = formatFetchStats(payload.fetch_stats);
+            if (fs) {
+                statusMsg.textContent += ` | Fetch: ${fs}`;
+            }
+        } catch (err) {
+            statusMsg.textContent = err.message;
+        } finally {
+            hideProgressModal();
+        }
+    });
+
+    applyBtn.addEventListener("click", async () => {
+        if (!lastApiBody) {
+            statusMsg.textContent = "Fetch from API & Compare first.";
+            return;
+        }
+        if (!window.confirm("Apply API rates to the database? Active rows not in this fetch will be deactivated.")) {
+            return;
+        }
+        showProgressModal("Fetching from API and saving ocean rates...");
+        try {
+            const resp = await fetch("/api/ocean-api/apply", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(lastApiBody),
+            });
+            const payload = await resp.json();
+            if (!resp.ok) {
+                throw new Error(payload.error || `Apply failed (${resp.status})`);
+            }
+            document.getElementById("progress-modal-msg").textContent = "Reloading data...";
+            await loadOceanRows(config);
+            hideProgressModal();
+            const deact = payload.deactivated != null ? `, ${payload.deactivated} deactivated` : "";
+            statusMsg.textContent = `Applied. ${payload.updated || 0} updated, ${payload.new || 0} new${deact}.`;
+            applyBtn.style.display = "none";
+            legend.style.display = "none";
+            lastApiBody = null;
             draw();
         } catch (err) {
             hideProgressModal();
@@ -4660,15 +4920,19 @@ function showCellDerivation(row, column, value, rowIdx) {
         }
     } else if (viewName === "OTR") {
         derivation = `CSV → OTR source [ row ${rowIdx + 1} ] . "${column}"`;
-    } else if (viewName === "OCEAN") {
+    } else if (viewName === "OCEAN" || viewName === "Ocean API") {
+        const src =
+            viewName === "Ocean API"
+                ? "Cargo Savings oceanRatesAPI (compare/apply)"
+                : "GET /api/ocean";
         if (column === "GRI") {
-            derivation = `GRI = document_cif (Country="${row.Country || "?"}") . "GRI" + drayage (Port="${row.Port || "?"}" → region) . "GRI" (GET /api/ocean)`;
+            derivation = `GRI = document_cif (Country="${row.Country || "?"}") . "GRI" + drayage (Port="${row.Port || "?"}" → region) . "GRI" (${src})`;
         } else if (column === "DTHC Prepaid") {
             const destCode = String(row.Code ?? "").trim().toUpperCase();
             const cc = destCode.length >= 2 ? destCode.slice(0, 2) : "?";
-            derivation = `dthc_prepaid (country_code="${cc}" from Code) → ${row[column] ?? "?"}; Yes = ALLIN40HC/ALLIN40FT, No = 40HC/40FT (GET /api/ocean)`;
+            derivation = `dthc_prepaid (country_code="${cc}" from Code) → ${row[column] ?? "?"}; Yes = ALLIN40HC/ALLIN40FT, No = 40HC/40FT (${src})`;
         } else {
-            derivation = `GET /api/ocean [ row ${rowIdx + 1} ] . "${column}"`;
+            derivation = `${src} [ row ${rowIdx + 1} ] . "${column}"`;
         }
     } else if (viewName === "Ocean Costing") {
         if (column === "GRI") {
@@ -5473,7 +5737,7 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         return `Column "${column}": EMOT and ME are blank here for Origin/Inland/Consol/Outbound (no per-region CIF yet); Documentation and CIF still show country totals; Premium and Discounts reconcile is omitted in these columns.`;
     }
 
-    if (group === "Outbound Logistics" && _exportOutboundUsesCifDrayAndOceanHubPts(abbr)) {
+    if (group === "Outbound Logistics" && _exportOutboundUsesCifDrayAndOceanHubPts(abbr) && rowIdx >= 0) {
         const baseG = String(row._exportBaseGroup || row.Base || "").trim();
         const cifFe = String(row["CIF FE"] || "").trim();
         if (!baseG || !cifFe) {
@@ -5818,14 +6082,9 @@ function _exportHeaderSampleCellDisplayValue(group, abbr, o) {
         return _exportWholeNumberString(_exportPremiumDiscountsReconcileDisplay(abbr, cifN, ex));
     }
     if (group === "Outbound Logistics") {
-        if (headerSampleRow && _exportOutboundUsesCifDrayAndOceanHubPts(abbr)) {
-            return _exportOutboundLogisticsBodyCell(
-                cifByRegion,
-                { oceanCostingRows },
-                headerSampleRow,
-                abbr,
-            );
-        }
+        /* Header row 3: always use CIF Total_Out so Total Terms matches CIF Cash
+           (Premium & Discounts reconcile = 0).  Body rows still use Dray + Ocean
+           Costing Total pts for per-destination detail in hub columns. */
         return _exportCellValueForGroupRegion(cifByRegion, group, abbr);
     }
     return _exportCellValueForGroupRegion(cifByRegion, group, abbr);
@@ -5847,6 +6106,194 @@ function _exportHeaderSampleTotalTermsForAbbr(abbr, o) {
         }
     }
     return hasError ? "ERROR" : _exportWholeNumberString(sum);
+}
+
+/** Premium header reconcile: 0 = match; larger |Δ| = worse. */
+function _exportPremiumReconcileSeverity(abs) {
+    if (!Number.isFinite(abs) || abs === 0) {
+        return { level: "ok", label: "match (0)" };
+    }
+    if (abs <= 5) {
+        return { level: "low", label: "small mismatch" };
+    }
+    if (abs <= 25) {
+        return { level: "mid", label: "moderate mismatch" };
+    }
+    return { level: "high", label: "large mismatch" };
+}
+
+function _applyPremiumReconcileHeaderStyle(th, displayValue, abbr) {
+    th.classList.remove(
+        "export-premium-reconcile-ok",
+        "export-premium-reconcile-mismatch-low",
+        "export-premium-reconcile-mismatch-mid",
+        "export-premium-reconcile-mismatch-high",
+        "cell-error",
+    );
+    if (_exportRegionColumnDeferred(abbr)) {
+        return;
+    }
+    const s = String(displayValue ?? "").trim();
+    if (s.toUpperCase() === "ERROR") {
+        th.classList.add("cell-error");
+        th.title =
+            (th.title ? th.title + " " : "") +
+            "Premium reconcile: cannot compute (missing Total Terms or CIF Cash).";
+        return;
+    }
+    if (!s) {
+        return;
+    }
+    const n = _exportParseNumericCell(s);
+    if (!Number.isFinite(n)) {
+        return;
+    }
+    const delta = Math.round(n);
+    const abs = Math.abs(delta);
+    const sev = _exportPremiumReconcileSeverity(abs);
+    const baseTitle =
+        "Premium reconcile (header sample row): round(Export Total Terms − CIF Cash). 0 = match; farther from 0 = larger gap.";
+    if (sev.level === "ok") {
+        th.classList.add("export-premium-reconcile-ok");
+        th.title = baseTitle + " Value 0: OK.";
+    } else {
+        th.classList.add(`export-premium-reconcile-mismatch-${sev.level}`);
+        th.title =
+            baseTitle +
+            ` Value ${delta} (|Δ|=${abs}): ${sev.label}.` +
+            (abbr === "MR5" ? " MR5 display adds +1 to reconcile." : "");
+    }
+}
+
+/**
+ * On Export view load: log every ERROR cell with derivation text, and Premium header
+ * reconcile gaps (non-zero in row 3). Copy console output for debugging.
+ */
+function _logExportViewDiagnostics(derivationCtx, rows, columns, headerSampleOpts) {
+    const errorCells = [];
+    rows.forEach((row, rowIdx) => {
+        columns.forEach((col) => {
+            const val = row[col];
+            if (String(val ?? "").trim().toUpperCase() !== "ERROR") {
+                return;
+            }
+            const lines = _exportCellDerivation(row, col, rowIdx, derivationCtx);
+            errorCells.push({
+                rowIndex: rowIdx + 1,
+                base: String(row._exportBaseGroup || row.Base || "").trim(),
+                cifFe: String(row["CIF FE"] ?? "").trim(),
+                column: col,
+                value: val,
+                why: Array.isArray(lines) ? lines.join("\n") : String(lines),
+            });
+        });
+    });
+
+    const premiumReconcile = [];
+    const sampleBase =
+        rows.length > 0
+            ? String(rows[0]._exportBaseGroup || rows[0].Base || "").trim()
+            : "";
+    const sampleCifFe = rows.length > 0 ? String(rows[0]["CIF FE"] ?? "").trim() : "";
+    if (headerSampleOpts) {
+        const cifByRegion = headerSampleOpts.cifByRegion || {};
+        for (const abbr of EXPORT_REGIONS) {
+            if (_exportRegionColumnDeferred(abbr)) {
+                continue;
+            }
+            const display = _exportHeaderSampleCellDisplayValue(
+                "Premium and Discounts",
+                abbr,
+                headerSampleOpts,
+            );
+            const s = String(display ?? "").trim();
+            if (!s) {
+                continue;
+            }
+            if (s.toUpperCase() === "ERROR") {
+                premiumReconcile.push({
+                    region: abbr,
+                    value: "ERROR",
+                    delta: null,
+                    absDelta: null,
+                    severity: "error",
+                    why: "Premium reconcile could not be computed for header sample row.",
+                });
+                continue;
+            }
+            const n = _exportParseNumericCell(s);
+            if (!Number.isFinite(n)) {
+                continue;
+            }
+            const delta = Math.round(n);
+            const abs = Math.abs(delta);
+            if (abs === 0) {
+                continue;
+            }
+            const ttStr = _exportHeaderSampleTotalTermsForAbbr(abbr, headerSampleOpts);
+            const cifN = _exportCifTotalTermsCashNumber(cifByRegion, abbr);
+            const sev = _exportPremiumReconcileSeverity(abs);
+            let why =
+                `Export Total Terms (header col ${abbr}) = ${ttStr}; CIF Cash = ${Number.isFinite(cifN) ? _exportWholeNumberString(cifN) : "?"}. ` +
+                `round(Total Terms − Cash)${abbr === "MR5" ? " + 1 (MR5)" : ""} = ${delta}. Non-zero = reconcile gap (${sev.label}).`;
+            if (abbr === "MR5") {
+                why += " MR5 column adds +1 after the round for display alignment.";
+            }
+            premiumReconcile.push({
+                region: abbr,
+                value: display,
+                delta,
+                absDelta: abs,
+                severity: sev.level,
+                why,
+            });
+        }
+    }
+
+    const sampleLabel =
+        sampleBase || sampleCifFe ? `${sampleBase} / ${sampleCifFe}` : "(no rows)";
+    console.log(
+        `[Export view] ${errorCells.length} ERROR cell(s); ${premiumReconcile.length} Premium header reconcile gap(s). Header sample: ${sampleLabel}`,
+    );
+
+    console.group("[Export view] ERROR cells — column and why");
+    if (errorCells.length === 0) {
+        console.log("(none)");
+    } else {
+        errorCells.forEach((e, i) => {
+            console.log(
+                `#${i + 1} row ${e.rowIndex} | Base=${e.base} | CIF FE=${e.cifFe} | ${e.column}\n${e.why}`,
+            );
+        });
+        console.table(
+            errorCells.map((e) => ({
+                row: e.rowIndex,
+                base: e.base,
+                cifFe: e.cifFe,
+                column: e.column,
+            })),
+        );
+    }
+    console.groupEnd();
+
+    console.group(
+        "[Export view] Premium and Discounts — header row 3 (non-zero = reconcile gap; 0 = OK)",
+    );
+    if (premiumReconcile.length === 0) {
+        console.log("All applicable regions show 0 (match) or blank/N/A.");
+    } else {
+        premiumReconcile.forEach((p) => {
+            console.log(
+                `${p.region}: ${p.value} (Δ=${p.delta}, |Δ|=${p.absDelta}, ${p.severity})\n  ${p.why}`,
+            );
+        });
+        console.table(premiumReconcile);
+    }
+    console.groupEnd();
+
+    if (typeof window !== "undefined") {
+        window.__exportViewLastDiagnostics = { errorCells, premiumReconcile, sampleLabel };
+    }
 }
 
 function _buildExportRows(cifByRegion, exportOpts) {
@@ -6016,6 +6463,8 @@ async function renderExportTable() {
         },
     };
 
+    _logExportViewDiagnostics(derivationCtx, rows, columns, derivationCtx.headerSampleOpts);
+
     function showExportDerivation(row, column, value, rowIdx) {
         const disp = value === "" || value === undefined ? '""' : String(value);
         const explain = _exportCellDerivation(row, column, rowIdx, derivationCtx);
@@ -6165,10 +6614,16 @@ async function renderExportTable() {
                         ? _exportHeaderSampleTotalTermsForAbbr(abbr, headerSampleOpts)
                         : _exportHeaderSampleCellDisplayValue(group, abbr, headerSampleOpts);
                 th.textContent = v;
-                _applyCellErrorClass(th, v);
+                if (group === "Premium and Discounts") {
+                    _applyPremiumReconcileHeaderStyle(th, v, abbr);
+                } else {
+                    _applyCellErrorClass(th, v);
+                }
                 if (headerSampleRow) {
                     th.style.cursor = "pointer";
-                    th.title = "Click for derivation (header uses first Export data row)";
+                    const clickHint =
+                        "Click for derivation (header uses first Export data row).";
+                    th.title = th.title ? `${th.title} ${clickHint}` : clickHint;
                     th.addEventListener("click", () => {
                         showExportDerivation(headerSampleRow, col, v, -1);
                     });

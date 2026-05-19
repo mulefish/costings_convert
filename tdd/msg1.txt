@@ -1,0 +1,351 @@
+#1 row 1 | Base=China | CIF FE=Qingdao | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="China", Destination≈"Qingdao", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #2 row 1 | Base=China | CIF FE=Qingdao | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=45, CIF=123 → ERROR because a contributing cell is ERROR.
+ #3 row 2 | Base=China | CIF FE=Xiamen | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="China", Destination≈"Xiamen", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #4 row 2 | Base=China | CIF FE=Xiamen | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=45, CIF=123 → ERROR because a contributing cell is ERROR.
+ #5 row 3 | Base=China | CIF FE=Nantong | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="China", Destination≈"Nantong", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #6 row 3 | Base=China | CIF FE=Nantong | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=45, CIF=123 → ERROR because a contributing cell is ERROR.
+ #7 row 4 | Base=Vietnam | CIF FE=Ho Chi Minh | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Vietnam", Destination≈"Ho Chi Minh", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #8 row 4 | Base=Vietnam | CIF FE=Ho Chi Minh | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=64, CIF=123 → ERROR because a contributing cell is ERROR.
+ #9 row 5 | Base=Vietnam | CIF FE=Da Nang | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Vietnam", Destination≈"Da Nang", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #10 row 5 | Base=Vietnam | CIF FE=Da Nang | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Vietnam", Destination≈"Da Nang", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #11 row 5 | Base=Vietnam | CIF FE=Da Nang | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=64, CIF=123 → ERROR because a contributing cell is ERROR.
+ #12 row 5 | Base=Vietnam | CIF FE=Da Nang | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=64, CIF=123 → ERROR because a contributing cell is ERROR.
+ #13 row 6 | Base=Vietnam | CIF FE=Haiphong | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Vietnam", Destination≈"Haiphong", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #14 row 6 | Base=Vietnam | CIF FE=Haiphong | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Vietnam", Destination≈"Haiphong", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #15 row 6 | Base=Vietnam | CIF FE=Haiphong | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=64, CIF=123 → ERROR because a contributing cell is ERROR.
+ #16 row 6 | Base=Vietnam | CIF FE=Haiphong | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=64, CIF=123 → ERROR because a contributing cell is ERROR.
+ #17 row 8 | Base=Korea | CIF FE=Kwangyang | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Korea", Destination≈"Kwangyang", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #18 row 8 | Base=Korea | CIF FE=Kwangyang | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=34, CIF=123 → ERROR because a contributing cell is ERROR.
+ #19 row 9 | Base=Japan | CIF FE=Osaka | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Japan", Destination≈"Osaka", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #20 row 9 | Base=Japan | CIF FE=Osaka | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=11, CIF=123 → ERROR because a contributing cell is ERROR.
+ #21 row 12 | Base=Malaysia | CIF FE=Tanjung Pelepas | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Malaysia", Destination≈"Tanjung Pelepas", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #22 row 12 | Base=Malaysia | CIF FE=Tanjung Pelepas | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=27, CIF=123 → ERROR because a contributing cell is ERROR.
+ #23 row 13 | Base=Malaysia | CIF FE=Penang | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Malaysia", Destination≈"Penang", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #24 row 13 | Base=Malaysia | CIF FE=Penang | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=27, CIF=123 → ERROR because a contributing cell is ERROR.
+ #25 row 15 | Base=Taiwan | CIF FE=Keelung | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Taiwan", Destination≈"Keelung", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #26 row 15 | Base=Taiwan | CIF FE=Keelung | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=37, CIF=123 → ERROR because a contributing cell is ERROR.
+ #27 row 16 | Base=Taiwan | CIF FE=Taichung | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Taiwan", Destination≈"Taichung", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #28 row 16 | Base=Taiwan | CIF FE=Taichung | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Taiwan", Destination≈"Taichung", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #29 row 16 | Base=Taiwan | CIF FE=Taichung | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=37, CIF=123 → ERROR because a contributing cell is ERROR.
+ #30 row 16 | Base=Taiwan | CIF FE=Taichung | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=37, CIF=123 → ERROR because a contributing cell is ERROR.
+ #31 row 17 | Base=Taiwan | CIF FE=Kaohsiung | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Taiwan", Destination≈"Kaohsiung", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #32 row 17 | Base=Taiwan | CIF FE=Kaohsiung | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=37, CIF=123 → ERROR because a contributing cell is ERROR.
+ #33 row 18 | Base=Taiwan | CIF FE=Tao Yuan | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Taiwan", Destination≈"Tao Yuan", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #34 row 18 | Base=Taiwan | CIF FE=Tao Yuan | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Taiwan", Destination≈"Tao Yuan", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #35 row 18 | Base=Taiwan | CIF FE=Tao Yuan | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=37, CIF=123 → ERROR because a contributing cell is ERROR.
+ #36 row 18 | Base=Taiwan | CIF FE=Tao Yuan | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=37, CIF=123 → ERROR because a contributing cell is ERROR.
+ #37 row 20 | Base=Indonesia | CIF FE=Semarang | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Indonesia", Destination≈"Semarang", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #38 row 20 | Base=Indonesia | CIF FE=Semarang | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=46, CIF=123 → ERROR because a contributing cell is ERROR.
+ #39 row 21 | Base=Indonesia | CIF FE=Cikarang | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Indonesia", Destination≈"Cikarang", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #40 row 21 | Base=Indonesia | CIF FE=Cikarang | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=46, CIF=123 → ERROR because a contributing cell is ERROR.
+ #41 row 24 | Base=Thailand | CIF FE=Lat Krabang | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Thailand", Destination≈"Lat Krabang", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #42 row 24 | Base=Thailand | CIF FE=Lat Krabang | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=44, CIF=123 → ERROR because a contributing cell is ERROR.
+ #43 row 25 | Base=Thailand | CIF FE=Laem Chabang | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Thailand", Destination≈"Laem Chabang", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #44 row 25 | Base=Thailand | CIF FE=Laem Chabang | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=44, CIF=123 → ERROR because a contributing cell is ERROR.
+ #45 row 26 | Base=Bangladesh | CIF FE=Chittagong | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Bangladesh", Destination≈"Chittagong", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #46 row 26 | Base=Bangladesh | CIF FE=Chittagong | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=121, CIF=136 → ERROR because a contributing cell is ERROR.
+ #47 row 27 | Base=Pakistan | CIF FE=Port Qasim/Karachi | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Pakistan", Destination≈"Port Qasim/Karachi", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #48 row 27 | Base=Pakistan | CIF FE=Port Qasim/Karachi | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=198, CIF=136 → ERROR because a contributing cell is ERROR.
+ #49 row 28 | Base=India | CIF FE=Mundra | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="India", Destination≈"Mundra", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #50 row 28 | Base=India | CIF FE=Mundra | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=39, CIF=136 → ERROR because a contributing cell is ERROR.
+ #51 row 29 | Base=India | CIF FE=Tuticorin | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="India", Destination≈"Tuticorin", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #52 row 29 | Base=India | CIF FE=Tuticorin | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=39, CIF=136 → ERROR because a contributing cell is ERROR.
+ #53 row 30 | Base=India | CIF FE=Chennai | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="India", Destination≈"Chennai", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #54 row 30 | Base=India | CIF FE=Chennai | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=39, CIF=136 → ERROR because a contributing cell is ERROR.
+ #55 row 31 | Base=Turkey | CIF FE=Iskenderun | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Turkey", Destination≈"Iskenderun", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #56 row 31 | Base=Turkey | CIF FE=Iskenderun | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Turkey", Destination≈"Iskenderun", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #57 row 31 | Base=Turkey | CIF FE=Iskenderun | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=85, CIF=143 → ERROR because a contributing cell is ERROR.
+ #58 row 31 | Base=Turkey | CIF FE=Iskenderun | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=85, CIF=143 → ERROR because a contributing cell is ERROR.
+ #59 row 32 | Base=Turkey | CIF FE=Mersin | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Turkey", Destination≈"Mersin", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #60 row 32 | Base=Turkey | CIF FE=Mersin | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Turkey", Destination≈"Mersin", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #61 row 32 | Base=Turkey | CIF FE=Mersin | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=85, CIF=143 → ERROR because a contributing cell is ERROR.
+ #62 row 32 | Base=Turkey | CIF FE=Mersin | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=85, CIF=143 → ERROR because a contributing cell is ERROR.
+ #63 row 33 | Base=Turkey | CIF FE=Izmir | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Turkey", Destination≈"Izmir", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #64 row 33 | Base=Turkey | CIF FE=Izmir | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Turkey", Destination≈"Izmir", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #65 row 33 | Base=Turkey | CIF FE=Izmir | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=85, CIF=143 → ERROR because a contributing cell is ERROR.
+ #66 row 33 | Base=Turkey | CIF FE=Izmir | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=85, CIF=143 → ERROR because a contributing cell is ERROR.
+ #67 row 34 | Base=Mexico | CIF FE=Yecapixtla | Outbound Logistics|WTX
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Yecapixtla", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #68 row 34 | Base=Mexico | CIF FE=Yecapixtla | Outbound Logistics|WTXH
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Yecapixtla", primary hub "houston", or ocean Total pts is missing/invalid. Port hubs tried in order: "houston", "dallas". Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #69 row 34 | Base=Mexico | CIF FE=Yecapixtla | Outbound Logistics|STX
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Yecapixtla", primary hub "houston", or ocean Total pts is missing/invalid. Port hubs tried in order: "houston", "dallas". Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #70 row 34 | Base=Mexico | CIF FE=Yecapixtla | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Yecapixtla", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #71 row 34 | Base=Mexico | CIF FE=Yecapixtla | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Yecapixtla", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #72 row 34 | Base=Mexico | CIF FE=Yecapixtla | Outbound Logistics|HOU
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Yecapixtla", primary hub "houston", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #73 row 34 | Base=Mexico | CIF FE=Yecapixtla | Outbound Logistics|DAL
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Yecapixtla", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #74 row 34 | Base=Mexico | CIF FE=Yecapixtla | Total Terms|WTX
+Total Terms (WTX): Origin Warehouse=308, Inland Logistics=25, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #75 row 34 | Base=Mexico | CIF FE=Yecapixtla | Total Terms|WTXH
+Total Terms (WTXH): Origin Warehouse=308, Inland Logistics=322, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #76 row 34 | Base=Mexico | CIF FE=Yecapixtla | Total Terms|STX
+Total Terms (STX): Origin Warehouse=452, Inland Logistics=222, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #77 row 34 | Base=Mexico | CIF FE=Yecapixtla | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #78 row 34 | Base=Mexico | CIF FE=Yecapixtla | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #79 row 34 | Base=Mexico | CIF FE=Yecapixtla | Total Terms|HOU
+Total Terms (HOU): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #80 row 34 | Base=Mexico | CIF FE=Yecapixtla | Total Terms|DAL
+Total Terms (DAL): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #81 row 35 | Base=Mexico | CIF FE=Parras | Outbound Logistics|WTX
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Parras", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #82 row 35 | Base=Mexico | CIF FE=Parras | Outbound Logistics|WTXH
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Parras", primary hub "houston", or ocean Total pts is missing/invalid. Port hubs tried in order: "houston", "dallas". Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #83 row 35 | Base=Mexico | CIF FE=Parras | Outbound Logistics|STX
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Parras", primary hub "houston", or ocean Total pts is missing/invalid. Port hubs tried in order: "houston", "dallas". Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #84 row 35 | Base=Mexico | CIF FE=Parras | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Parras", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #85 row 35 | Base=Mexico | CIF FE=Parras | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Parras", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #86 row 35 | Base=Mexico | CIF FE=Parras | Outbound Logistics|HOU
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Parras", primary hub "houston", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #87 row 35 | Base=Mexico | CIF FE=Parras | Outbound Logistics|DAL
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"Parras", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #88 row 35 | Base=Mexico | CIF FE=Parras | Total Terms|WTX
+Total Terms (WTX): Origin Warehouse=308, Inland Logistics=25, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #89 row 35 | Base=Mexico | CIF FE=Parras | Total Terms|WTXH
+Total Terms (WTXH): Origin Warehouse=308, Inland Logistics=322, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #90 row 35 | Base=Mexico | CIF FE=Parras | Total Terms|STX
+Total Terms (STX): Origin Warehouse=452, Inland Logistics=222, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #91 row 35 | Base=Mexico | CIF FE=Parras | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #92 row 35 | Base=Mexico | CIF FE=Parras | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #93 row 35 | Base=Mexico | CIF FE=Parras | Total Terms|HOU
+Total Terms (HOU): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #94 row 35 | Base=Mexico | CIF FE=Parras | Total Terms|DAL
+Total Terms (DAL): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #95 row 36 | Base=Mexico | CIF FE=CD Victoria | Outbound Logistics|WTX
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"CD Victoria", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #96 row 36 | Base=Mexico | CIF FE=CD Victoria | Outbound Logistics|WTXH
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"CD Victoria", primary hub "houston", or ocean Total pts is missing/invalid. Port hubs tried in order: "houston", "dallas". Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #97 row 36 | Base=Mexico | CIF FE=CD Victoria | Outbound Logistics|STX
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"CD Victoria", primary hub "houston", or ocean Total pts is missing/invalid. Port hubs tried in order: "houston", "dallas". Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #98 row 36 | Base=Mexico | CIF FE=CD Victoria | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"CD Victoria", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #99 row 36 | Base=Mexico | CIF FE=CD Victoria | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"CD Victoria", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #100 row 36 | Base=Mexico | CIF FE=CD Victoria | Outbound Logistics|HOU
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"CD Victoria", primary hub "houston", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #101 row 36 | Base=Mexico | CIF FE=CD Victoria | Outbound Logistics|DAL
+ERROR: no matching deduped GET /api/ocean row for Country="Mexico", Destination≈"CD Victoria", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #102 row 36 | Base=Mexico | CIF FE=CD Victoria | Total Terms|WTX
+Total Terms (WTX): Origin Warehouse=308, Inland Logistics=25, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #103 row 36 | Base=Mexico | CIF FE=CD Victoria | Total Terms|WTXH
+Total Terms (WTXH): Origin Warehouse=308, Inland Logistics=322, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #104 row 36 | Base=Mexico | CIF FE=CD Victoria | Total Terms|STX
+Total Terms (STX): Origin Warehouse=452, Inland Logistics=222, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #105 row 36 | Base=Mexico | CIF FE=CD Victoria | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #106 row 36 | Base=Mexico | CIF FE=CD Victoria | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #107 row 36 | Base=Mexico | CIF FE=CD Victoria | Total Terms|HOU
+Total Terms (HOU): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #108 row 36 | Base=Mexico | CIF FE=CD Victoria | Total Terms|DAL
+Total Terms (DAL): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=11, CIF=112 → ERROR because a contributing cell is ERROR.
+ #109 row 37 | Base=Peru | CIF FE=Callao | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Peru", Destination≈"Callao", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #110 row 37 | Base=Peru | CIF FE=Callao | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=40, CIF=112 → ERROR because a contributing cell is ERROR.
+ #111 row 38 | Base=Guatemala | CIF FE=Amatitlan | Outbound Logistics|WTX
+ERROR: no matching deduped GET /api/ocean row for Country="Guatemala", Destination≈"Amatitlan", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #112 row 38 | Base=Guatemala | CIF FE=Amatitlan | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Guatemala", Destination≈"Amatitlan", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #113 row 38 | Base=Guatemala | CIF FE=Amatitlan | Outbound Logistics|DAL
+ERROR: no matching deduped GET /api/ocean row for Country="Guatemala", Destination≈"Amatitlan", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #114 row 38 | Base=Guatemala | CIF FE=Amatitlan | Total Terms|WTX
+Total Terms (WTX): Origin Warehouse=308, Inland Logistics=25, Consolidation=105, Outbound Logistics=ERROR, Documentation=38, CIF=112 → ERROR because a contributing cell is ERROR.
+ #115 row 38 | Base=Guatemala | CIF FE=Amatitlan | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=38, CIF=112 → ERROR because a contributing cell is ERROR.
+ #116 row 38 | Base=Guatemala | CIF FE=Amatitlan | Total Terms|DAL
+Total Terms (DAL): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=38, CIF=112 → ERROR because a contributing cell is ERROR.
+ #117 row 39 | Base=Guatemala | CIF FE=Palin | Outbound Logistics|WTX
+ERROR: no matching deduped GET /api/ocean row for Country="Guatemala", Destination≈"Palin", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #118 row 39 | Base=Guatemala | CIF FE=Palin | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Guatemala", Destination≈"Palin", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #119 row 39 | Base=Guatemala | CIF FE=Palin | Outbound Logistics|DAL
+ERROR: no matching deduped GET /api/ocean row for Country="Guatemala", Destination≈"Palin", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #120 row 39 | Base=Guatemala | CIF FE=Palin | Total Terms|WTX
+Total Terms (WTX): Origin Warehouse=308, Inland Logistics=25, Consolidation=105, Outbound Logistics=ERROR, Documentation=38, CIF=112 → ERROR because a contributing cell is ERROR.
+ #121 row 39 | Base=Guatemala | CIF FE=Palin | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=38, CIF=112 → ERROR because a contributing cell is ERROR.
+ #122 row 39 | Base=Guatemala | CIF FE=Palin | Total Terms|DAL
+Total Terms (DAL): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=38, CIF=112 → ERROR because a contributing cell is ERROR.
+ #123 row 40 | Base=Honduras | CIF FE=Naco | Outbound Logistics|WTX
+ERROR: no matching deduped GET /api/ocean row for Country="Honduras", Destination≈"Naco", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #124 row 40 | Base=Honduras | CIF FE=Naco | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Honduras", Destination≈"Naco", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #125 row 40 | Base=Honduras | CIF FE=Naco | Outbound Logistics|DAL
+ERROR: no matching deduped GET /api/ocean row for Country="Honduras", Destination≈"Naco", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #126 row 40 | Base=Honduras | CIF FE=Naco | Total Terms|WTX
+Total Terms (WTX): Origin Warehouse=308, Inland Logistics=25, Consolidation=105, Outbound Logistics=ERROR, Documentation=38, CIF=112 → ERROR because a contributing cell is ERROR.
+ #127 row 40 | Base=Honduras | CIF FE=Naco | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=38, CIF=112 → ERROR because a contributing cell is ERROR.
+ #128 row 40 | Base=Honduras | CIF FE=Naco | Total Terms|DAL
+Total Terms (DAL): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=38, CIF=112 → ERROR because a contributing cell is ERROR.
+ #129 row 41 | Base=Spain | CIF FE=Santa Barbara | Outbound Logistics|WTX
+ERROR: no matching deduped GET /api/ocean row for Country="Spain", Destination≈"Santa Barbara", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #130 row 41 | Base=Spain | CIF FE=Santa Barbara | Outbound Logistics|WTXH
+ERROR: no matching deduped GET /api/ocean row for Country="Spain", Destination≈"Santa Barbara", primary hub "houston", or ocean Total pts is missing/invalid. Port hubs tried in order: "houston", "dallas". Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #131 row 41 | Base=Spain | CIF FE=Santa Barbara | Outbound Logistics|STX
+ERROR: no matching deduped GET /api/ocean row for Country="Spain", Destination≈"Santa Barbara", primary hub "houston", or ocean Total pts is missing/invalid. Port hubs tried in order: "houston", "dallas". Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #132 row 41 | Base=Spain | CIF FE=Santa Barbara | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Spain", Destination≈"Santa Barbara", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #133 row 41 | Base=Spain | CIF FE=Santa Barbara | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Spain", Destination≈"Santa Barbara", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #134 row 41 | Base=Spain | CIF FE=Santa Barbara | Outbound Logistics|HOU
+ERROR: no matching deduped GET /api/ocean row for Country="Spain", Destination≈"Santa Barbara", primary hub "houston", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #135 row 41 | Base=Spain | CIF FE=Santa Barbara | Outbound Logistics|DAL
+ERROR: no matching deduped GET /api/ocean row for Country="Spain", Destination≈"Santa Barbara", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #136 row 41 | Base=Spain | CIF FE=Santa Barbara | Total Terms|WTX
+Total Terms (WTX): Origin Warehouse=308, Inland Logistics=25, Consolidation=105, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #137 row 41 | Base=Spain | CIF FE=Santa Barbara | Total Terms|WTXH
+Total Terms (WTXH): Origin Warehouse=308, Inland Logistics=322, Consolidation=105, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #138 row 41 | Base=Spain | CIF FE=Santa Barbara | Total Terms|STX
+Total Terms (STX): Origin Warehouse=452, Inland Logistics=222, Consolidation=105, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #139 row 41 | Base=Spain | CIF FE=Santa Barbara | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #140 row 41 | Base=Spain | CIF FE=Santa Barbara | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #141 row 41 | Base=Spain | CIF FE=Santa Barbara | Total Terms|HOU
+Total Terms (HOU): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #142 row 41 | Base=Spain | CIF FE=Santa Barbara | Total Terms|DAL
+Total Terms (DAL): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #143 row 42 | Base=Italy | CIF FE=Bergamo | Outbound Logistics|WTX
+ERROR: no matching deduped GET /api/ocean row for Country="Italy", Destination≈"Bergamo", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #144 row 42 | Base=Italy | CIF FE=Bergamo | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Italy", Destination≈"Bergamo", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #145 row 42 | Base=Italy | CIF FE=Bergamo | Outbound Logistics|DAL
+ERROR: no matching deduped GET /api/ocean row for Country="Italy", Destination≈"Bergamo", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #146 row 42 | Base=Italy | CIF FE=Bergamo | Total Terms|WTX
+Total Terms (WTX): Origin Warehouse=308, Inland Logistics=25, Consolidation=105, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #147 row 42 | Base=Italy | CIF FE=Bergamo | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #148 row 42 | Base=Italy | CIF FE=Bergamo | Total Terms|DAL
+Total Terms (DAL): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #149 row 43 | Base=Italy | CIF FE=Salerno | Outbound Logistics|WTX
+ERROR: no matching deduped GET /api/ocean row for Country="Italy", Destination≈"Salerno", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #150 row 43 | Base=Italy | CIF FE=Salerno | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Italy", Destination≈"Salerno", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #151 row 43 | Base=Italy | CIF FE=Salerno | Outbound Logistics|DAL
+ERROR: no matching deduped GET /api/ocean row for Country="Italy", Destination≈"Salerno", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #152 row 43 | Base=Italy | CIF FE=Salerno | Total Terms|WTX
+Total Terms (WTX): Origin Warehouse=308, Inland Logistics=25, Consolidation=105, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #153 row 43 | Base=Italy | CIF FE=Salerno | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #154 row 43 | Base=Italy | CIF FE=Salerno | Total Terms|DAL
+Total Terms (DAL): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=19, CIF=112 → ERROR because a contributing cell is ERROR.
+ #155 row 44 | Base=Other | CIF FE=Batumi | Outbound Logistics|WTX
+ERROR: no matching deduped GET /api/ocean row for Country="Other", Destination≈"Batumi", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #156 row 44 | Base=Other | CIF FE=Batumi | Outbound Logistics|WTXH
+ERROR: no matching deduped GET /api/ocean row for Country="Other", Destination≈"Batumi", primary hub "houston", or ocean Total pts is missing/invalid. Port hubs tried in order: "houston", "dallas". Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #157 row 44 | Base=Other | CIF FE=Batumi | Outbound Logistics|STX
+ERROR: no matching deduped GET /api/ocean row for Country="Other", Destination≈"Batumi", primary hub "houston", or ocean Total pts is missing/invalid. Port hubs tried in order: "houston", "dallas". Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #158 row 44 | Base=Other | CIF FE=Batumi | Outbound Logistics|MR5
+ERROR: no matching deduped GET /api/ocean row for Country="Other", Destination≈"Batumi", primary hub "memphis", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #159 row 44 | Base=Other | CIF FE=Batumi | Outbound Logistics|ER5
+ERROR: no matching deduped GET /api/ocean row for Country="Other", Destination≈"Batumi", primary hub "savannah", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #160 row 44 | Base=Other | CIF FE=Batumi | Outbound Logistics|HOU
+ERROR: no matching deduped GET /api/ocean row for Country="Other", Destination≈"Batumi", primary hub "houston", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #161 row 44 | Base=Other | CIF FE=Batumi | Outbound Logistics|DAL
+ERROR: no matching deduped GET /api/ocean row for Country="Other", Destination≈"Batumi", primary hub "dallas", or ocean Total pts is missing/invalid. Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.
+ #162 row 44 | Base=Other | CIF FE=Batumi | Total Terms|WTX
+Total Terms (WTX): Origin Warehouse=308, Inland Logistics=25, Consolidation=105, Outbound Logistics=ERROR, Documentation=24, CIF=92 → ERROR because a contributing cell is ERROR.
+ #163 row 44 | Base=Other | CIF FE=Batumi | Total Terms|WTXH
+Total Terms (WTXH): Origin Warehouse=308, Inland Logistics=322, Consolidation=105, Outbound Logistics=ERROR, Documentation=24, CIF=92 → ERROR because a contributing cell is ERROR.
+ #164 row 44 | Base=Other | CIF FE=Batumi | Total Terms|STX
+Total Terms (STX): Origin Warehouse=452, Inland Logistics=222, Consolidation=105, Outbound Logistics=ERROR, Documentation=24, CIF=92 → ERROR because a contributing cell is ERROR.
+ #165 row 44 | Base=Other | CIF FE=Batumi | Total Terms|MR5
+Total Terms (MR5): Origin Warehouse=106, Inland Logistics=260, Consolidation=92, Outbound Logistics=ERROR, Documentation=24, CIF=92 → ERROR because a contributing cell is ERROR.
+ #166 row 44 | Base=Other | CIF FE=Batumi | Total Terms|ER5
+Total Terms (ER5): Origin Warehouse=86, Inland Logistics=269, Consolidation=103, Outbound Logistics=ERROR, Documentation=24, CIF=92 → ERROR because a contributing cell is ERROR.
+ #167 row 44 | Base=Other | CIF FE=Batumi | Total Terms|HOU
+Total Terms (HOU): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=24, CIF=92 → ERROR because a contributing cell is ERROR.
+ #168 row 44 | Base=Other | CIF FE=Batumi | Total Terms|DAL
+Total Terms (DAL): Origin Warehouse=0, Inland Logistics=0, Consolidation=105, Outbound Logistics=ERROR, Documentation=24, CIF=92 → ERROR because a contributing cell is ERROR.
+
+
+
+
+
+
+[Export view] Premium and Discounts — header row 3 (non-zero = reconcile gap; 0 = OK)
+script.js:6058 WTXH: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col WTXH) = 1149; CIF Cash = 1166. round(Total Terms − Cash) = -17. Non-zero = reconcile gap (moderate mismatch).
+script.js:6058 STX: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col STX) = 1193; CIF Cash = 1210. round(Total Terms − Cash) = -17. Non-zero = reconcile gap (moderate mismatch).
+script.js:6058 MR5: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col MR5) = 869; CIF Cash = 887. round(Total Terms − Cash) + 1 (MR5) = -17. Non-zero = reconcile gap (moderate mismatch). MR5 column adds +1 after the round for display alignment.
+script.js:6058 HOU: -17 (Δ=-17, |Δ|=17, mid)
+  Export Total Terms (header col HOU) = 519; CIF Cash = 536. round(Total Terms − Cash) = -17. Non-zero = reconcile gap (moderate mismatch).
