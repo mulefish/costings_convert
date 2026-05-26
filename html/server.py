@@ -2566,7 +2566,8 @@ def _build_usd_rows():
     otr_fsc = _to_float(control_panel.get("Fuel Surcharge"), 0.0)
     otr_gri_lane = _to_float(control_panel.get("OTR GRI"), 0.0)
     otr_final_lookup = _otr_final_lookup_from_db(otr_fsc, otr_gri_lane)
-    interest = (edf_rate / 100.0 / 12.0) * (avg_purchase * avg_bale_wt) if edf_rate and avg_purchase and avg_bale_wt else 0.0
+    daily_spot = _to_float(control_panel.get("Daily Spot"), 0.0)
+    interest = (edf_rate / 100.0 / 12.0) * ((daily_spot / 100.0) * avg_bale_wt) if edf_rate and daily_spot and avg_bale_wt else 0.0
 
     usd_consol_interest = _usd_consolidation_interest(
         avg_purchase,

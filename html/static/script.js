@@ -3356,7 +3356,7 @@ function createUsdColumnDiscussion() {
         "Terms; Recv, Load, Compr, Class, Mark — From SEAM_TARIFFS_CERT_TARIFFS.csv for that warehouse (matched by Warehouse id). Terms is stripped of leading zeros in the API.",
         "Storage (Strg) — Also from SEAM_TARIFFS_CERT_TARIFFS.csv (Strg column). If Strg is under 1.0, server.py treats it as a per-day rate and multiplies by 30 to show a monthly value in USD. This is a normalization rule so daily-storage tariffs are comparable with monthly-storage tariffs in one column.",
         "ESO — Looked up by Warehouse id in regions_and_ports.csv (ESO column).",
-        "Interest — Global: (EDF Interest Rate / 100 / 12) × (Avg Purchase Price × Avg Bale Weight) from Jarvis; 0 if any of those three inputs is missing/ zero.",
+        "Interest — Global: (EDF Interest Rate / 100 / 12) × ((Daily Spot / 100) × Avg Bale Weight) from Jarvis; 0 if any of those three inputs is missing/ zero.",
         "Origin Comm — Global: Jarvis → Origin Commission (same for every row).",
         "Total Equity — Recv + Load + Compr + Class + Mark + Strg + ESO + Interest + Origin Comm.",
         "Total Origin — Depends on Terms: 1 → Strg + Interest + Origin Comm; 2 → Compr + Strg + Interest + Origin Comm; 3 → Load + Compr + Strg + Class + Interest + Origin Comm; 4 → Class + Interest + Origin Comm; otherwise 0.",
@@ -5189,7 +5189,7 @@ function _usdDerivation(row, column) {
 
     // Computed: Interest
     if (column === "Interest") {
-        return `(EDF Interest Rate / 100 / 12) × Avg Purchase Price × Avg Bale Weight  [from control_panel.json]`;
+        return `(EDF Interest Rate / 100 / 12) × (Daily Spot / 100) × Avg Bale Weight  [from control_panel]`;
     }
 
     // Origin Commission
