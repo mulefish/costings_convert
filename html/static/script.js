@@ -940,7 +940,7 @@ async function renderControlPanelView() {
         { key: "code", label: "Code", kind: "text" },
         { key: "dthc_prepaid", label: "DTHC Prepaid", kind: "readonly" },
         { key: "LC", label: "LC", kind: "readonly" },
-        { key: "INS", label: "INS", kind: "number" },
+        { key: "INS", label: "INS", kind: "readonly" },
         { key: "CONT", label: "CONT", kind: "number" },
         { key: "COM", label: "COM", kind: "readonly" },
         { key: "COF", label: "COF", kind: "readonly" },
@@ -1739,6 +1739,8 @@ async function renderControlPanelView() {
                 showJarvisDerivation(`[document_cif] "${country}" (${code}) → LC = round((${lcSource} × 0.01) × (Daily Spot + Basis)) — computed`);
             } else if (field === "COM") {
                 showJarvisDerivation(`[document_cif] "${country}" (${code}) → COM = round(Daily Spot + Basis × 0.1) — computed from control_panel`);
+            } else if (field === "INS") {
+                showJarvisDerivation(`[document_cif] "${country}" (${code}) → INS = round((Daily Spot + Basis) × 0.1) — computed from control_panel`);
             } else if (field === "COF") {
                 showJarvisDerivation(`[document_cif] "${country}" (${code}) → COF = round((LC_USA / 365) × (EDF Interest Rate × Daily Spot)) — computed from control_panel`);
             } else if (field === "dthc_prepaid") {
