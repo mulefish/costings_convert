@@ -740,9 +740,14 @@ def _document_cif_with_prepaid(rows: list) -> list:
     basis = _to_float(control_panel.get("Basis"), 0.0)
     cof_factor = edf * daily_spot
     com_value = round(daily_spot + basis * 0.1)
+    avg_by_cc = db.get_lc_bank_cost_avg_lowest_3()
+    lc_multiplier = daily_spot + basis
     result = []
     for r in rows:
         row = {**r, "dthc_prepaid": _document_cif_dthc_prepaid(r)}
+        cc = str(row.get("code", "")).strip().upper()
+        avg_cost = avg_by_cc.get(cc, 0.0)
+        row["LC"] = round((avg_cost * 0.1) * lc_multiplier)
         lc_usa = _to_float(row.get("LC_USA"), 0.0)
         row["COF"] = round((lc_usa / 365.0) * cof_factor)
         row["COM"] = com_value
@@ -791,6 +796,7 @@ def _merge_document_cif_loaded(loaded) -> list:
 
 def _recompute_document_cif_computed() -> None:
     """Overwrite computed columns on every in-memory document_cif row.
+    LC  = round((avg_lowest_3 * 0.1) * (Daily Spot + Basis))
     COF = round((LC_USA / 365) * (EDF Interest Rate * Daily Spot))
     COM = round(Daily Spot + Basis * 0.1)
     """
@@ -799,7 +805,12 @@ def _recompute_document_cif_computed() -> None:
     basis = _to_float(control_panel.get("Basis"), 0.0)
     cof_factor = edf * daily_spot
     com_value = round(daily_spot + basis * 0.1)
+    avg_by_cc = db.get_lc_bank_cost_avg_lowest_3()
+    lc_multiplier = daily_spot + basis
     for row in document_cif:
+        cc = str(row.get("code", "")).strip().upper()
+        avg_cost = avg_by_cc.get(cc, 0.0)
+        row["LC"] = round((avg_cost * 0.1) * lc_multiplier)
         lc_usa = _to_float(row.get("LC_USA"), 0.0)
         row["COF"] = round((lc_usa / 365.0) * cof_factor)
         row["COM"] = com_value

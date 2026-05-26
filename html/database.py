@@ -1192,6 +1192,24 @@ def save_lc_bank_cost(data: list[dict]) -> None:
     conn.commit()
 
 
+def get_lc_bank_cost_avg_lowest_3() -> dict[str, float]:
+    """Return {country_code: avg_of_lowest_3_values} from lc_bank_cost."""
+    conn = _get_conn()
+    rows = conn.execute("""
+        WITH ranked AS (
+            SELECT country_code, value,
+                   ROW_NUMBER() OVER (PARTITION BY country_code ORDER BY value ASC) AS rn
+            FROM lc_bank_cost
+            WHERE value IS NOT NULL
+        )
+        SELECT country_code, AVG(value) AS avg_lowest_3
+        FROM ranked
+        WHERE rn <= 3
+        GROUP BY country_code
+    """).fetchall()
+    return {r["country_code"]: r["avg_lowest_3"] for r in rows}
+
+
 def _ensure_lc_bank_cost_seeded(conn: sqlite3.Connection) -> None:
     """Seed lc_bank_cost if the table is empty."""
     count = conn.execute("SELECT COUNT(*) FROM lc_bank_cost").fetchone()[0]

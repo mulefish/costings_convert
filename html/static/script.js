@@ -939,7 +939,7 @@ async function renderControlPanelView() {
         { key: "GRI", label: "GRI", kind: "number", defaultZero: true },
         { key: "code", label: "Code", kind: "text" },
         { key: "dthc_prepaid", label: "DTHC Prepaid", kind: "readonly" },
-        { key: "LC", label: "LC", kind: "number" },
+        { key: "LC", label: "LC", kind: "readonly" },
         { key: "INS", label: "INS", kind: "number" },
         { key: "CONT", label: "CONT", kind: "number" },
         { key: "COM", label: "COM", kind: "readonly" },
