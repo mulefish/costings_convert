@@ -421,6 +421,8 @@ async function renderControlPanelView() {
     table.appendChild(thead);
     const tbody = document.createElement("tbody");
 
+    const CP_READONLY_KEYS = new Set(["EDF Interest Rate", "Cert Interest"]);
+
     Object.keys(data).forEach((key) => {
         const tr = document.createElement("tr");
         const tdL = document.createElement("td");
@@ -438,6 +440,11 @@ async function renderControlPanelView() {
         inp.style.width = "100%";
         inp.style.boxSizing = "border-box";
         inp.style.padding = "6px 8px";
+        if (CP_READONLY_KEYS.has(key)) {
+            inp.readOnly = true;
+            inp.style.background = "#f5f5f5";
+            inp.style.color = "#333";
+        }
         tdR.appendChild(inp);
         tr.appendChild(tdL);
         tr.appendChild(tdR);
@@ -445,6 +452,29 @@ async function renderControlPanelView() {
     });
     table.appendChild(tbody);
     wrap.appendChild(table);
+
+    function recomputeCpDerived() {
+        const getVal = (k) => {
+            const el = wrap.querySelector(`input[data-key="${k}"]`);
+            if (!el) return 0;
+            const v = parseFloat(el.value);
+            return Number.isNaN(v) ? 0 : v;
+        };
+        const setVal = (k, v) => {
+            const el = wrap.querySelector(`input[data-key="${k}"]`);
+            if (el) el.value = v;
+        };
+        const edfInterest = getVal("SOFR") + getVal("EDF Rate");
+        setVal("EDF Interest Rate", Math.round(edfInterest * 100) / 100);
+        const certInterest = ((getVal("Daily Spot") + getVal("Basis")) / 12) * edfInterest;
+        setVal("Cert Interest", Math.round(certInterest * 100) / 100);
+    }
+
+    for (const triggerKey of ["SOFR", "EDF Rate", "Daily Spot", "Basis"]) {
+        const el = wrap.querySelector(`input[data-key="${triggerKey}"]`);
+        if (el) el.addEventListener("input", recomputeCpDerived);
+    }
+    recomputeCpDerived();
 
     const btnRow = document.createElement("div");
     btnRow.style.marginTop = "12px";
@@ -1685,7 +1715,15 @@ async function renderControlPanelView() {
     for (const inp of wrap.querySelectorAll("input[data-key]")) {
         inp.addEventListener("focus", () => {
             const k = inp.dataset.key;
-            showJarvisDerivation(`[control_panel] "${k}" — independent value`);
+            if (k === "SOFR") {
+                showJarvisDerivation(`[control_panel] "SOFR" — independent value (will be API-driven, not yet implemented)`);
+            } else if (k === "EDF Interest Rate") {
+                showJarvisDerivation(`[control_panel] "EDF Interest Rate" = SOFR + EDF Rate — computed`);
+            } else if (k === "Cert Interest") {
+                showJarvisDerivation(`[control_panel] "Cert Interest" = ((Daily Spot + Basis) / 12) × EDF Interest Rate — computed`);
+            } else {
+                showJarvisDerivation(`[control_panel] "${k}" — independent value`);
+            }
         });
     }
 

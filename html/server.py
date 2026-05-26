@@ -31,7 +31,10 @@ CONTROL_PANEL_DEFAULTS = {
     "Ocean GRI": 250.0,
     "Buffer": 0.00,
     "Avg Purchase Price": 0.70,
-    "EDF Interest Rate": 6.50,
+    "SOFR": 0.00,
+    "EDF Rate": 0.00,
+    "EDF Interest Rate": 0.00,
+    "Cert Interest": 0.00,
     "Origin Commission": 0.00,
     "Avg Bale Weight": 500.00,
     "Daily Spot": 0.00,
@@ -451,6 +454,19 @@ def _persist_control_panel() -> None:
     db.save_control_panel(control_panel)
 
 
+def _recompute_control_panel_derived() -> None:
+    """Recompute derived control panel values.
+    EDF Interest Rate = SOFR + EDF Rate
+    Cert Interest = ((Daily Spot + Basis) / 12) * EDF Interest Rate
+    """
+    sofr = _to_float(control_panel.get("SOFR"), 0.0)
+    edf_rate = _to_float(control_panel.get("EDF Rate"), 0.0)
+    control_panel["EDF Interest Rate"] = sofr + edf_rate
+    daily_spot = _to_float(control_panel.get("Daily Spot"), 0.0)
+    basis = _to_float(control_panel.get("Basis"), 0.0)
+    control_panel["Cert Interest"] = round(((daily_spot + basis) / 12.0) * control_panel["EDF Interest Rate"], 2)
+
+
 def _reload_control_panel() -> None:
     global control_panel
     loaded = db.get_control_panel()
@@ -462,6 +478,7 @@ def _reload_control_panel() -> None:
         control_panel = merged
     else:
         control_panel = dict(CONTROL_PANEL_DEFAULTS)
+    _recompute_control_panel_derived()
 
 
 def _sync_control_panel_from_disk_if_needed() -> None:
@@ -480,6 +497,7 @@ def _init_control_panel() -> None:
     else:
         control_panel = dict(CONTROL_PANEL_DEFAULTS)
         db.save_control_panel(control_panel)
+    _recompute_control_panel_derived()
 
 
 def _deep_copy_consolidation_defaults() -> dict:
@@ -934,6 +952,8 @@ def _otr_destination_port_token(raw: dict, port_names_sorted: list[str]) -> str 
         return "Memphis"
     if "HOUSTON" in blob or "PASADENA" in blob or "BAYTOWN" in blob:
         return "Houston"
+    if "DALLAS" in blob:
+        return "Dallas"
     if dc_norm == "SHELBY" and "NC" in state_u:
         return "Shelby"
 
@@ -1093,6 +1113,7 @@ def control_panel_api():
             control_panel[key] = float(payload[key])
         except (TypeError, ValueError):
             return jsonify({"error": f"Invalid number for {key!r}"}), 400
+    _recompute_control_panel_derived()
     _persist_control_panel()
     return jsonify(control_panel)
 
