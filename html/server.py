@@ -747,7 +747,7 @@ def _document_cif_with_prepaid(rows: list) -> list:
         row = {**r, "dthc_prepaid": _document_cif_dthc_prepaid(r)}
         cc = str(row.get("code", "")).strip().upper()
         avg_cost = avg_by_cc.get(cc, 0.0)
-        row["LC"] = round((avg_cost * 0.1) * lc_multiplier)
+        row["LC"] = round((avg_cost * 0.01) * lc_multiplier)
         lc_usa = _to_float(row.get("LC_USA"), 0.0)
         row["COF"] = round((lc_usa / 365.0) * cof_factor)
         row["COM"] = com_value
@@ -810,7 +810,7 @@ def _recompute_document_cif_computed() -> None:
     for row in document_cif:
         cc = str(row.get("code", "")).strip().upper()
         avg_cost = avg_by_cc.get(cc, 0.0)
-        row["LC"] = round((avg_cost * 0.1) * lc_multiplier)
+        row["LC"] = round((avg_cost * 0.01) * lc_multiplier)
         lc_usa = _to_float(row.get("LC_USA"), 0.0)
         row["COF"] = round((lc_usa / 365.0) * cof_factor)
         row["COM"] = com_value

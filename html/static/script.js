@@ -1673,6 +1673,104 @@ async function renderControlPanelView() {
     }
     refreshAllConsolidationMonths();
 
+    // --- Cell derivation for Jarvis view ---
+    const derivPanel = document.getElementById("cell-derivation");
+    function showJarvisDerivation(text) {
+        if (!derivPanel) return;
+        derivPanel.style.display = "block";
+        derivPanel.textContent = text;
+    }
+
+    // Control panel
+    for (const inp of wrap.querySelectorAll("input[data-key]")) {
+        inp.addEventListener("focus", () => {
+            const k = inp.dataset.key;
+            showJarvisDerivation(`[control_panel] "${k}" — independent value`);
+        });
+    }
+
+    // Consolidation
+    for (const inp of wrap.querySelectorAll("input[data-consol-region]")) {
+        inp.addEventListener("focus", () => {
+            const region = inp.dataset.consolRegion;
+            const field = inp.dataset.consolField;
+            if (field === "month") {
+                showJarvisDerivation(`[consolidation] "${region}" → month = storage × Days Storage — computed`);
+            } else {
+                showJarvisDerivation(`[consolidation] "${region}" → ${field} — independent value`);
+            }
+        });
+    }
+
+    // Consolidation Days Storage
+    for (const inp of wrap.querySelectorAll("input[data-cds-key]")) {
+        inp.addEventListener("focus", () => {
+            const k = inp.getAttribute("data-cds-key");
+            showJarvisDerivation(`[consolidation_days_storage] "${k}" — independent value`);
+        });
+    }
+
+    // Drayage
+    for (const inp of wrap.querySelectorAll("input[data-drayage-field]")) {
+        inp.addEventListener("focus", () => {
+            const field = inp.dataset.drayageField;
+            const regionInp = inp.closest("tr")?.querySelector('input[data-drayage-field="__region__"]');
+            const region = regionInp ? regionInp.value : "?";
+            if (field === "__region__") {
+                showJarvisDerivation(`[drayage] region name — independent value`);
+            } else {
+                showJarvisDerivation(`[drayage] "${region}" → ${field} — independent value`);
+            }
+        });
+    }
+
+    // Document / CIF
+    for (const inp of wrap.querySelectorAll("input[data-doc-cif-field]")) {
+        inp.addEventListener("focus", () => {
+            const field = inp.dataset.docCifField;
+            const countryInp = inp.closest("tr")?.querySelector('input[data-doc-cif-field="country"]');
+            const codeInp = inp.closest("tr")?.querySelector('input[data-doc-cif-field="code"]');
+            const country = countryInp ? countryInp.value : "?";
+            const code = codeInp ? codeInp.value : "?";
+            if (field === "LC") {
+                const lcSource = code.toUpperCase() === "CN"
+                    ? "avg of Rabo, Credit Agricole, Intesa from lc_bank_cost[CN]"
+                    : `avg lowest 3 from lc_bank_cost[${code}]`;
+                showJarvisDerivation(`[document_cif] "${country}" (${code}) → LC = round((${lcSource} × 0.01) × (Daily Spot + Basis)) — computed`);
+            } else if (field === "COM") {
+                showJarvisDerivation(`[document_cif] "${country}" (${code}) → COM = round(Daily Spot + Basis × 0.1) — computed from control_panel`);
+            } else if (field === "COF") {
+                showJarvisDerivation(`[document_cif] "${country}" (${code}) → COF = round((LC_USA / 365) × (EDF Interest Rate × Daily Spot)) — computed from control_panel`);
+            } else if (field === "dthc_prepaid") {
+                showJarvisDerivation(`[dthc_prepaid] "${country}" (${code}) → DTHC Prepaid — read-only lookup by Code or Country`);
+            } else {
+                showJarvisDerivation(`[document_cif] "${country}" (${code}) → ${field} — independent value`);
+            }
+        });
+    }
+
+    // USA Forwarding Cost
+    for (const inp of wrap.querySelectorAll("input[data-usa-fwd-key]")) {
+        inp.addEventListener("focus", () => {
+            const k = inp.dataset.usaFwdKey;
+            if (k === "TOTAL") {
+                showJarvisDerivation(`[usa_forwarding_cost] TOTAL = (COO + FHTO) ÷ AVG Shipment — computed`);
+            } else {
+                showJarvisDerivation(`[usa_forwarding_cost] "${k}" — independent value`);
+            }
+        });
+    }
+
+    // Themes
+    for (const inp of wrap.querySelectorAll("input[data-theme-field]")) {
+        inp.addEventListener("focus", () => {
+            const field = inp.getAttribute("data-theme-field");
+            const countryInp = inp.closest("tr")?.querySelector('input[data-theme-field="Country"]');
+            const country = countryInp ? countryInp.value : "?";
+            showJarvisDerivation(`[themes] "${country}" → ${field} — independent value`);
+        });
+    }
+
     content.appendChild(wrap);
 }
 

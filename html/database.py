@@ -1192,22 +1192,37 @@ def save_lc_bank_cost(data: list[dict]) -> None:
     conn.commit()
 
 
+_LC_BANK_COST_CN_BANKS = ("Rabo", "Credit Agricole", "Intesa")
+
+
 def get_lc_bank_cost_avg_lowest_3() -> dict[str, float]:
-    """Return {country_code: avg_of_lowest_3_values} from lc_bank_cost."""
+    """Return {country_code: avg_of_lowest_3_values} from lc_bank_cost.
+    Exception: CN uses the average of Rabo, Credit Agricole, and Intesa instead.
+    """
     conn = _get_conn()
+    # General: lowest 3 for all non-CN countries
     rows = conn.execute("""
         WITH ranked AS (
             SELECT country_code, value,
                    ROW_NUMBER() OVER (PARTITION BY country_code ORDER BY value ASC) AS rn
             FROM lc_bank_cost
-            WHERE value IS NOT NULL
+            WHERE value IS NOT NULL AND country_code != 'CN'
         )
         SELECT country_code, AVG(value) AS avg_lowest_3
         FROM ranked
         WHERE rn <= 3
         GROUP BY country_code
     """).fetchall()
-    return {r["country_code"]: r["avg_lowest_3"] for r in rows}
+    result = {r["country_code"]: r["avg_lowest_3"] for r in rows}
+    # CN exception: average of specific banks
+    cn_row = conn.execute(
+        "SELECT AVG(value) AS avg_val FROM lc_bank_cost "
+        "WHERE country_code = 'CN' AND bank IN (?, ?, ?) AND value IS NOT NULL",
+        _LC_BANK_COST_CN_BANKS,
+    ).fetchone()
+    if cn_row and cn_row["avg_val"] is not None:
+        result["CN"] = cn_row["avg_val"]
+    return result
 
 
 def _ensure_lc_bank_cost_seeded(conn: sqlite3.Connection) -> None:
