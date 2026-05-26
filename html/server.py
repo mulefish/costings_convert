@@ -34,6 +34,8 @@ CONTROL_PANEL_DEFAULTS = {
     "EDF Interest Rate": 6.50,
     "Origin Commission": 0.00,
     "Avg Bale Weight": 500.00,
+    "Daily Spot": 0.00,
+    "Basis": 0.00,
     "OTR FSC Multiplier": 1.50,
     "OTR Buffer (USD)": 50.00,
     "InAndOut": 2.7,
@@ -92,7 +94,12 @@ DRAYAGE_DEFAULTS: dict = {
     },
 }
 
-DOCUMENT_CIF_NUMERIC_KEYS = frozenset({"GRI", "LC", "INS", "CONT", "COM", "COF", "CIQ_QC"})
+DOCUMENT_CIF_NUMERIC_KEYS = frozenset({
+    "GRI", "LC", "INS", "CONT", "COM", "COF", "CIQ_QC",
+    "CAD_USA", "CAD_BRZ", "CAD_AUS",
+    "LC_USA", "LC_BRZ", "LC_AUS",
+    "COA_USA", "COA_BRZ", "COA_AUS",
+})
 
 CIF_REGIONS_DEFAULT: tuple[str, ...] = (
     "WTX",
@@ -447,8 +454,10 @@ def _reload_control_panel() -> None:
     global control_panel
     loaded = db.get_control_panel()
     if loaded:
-        merged = dict(CONTROL_PANEL_DEFAULTS)
-        merged.update(loaded)
+        merged = {k: loaded.get(k, v) for k, v in CONTROL_PANEL_DEFAULTS.items()}
+        for k, v in loaded.items():
+            if k not in merged:
+                merged[k] = v
         control_panel = merged
     else:
         control_panel = dict(CONTROL_PANEL_DEFAULTS)
@@ -462,8 +471,10 @@ def _init_control_panel() -> None:
     global control_panel
     loaded = db.get_control_panel()
     if loaded:
-        merged = dict(CONTROL_PANEL_DEFAULTS)
-        merged.update(loaded)
+        merged = {k: loaded.get(k, v) for k, v in CONTROL_PANEL_DEFAULTS.items()}
+        for k, v in loaded.items():
+            if k not in merged:
+                merged[k] = v
         control_panel = merged
     else:
         control_panel = dict(CONTROL_PANEL_DEFAULTS)
@@ -723,7 +734,19 @@ def _document_cif_dthc_prepaid(row: dict) -> str:
 
 
 def _document_cif_with_prepaid(rows: list) -> list:
-    return [{**r, "dthc_prepaid": _document_cif_dthc_prepaid(r)} for r in rows]
+    edf = _to_float(control_panel.get("EDF Interest Rate"), 0.0)
+    daily_spot = _to_float(control_panel.get("Daily Spot"), 0.0)
+    basis = _to_float(control_panel.get("Basis"), 0.0)
+    cof_factor = edf * daily_spot
+    com_value = round(daily_spot + basis * 0.1)
+    result = []
+    for r in rows:
+        row = {**r, "dthc_prepaid": _document_cif_dthc_prepaid(r)}
+        lc_usa = _to_float(row.get("LC_USA"), 0.0)
+        row["COF"] = round((lc_usa / 365.0) * cof_factor)
+        row["COM"] = com_value
+        result.append(row)
+    return result
 
 
 def _normalize_document_cif_row(raw: dict) -> dict:
@@ -733,7 +756,8 @@ def _normalize_document_cif_row(raw: dict) -> dict:
     }
     for k in DOCUMENT_CIF_NUMERIC_KEYS:
         v = raw.get(k)
-        if k == "GRI":
+        default_zero = k == "GRI" or k.startswith(("CAD_", "LC_", "COA_"))
+        if default_zero:
             if v is None:
                 out[k] = 0.0
                 continue
@@ -764,7 +788,24 @@ def _merge_document_cif_loaded(loaded) -> list:
     return [_normalize_document_cif_row(r) for r in loaded if isinstance(r, dict)]
 
 
+def _recompute_document_cif_computed() -> None:
+    """Overwrite computed columns on every in-memory document_cif row.
+    COF = round((LC_USA / 365) * (EDF Interest Rate * Daily Spot))
+    COM = round(Daily Spot + Basis * 0.1)
+    """
+    edf = _to_float(control_panel.get("EDF Interest Rate"), 0.0)
+    daily_spot = _to_float(control_panel.get("Daily Spot"), 0.0)
+    basis = _to_float(control_panel.get("Basis"), 0.0)
+    cof_factor = edf * daily_spot
+    com_value = round(daily_spot + basis * 0.1)
+    for row in document_cif:
+        lc_usa = _to_float(row.get("LC_USA"), 0.0)
+        row["COF"] = round((lc_usa / 365.0) * cof_factor)
+        row["COM"] = com_value
+
+
 def _persist_document_cif() -> None:
+    _recompute_document_cif_computed()
     db.save_document_cif(document_cif)
 
 
@@ -772,6 +813,7 @@ def _reload_document_cif() -> None:
     global document_cif
     loaded = db.get_document_cif()
     document_cif = _merge_document_cif_loaded(loaded)
+    _recompute_document_cif_computed()
 
 
 def _reload_document_cif_from_disk() -> None:
@@ -786,6 +828,7 @@ def _init_document_cif() -> None:
     else:
         document_cif = []
         db.save_document_cif(document_cif)
+    _recompute_document_cif_computed()
 
 
 def _recompute_usa_forwarding_total() -> None:
@@ -955,7 +998,8 @@ def document_cif_api():
         }
         for k in DOCUMENT_CIF_NUMERIC_KEYS:
             v = raw.get(k)
-            if k == "GRI":
+            _default_zero = k == "GRI" or k.startswith(("CAD_", "LC_", "COA_"))
+            if _default_zero:
                 if v is None:
                     row[k] = 0.0
                 elif isinstance(v, str) and not str(v).strip():

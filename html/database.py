@@ -33,6 +33,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     _ensure_dthc_prepaid_country_code_column(conn)
     _ensure_dthc_prepaid_seeded(conn)
     _ensure_document_cif_gri_column(conn)
+    _ensure_document_cif_cad_lc_coa_columns(conn)
     _ensure_drayage_gri_column(conn)
     _ensure_cif_regions_drop_brz_aus(conn)
     conn.commit()
@@ -289,6 +290,27 @@ def _ensure_document_cif_gri_column(conn: sqlite3.Connection) -> None:
     cols = {row[1] for row in conn.execute("PRAGMA table_info(document_cif)").fetchall()}
     if "gri" not in cols:
         conn.execute("ALTER TABLE document_cif ADD COLUMN gri REAL NOT NULL DEFAULT 0")
+        conn.commit()
+
+
+def _ensure_document_cif_cad_lc_coa_columns(conn: sqlite3.Connection) -> None:
+    """Add CAD_USA/BRZ/AUS, LC_USA/BRZ/AUS, COA_USA/BRZ/AUS columns."""
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='document_cif'"
+    ).fetchone():
+        return
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(document_cif)").fetchall()}
+    new_cols = {
+        "cad_usa": 14, "cad_brz": 18, "cad_aus": 14,
+        "lc_usa": 21, "lc_brz": 65, "lc_aus": 14,
+        "coa_usa": 30, "coa_brz": 14, "coa_aus": 40,
+    }
+    changed = False
+    for col, default in new_cols.items():
+        if col not in cols:
+            conn.execute(f"ALTER TABLE document_cif ADD COLUMN {col} REAL NOT NULL DEFAULT {default}")
+            changed = True
+    if changed:
         conn.commit()
 
 
@@ -1010,7 +1032,8 @@ def save_drayage(data: dict) -> None:
 def get_document_cif() -> list[dict]:
     conn = _get_conn()
     rows = conn.execute(
-        "SELECT country, code, lc, ins, cont, com, cof, ciq_qc, gri "
+        "SELECT country, code, lc, ins, cont, com, cof, ciq_qc, gri, "
+        "cad_usa, cad_brz, cad_aus, lc_usa, lc_brz, lc_aus, coa_usa, coa_brz, coa_aus "
         "FROM document_cif ORDER BY id"
     ).fetchall()
     return [
@@ -1024,6 +1047,15 @@ def get_document_cif() -> list[dict]:
             "COF": r["cof"],
             "CIQ_QC": r["ciq_qc"],
             "GRI": r["gri"],
+            "CAD_USA": r["cad_usa"],
+            "CAD_BRZ": r["cad_brz"],
+            "CAD_AUS": r["cad_aus"],
+            "LC_USA": r["lc_usa"],
+            "LC_BRZ": r["lc_brz"],
+            "LC_AUS": r["lc_aus"],
+            "COA_USA": r["coa_usa"],
+            "COA_BRZ": r["coa_brz"],
+            "COA_AUS": r["coa_aus"],
         }
         for r in rows
     ]
@@ -1050,11 +1082,21 @@ def save_document_cif(data: list[dict]) -> None:
                 row.get("COF"),
                 row.get("CIQ_QC"),
                 gri_f,
+                float(row.get("CAD_USA") or 0),
+                float(row.get("CAD_BRZ") or 0),
+                float(row.get("CAD_AUS") or 0),
+                float(row.get("LC_USA") or 0),
+                float(row.get("LC_BRZ") or 0),
+                float(row.get("LC_AUS") or 0),
+                float(row.get("COA_USA") or 0),
+                float(row.get("COA_BRZ") or 0),
+                float(row.get("COA_AUS") or 0),
             )
         )
     conn.executemany(
-        "INSERT INTO document_cif (country, code, lc, ins, cont, com, cof, ciq_qc, gri) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO document_cif (country, code, lc, ins, cont, com, cof, ciq_qc, gri, "
+        "cad_usa, cad_brz, cad_aus, lc_usa, lc_brz, lc_aus, coa_usa, coa_brz, coa_aus) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         params,
     )
     conn.commit()

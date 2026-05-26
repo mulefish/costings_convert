@@ -396,6 +396,12 @@ async function renderControlPanelView() {
         return Number.isFinite(fallback) ? fallback : 14;
     }
 
+    const hCp = document.createElement("h3");
+    hCp.style.marginTop = "28px";
+    hCp.style.marginBottom = "8px";
+    hCp.textContent = "Control Panel (table: control_panel)";
+    wrap.appendChild(hCp);
+
     const table = document.createElement("table");
     table.style.borderCollapse = "collapse";
     table.style.marginTop = "8px";
@@ -936,9 +942,18 @@ async function renderControlPanelView() {
         { key: "LC", label: "LC", kind: "number" },
         { key: "INS", label: "INS", kind: "number" },
         { key: "CONT", label: "CONT", kind: "number" },
-        { key: "COM", label: "COM", kind: "number" },
-        { key: "COF", label: "COF", kind: "number" },
+        { key: "COM", label: "COM", kind: "readonly" },
+        { key: "COF", label: "COF", kind: "readonly" },
         { key: "CIQ_QC", label: "CIQ/QC", kind: "number" },
+        { key: "CAD_USA", label: "USA", kind: "number", defaultZero: true, group: "CAD" },
+        { key: "CAD_BRZ", label: "BRZ", kind: "number", defaultZero: true, group: "CAD" },
+        { key: "CAD_AUS", label: "AUS", kind: "number", defaultZero: true, group: "CAD" },
+        { key: "LC_USA", label: "USA", kind: "number", defaultZero: true, group: "LC" },
+        { key: "LC_BRZ", label: "BRZ", kind: "number", defaultZero: true, group: "LC" },
+        { key: "LC_AUS", label: "AUS", kind: "number", defaultZero: true, group: "LC" },
+        { key: "COA_USA", label: "USA", kind: "number", defaultZero: true, group: "COA" },
+        { key: "COA_BRZ", label: "BRZ", kind: "number", defaultZero: true, group: "COA" },
+        { key: "COA_AUS", label: "AUS", kind: "number", defaultZero: true, group: "COA" },
     ];
 
     const hDocCif = document.createElement("h3");
@@ -963,25 +978,56 @@ async function renderControlPanelView() {
     docCifTable.style.marginTop = "8px";
     docCifTable.style.minWidth = "920px";
     const docCifThead = document.createElement("thead");
+
+    // Build two header rows: row1 has ungrouped cols (rowspan=2) + group spans; row2 has sub-headers
     const docCifHr = document.createElement("tr");
-    DOC_CIF_FIELDS.forEach(({ label }) => {
-        const th = document.createElement("th");
-        th.textContent = label;
+    const docCifHr2 = document.createElement("tr");
+    const thStyle = (th) => {
         th.style.border = "1px solid #d9d9d9";
         th.style.padding = "6px 10px";
         th.style.background = "#2f5fa7";
         th.style.color = "#fff";
+        th.style.textAlign = "center";
+    };
+
+    const groups = [];
+    let lastGroup = null;
+    DOC_CIF_FIELDS.forEach(({ label, group }) => {
+        if (!group) {
+            const th = document.createElement("th");
+            th.textContent = label;
+            th.rowSpan = 2;
+            thStyle(th);
+            docCifHr.appendChild(th);
+        } else {
+            if (group !== lastGroup) {
+                groups.push({ name: group, count: 1 });
+                lastGroup = group;
+            } else {
+                groups[groups.length - 1].count++;
+            }
+            const subTh = document.createElement("th");
+            subTh.textContent = label;
+            thStyle(subTh);
+            docCifHr2.appendChild(subTh);
+        }
+    });
+    groups.forEach(({ name, count }) => {
+        const th = document.createElement("th");
+        th.textContent = name;
+        th.colSpan = count;
+        thStyle(th);
         docCifHr.appendChild(th);
     });
+
     const docCifThActions = document.createElement("th");
     docCifThActions.textContent = "";
-    docCifThActions.style.border = "1px solid #d9d9d9";
-    docCifThActions.style.padding = "6px 10px";
-    docCifThActions.style.background = "#2f5fa7";
-    docCifThActions.style.color = "#fff";
+    docCifThActions.rowSpan = 2;
+    thStyle(docCifThActions);
     docCifThActions.style.width = "88px";
     docCifHr.appendChild(docCifThActions);
     docCifThead.appendChild(docCifHr);
+    docCifThead.appendChild(docCifHr2);
     docCifTable.appendChild(docCifThead);
     const docCifTbody = document.createElement("tbody");
     docCifTbody.id = "jarvis-doc-cif-tbody";
@@ -1079,7 +1125,7 @@ async function renderControlPanelView() {
     addDocCifBtn.style.padding = "8px 16px";
     addDocCifBtn.style.cursor = "pointer";
     addDocCifBtn.addEventListener("click", () => {
-        addJarvisDocCifRow({ GRI: 0 });
+        addJarvisDocCifRow({ GRI: 0, CAD_USA: 14, CAD_BRZ: 18, CAD_AUS: 14, LC_USA: 21, LC_BRZ: 65, LC_AUS: 14, COA_USA: 30, COA_BRZ: 14, COA_AUS: 40 });
     });
 
     const saveDocCifBtn = document.createElement("button");
@@ -1126,7 +1172,10 @@ async function renderControlPanelView() {
                     rowObj.CONT != null ||
                     rowObj.COM != null ||
                     rowObj.COF != null ||
-                    rowObj.CIQ_QC != null;
+                    rowObj.CIQ_QC != null ||
+                    rowObj.CAD_USA !== 0 || rowObj.CAD_BRZ !== 0 || rowObj.CAD_AUS !== 0 ||
+                    rowObj.LC_USA !== 0 || rowObj.LC_BRZ !== 0 || rowObj.LC_AUS !== 0 ||
+                    rowObj.COA_USA !== 0 || rowObj.COA_BRZ !== 0 || rowObj.COA_AUS !== 0;
                 if (!hasOther) {
                     continue;
                 }
