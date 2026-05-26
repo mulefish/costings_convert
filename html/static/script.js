@@ -1732,6 +1732,11 @@ async function select_view() {
         return;
     }
 
+    if (viewName === "LC_Bank_Cost") {
+        await renderLcBankCostView();
+        return;
+    }
+
     const config = getViewConfig(viewName);
     if (!config) {
         return;
@@ -6407,6 +6412,150 @@ function _buildExportRows(cifByRegion, exportOpts) {
     });
     return rows;
 }
+
+async function renderLcBankCostView() {
+    const content = document.getElementById("content");
+    content.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.style.padding = "16px";
+    wrap.style.overflowX = "auto";
+    content.appendChild(wrap);
+
+    const h = document.createElement("h3");
+    h.textContent = "LC Bank Cost (table: lc_bank_cost)";
+    h.style.marginBottom = "8px";
+    wrap.appendChild(h);
+
+    const statusEl = document.createElement("p");
+    statusEl.style.fontSize = "13px";
+    statusEl.style.minHeight = "1.2em";
+    wrap.appendChild(statusEl);
+
+    let banks = [];
+    let rows = [];
+    try {
+        const res = await fetch("/api/lc-bank-cost");
+        if (!res.ok) throw new Error(res.statusText);
+        const data = await res.json();
+        banks = data.banks || [];
+        rows = data.rows || [];
+    } catch (err) {
+        statusEl.textContent = "Could not load LC Bank Cost: " + err.message;
+        statusEl.style.color = "#b00020";
+        return;
+    }
+
+    const table = document.createElement("table");
+    table.style.borderCollapse = "collapse";
+    table.style.marginTop = "8px";
+    table.style.fontSize = "12px";
+
+    const thStyle = (el) => {
+        el.style.border = "1px solid #d9d9d9";
+        el.style.padding = "4px 4px";
+        el.style.background = "#2f5fa7";
+        el.style.color = "#fff";
+        el.style.textAlign = "center";
+        el.style.fontSize = "11px";
+        el.style.minWidth = "50px";
+        el.style.wordBreak = "break-word";
+        el.style.lineHeight = "1.2";
+    };
+
+    const thead = document.createElement("thead");
+    const hr = document.createElement("tr");
+    const thCC = document.createElement("th");
+    thCC.textContent = "Code";
+    thStyle(thCC);
+    hr.appendChild(thCC);
+    banks.forEach((bank) => {
+        const th = document.createElement("th");
+        th.textContent = bank;
+        thStyle(th);
+        hr.appendChild(th);
+    });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        const tdCC = document.createElement("td");
+        tdCC.textContent = row.country_code || "";
+        tdCC.style.border = "1px solid #d9d9d9";
+        tdCC.style.padding = "4px 6px";
+        tdCC.style.fontWeight = "bold";
+        applyCountryThemeToTd(tdCC, row.country_code || "");
+        tr.appendChild(tdCC);
+        banks.forEach((bank) => {
+            const td = document.createElement("td");
+            td.style.border = "1px solid #d9d9d9";
+            td.style.padding = "4px 6px";
+            const inp = document.createElement("input");
+            inp.type = "number";
+            inp.step = "any";
+            inp.style.width = "50px";
+            inp.style.padding = "2px 2px";
+            inp.style.boxSizing = "border-box";
+            inp.style.textAlign = "right";
+            const v = row[bank];
+            inp.value = v !== null && v !== undefined ? v : "";
+            inp.dataset.cc = row.country_code || "";
+            inp.dataset.bank = bank;
+            td.appendChild(inp);
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+
+    const btnRow = document.createElement("div");
+    btnRow.style.marginTop = "12px";
+    btnRow.style.display = "flex";
+    btnRow.style.gap = "8px";
+
+    const saveBtn = document.createElement("button");
+    saveBtn.type = "button";
+    saveBtn.textContent = "Save LC Bank Cost";
+    saveBtn.style.padding = "8px 16px";
+    saveBtn.style.cursor = "pointer";
+    saveBtn.addEventListener("click", async () => {
+        statusEl.textContent = "";
+        statusEl.style.color = "";
+        const body = [];
+        const trList = tbody.querySelectorAll("tr");
+        for (const tr of trList) {
+            const inputs = tr.querySelectorAll("input");
+            if (!inputs.length) continue;
+            const rowObj = { country_code: inputs[0].dataset.cc };
+            for (const inp of inputs) {
+                const s = inp.value.trim();
+                rowObj[inp.dataset.bank] = s === "" ? null : parseFloat(s);
+            }
+            body.push(rowObj);
+        }
+        try {
+            const res = await fetch("/api/lc-bank-cost", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || res.statusText);
+            }
+            statusEl.textContent = "LC Bank Cost saved.";
+            statusEl.style.color = "#1b5e20";
+        } catch (err) {
+            statusEl.textContent = err.message || "Save failed.";
+            statusEl.style.color = "#b00020";
+        }
+    });
+    btnRow.appendChild(saveBtn);
+    wrap.appendChild(btnRow);
+}
+
 
 async function renderExportTable() {
     const content = document.getElementById("content");

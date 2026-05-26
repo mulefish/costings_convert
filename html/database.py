@@ -36,6 +36,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     _ensure_document_cif_cad_lc_coa_columns(conn)
     _ensure_drayage_gri_column(conn)
     _ensure_cif_regions_drop_brz_aus(conn)
+    _ensure_lc_bank_cost_seeded(conn)
     conn.commit()
 
 
@@ -96,6 +97,15 @@ CREATE TABLE IF NOT EXISTS cif_regions (
     sort_order INTEGER PRIMARY KEY,
     region     TEXT NOT NULL,
     is_active  INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS lc_bank_cost (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    country_code TEXT NOT NULL,
+    bank         TEXT NOT NULL,
+    value        REAL,
+    is_active    INTEGER NOT NULL DEFAULT 1,
+    UNIQUE(country_code, bank)
 );
 
 CREATE TABLE IF NOT EXISTS notes (
@@ -269,6 +279,7 @@ _ALL_TABLES = (
     "portcode_portcity", "dischargeport_country", "countrycode_country", "ocean_rates_extract", "otr_transit_lookup",
     "export_data",
     "dthc_prepaid",
+    "lc_bank_cost",
 )
 
 
@@ -1097,6 +1108,102 @@ def save_document_cif(data: list[dict]) -> None:
         "INSERT INTO document_cif (country, code, lc, ins, cont, com, cof, ciq_qc, gri, "
         "cad_usa, cad_brz, cad_aus, lc_usa, lc_brz, lc_aus, coa_usa, coa_brz, coa_aus) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        params,
+    )
+    conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# lc_bank_cost
+# ---------------------------------------------------------------------------
+
+LC_BANK_COST_BANKS = [
+    "FAB", "Rabo", "Societe Generale", "Credit Agricole", "Citibank",
+    "Natixis", "Lloyds", "CBD", "Mashreq", "Erste", "ING", "Raiffeisen",
+    "UBS", "MUFG", "UniCredit", "Granti", "Arab Bank", "KBC",
+    "Commerzbank", "Intesa", "BCP", "Nexentbank", "BBVA", "Standard Chartered",
+]
+
+LC_BANK_COST_COUNTRY_CODES = [
+    "CN", "VN", "KO", "JP", "MA", "TW", "ID", "TH",
+    "BD", "PK", "IN", "TR", "MX", "PE", "CO", "EC", "GU", "HO", "ES", "OT",
+]
+
+_LC_BANK_COST_SEED: dict[str, dict[str, float | None]] = {
+    "CN": {"FAB": 40, "Rabo": 16, "Societe Generale": 60, "Credit Agricole": 35, "Citibank": 30, "Natixis": 40, "Lloyds": 15, "CBD": 55, "Mashreq": 25, "Erste": 35, "ING": 35, "Raiffeisen": 30, "UBS": 50, "MUFG": 20, "UniCredit": 50, "Granti": 30, "Arab Bank": 55, "KBC": 25, "Commerzbank": 65, "Intesa": 30, "BCP": 45, "Nexentbank": 60, "BBVA": 80, "Standard Chartered": 50},
+    "VN": {"FAB": 60, "Rabo": 65, "Societe Generale": 150, "Credit Agricole": 80, "Citibank": 155, "Natixis": 55, "CBD": 100, "Mashreq": 70, "ING": 60, "Raiffeisen": 60, "UBS": 45, "MUFG": 90, "UniCredit": 70, "Granti": 90, "KBC": 120, "Commerzbank": 70, "Intesa": 85, "BCP": 70, "Nexentbank": 115, "Standard Chartered": 100},
+    "KO": {"FAB": 30, "Rabo": 50, "Societe Generale": 70, "Credit Agricole": 30, "Citibank": 15, "Natixis": 40, "Lloyds": 5, "CBD": 55, "Mashreq": 20, "Erste": 28, "ING": 40, "Raiffeisen": 20, "UBS": 50, "MUFG": 20, "UniCredit": 25, "Granti": 30, "Arab Bank": 55, "KBC": 25, "Commerzbank": 25, "Intesa": 35, "BBVA": 20, "Standard Chartered": 50},
+    "TW": {"FAB": 20, "Rabo": 45, "Societe Generale": 90, "Credit Agricole": 35, "Citibank": 20, "Natixis": 40, "Lloyds": 15, "CBD": 55, "Mashreq": 20, "Erste": 35, "ING": 40, "Raiffeisen": 30, "UBS": 50, "MUFG": 40, "UniCredit": 50, "Granti": 30, "Arab Bank": 55, "KBC": 25, "Commerzbank": 80, "Intesa": 35, "BBVA": 55, "Standard Chartered": 250},
+    "ID": {"FAB": 30, "Rabo": 50, "Societe Generale": 80, "Credit Agricole": 40, "Citibank": 40, "Natixis": 45, "Lloyds": 25, "CBD": 55, "Mashreq": 25, "Erste": 40, "ING": 40, "Raiffeisen": 35, "UBS": 60, "MUFG": 40, "UniCredit": 55, "Granti": 30, "Arab Bank": 80, "KBC": 60, "Commerzbank": 85, "Intesa": 40, "Standard Chartered": 150},
+    "TH": {"FAB": 40, "Rabo": 55, "Societe Generale": 80, "Credit Agricole": 40, "Citibank": 50, "Natixis": 50, "Lloyds": 25, "CBD": 55, "Mashreq": 30, "Erste": 40, "ING": 40, "Raiffeisen": 40, "UBS": 60, "MUFG": 30, "UniCredit": 55, "Arab Bank": 80, "KBC": 30, "Commerzbank": 60, "Intesa": 40, "Standard Chartered": 50},
+    "BD": {"FAB": 250, "Rabo": 250, "Citibank": 100, "Mashreq": 400, "ING": 100, "MUFG": 300, "Granti": 250, "Commerzbank": 300, "Intesa": 200, "Standard Chartered": 400},
+    "PK": {"Citibank": 350, "CBD": 160, "Mashreq": 250, "UBS": 350, "UniCredit": 325, "Commerzbank": 300, "Intesa": 280, "Standard Chartered": 450},
+    "IN": {"FAB": 40, "Rabo": 20, "Societe Generale": 80, "Credit Agricole": 65, "Citibank": 35, "Natixis": 45, "Lloyds": 34, "CBD": 55, "Mashreq": 25, "Erste": 50, "ING": 40, "Raiffeisen": 35, "UBS": 60, "MUFG": 30, "UniCredit": 70, "Granti": 40, "Arab Bank": 60, "KBC": 50, "Commerzbank": 55, "Intesa": 40, "Nexentbank": 100, "BBVA": 80, "Standard Chartered": 50},
+    "TR": {"FAB": 130, "Rabo": 90, "Societe Generale": 160, "Credit Agricole": 130, "Citibank": 80, "Natixis": 100, "Lloyds": 90, "CBD": 160, "Mashreq": 95, "Erste": 150, "ING": 150, "Raiffeisen": 200, "UBS": 110, "MUFG": 100, "UniCredit": 75, "Granti": 100, "Arab Bank": 100, "KBC": 175, "Commerzbank": 250, "Intesa": 120, "BCP": 85, "BBVA": 170, "Standard Chartered": 250},
+}
+
+
+def get_lc_bank_cost() -> list[dict]:
+    """Return LC bank cost data as a list of dicts, one per country_code, with bank names as keys."""
+    conn = _get_conn()
+    rows = conn.execute(
+        "SELECT country_code, bank, value FROM lc_bank_cost ORDER BY id"
+    ).fetchall()
+    by_country: dict[str, dict] = {}
+    for r in rows:
+        cc = r["country_code"]
+        if cc not in by_country:
+            by_country[cc] = {"country_code": cc}
+        by_country[cc][r["bank"]] = r["value"]
+    # Ensure all country codes appear in order
+    result = []
+    for cc in LC_BANK_COST_COUNTRY_CODES:
+        result.append(by_country.get(cc, {"country_code": cc}))
+    # Include any extra country codes from DB not in the default list
+    for cc, row in by_country.items():
+        if cc not in LC_BANK_COST_COUNTRY_CODES:
+            result.append(row)
+    return result
+
+
+def save_lc_bank_cost(data: list[dict]) -> None:
+    """Save LC bank cost data. Each dict has country_code + bank name keys with numeric values."""
+    conn = _get_conn()
+    conn.execute("DELETE FROM lc_bank_cost")
+    params: list[tuple] = []
+    for row in data:
+        cc = str(row.get("country_code", "")).strip()
+        if not cc:
+            continue
+        for bank in LC_BANK_COST_BANKS:
+            v = row.get(bank)
+            if v is None or (isinstance(v, str) and not v.strip()):
+                val = None
+            else:
+                try:
+                    val = float(v)
+                except (TypeError, ValueError):
+                    val = None
+            params.append((cc, bank, val))
+    conn.executemany(
+        "INSERT INTO lc_bank_cost (country_code, bank, value) VALUES (?, ?, ?)",
+        params,
+    )
+    conn.commit()
+
+
+def _ensure_lc_bank_cost_seeded(conn: sqlite3.Connection) -> None:
+    """Seed lc_bank_cost if the table is empty."""
+    count = conn.execute("SELECT COUNT(*) FROM lc_bank_cost").fetchone()[0]
+    if count > 0:
+        return
+    params: list[tuple] = []
+    for cc in LC_BANK_COST_COUNTRY_CODES:
+        seed = _LC_BANK_COST_SEED.get(cc, {})
+        for bank in LC_BANK_COST_BANKS:
+            params.append((cc, bank, seed.get(bank)))
+    conn.executemany(
+        "INSERT INTO lc_bank_cost (country_code, bank, value) VALUES (?, ?, ?)",
         params,
     )
     conn.commit()

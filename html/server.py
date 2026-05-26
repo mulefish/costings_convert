@@ -130,6 +130,7 @@ consolidation_days_storage: dict = {}
 drayage: dict = {}
 document_cif: list = []
 usa_forwarding_cost: dict = {}
+lc_bank_cost: list = []
 
 # Must match html/static/db.js (USD/CIF lists match html/static/usd.js / cif.js get*ViewConfig order).
 OTR_COLUMNS = (
@@ -870,6 +871,16 @@ def _init_usa_forwarding_cost() -> None:
         db.save_usa_forwarding_cost(usa_forwarding_cost)
 
 
+def _reload_lc_bank_cost() -> None:
+    global lc_bank_cost
+    lc_bank_cost = db.get_lc_bank_cost()
+
+
+def _init_lc_bank_cost() -> None:
+    global lc_bank_cost
+    lc_bank_cost = db.get_lc_bank_cost()
+
+
 def _normalize_key(value):
     return " ".join(str(value or "").strip().split()).upper()
 
@@ -944,6 +955,7 @@ _init_consolidation()
 _init_drayage()
 _init_document_cif()
 _init_usa_forwarding_cost()
+_init_lc_bank_cost()
 if DATA_DIR.is_dir():
     db.ensure_csv_tables_populated(DATA_DIR)
 
@@ -1034,6 +1046,20 @@ def document_cif_api():
     document_cif.extend(clean)
     _persist_document_cif()
     return jsonify(_document_cif_with_prepaid(document_cif))
+
+
+@app.route("/api/lc-bank-cost", methods=["GET", "POST"])
+def lc_bank_cost_api():
+    global lc_bank_cost
+    if request.method == "GET":
+        _reload_lc_bank_cost()
+        return jsonify({"banks": db.LC_BANK_COST_BANKS, "rows": lc_bank_cost})
+    payload = request.get_json(force=True, silent=True)
+    if not isinstance(payload, list):
+        return jsonify({"error": "JSON array required"}), 400
+    db.save_lc_bank_cost(payload)
+    _reload_lc_bank_cost()
+    return jsonify({"banks": db.LC_BANK_COST_BANKS, "rows": lc_bank_cost})
 
 
 @app.route("/api/control-panel", methods=["GET", "PUT", "POST"])
