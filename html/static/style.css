@@ -38,7 +38,7 @@ thead th:hover {
     background: #234a82;
 }
 
-/* Exact sentinel text ERROR — class added in script.js (_applyCellErrorClass) */
+/* Exact sentinel text N/A — class added in script.js (_applyCellErrorClass) */
 td.cell-error,
 tbody th.cell-error {
     color: #b71c1c !important;

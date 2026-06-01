@@ -3136,9 +3136,9 @@ function dedupeOceanCostingRows(rawRows, columns) {
             base["Ocean Total"] = _roundOceanCostingMoney(oceanTotal);
             base["Total pts"] = _roundOceanCostingMoney((oceanTotal / 88.0) * 20.0);
         } else {
-            base["Ocean Freight"] = "ERROR";
-            base["Ocean Total"] = "ERROR";
-            base["Total pts"] = "ERROR";
+            base["Ocean Freight"] = "N/A";
+            base["Ocean Total"] = "N/A";
+            base["Total pts"] = "N/A";
         }
         merged.push(base);
     }
@@ -4819,13 +4819,13 @@ function renderBasicTable(columns, rows) {
     draw();
 }
 
-/** When cell text is the sentinel ERROR, add `cell-error` for global styling (red). */
+/** When cell text is the sentinel N/A, add `cell-error` for global styling (red). */
 function _applyCellErrorClass(el, value) {
     if (!el) {
         return;
     }
     el.classList.remove("cell-error");
-    if (String(value ?? "").trim().toUpperCase() === "ERROR") {
+    if (String(value ?? "").trim().toUpperCase() === "N/A") {
         el.classList.add("cell-error");
     }
 }
@@ -5677,12 +5677,12 @@ function _exportCifDrayForAbbr(cifByRegion, abbr) {
  */
 function _exportOceanTotalPtsForOutboundRow(oceanCostingRows, baseGroup, cifFe, abbr) {
     if (!Array.isArray(oceanCostingRows)) {
-        return "ERROR";
+        return "N/A";
     }
     const country = _exportNormLoose(baseGroup);
     const fe = String(cifFe || "").trim();
     if (!country || !fe) {
-        return "ERROR";
+        return "N/A";
     }
     const hubs = _exportOceanHubPortsToTry(abbr);
     for (const hub of hubs) {
@@ -5701,13 +5701,13 @@ function _exportOceanTotalPtsForOutboundRow(oceanCostingRows, baseGroup, cifFe, 
                 continue;
             }
             const tps = String(tp).trim();
-            if (tps.toUpperCase() === "ERROR") {
+            if (tps.toUpperCase() === "N/A") {
                 continue;
             }
             return tps;
         }
     }
-    return "ERROR";
+    return "N/A";
 }
 
 function _exportNormLoose(s) {
@@ -5773,7 +5773,7 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
             return "Documentation: Base (country) is blank on this row.";
         }
         if (!_exportDocumentCifFindRow(baseG, documentCifRows)) {
-            return `Documentation: no document_cif row for country "${baseG}" (after canonical name match). Cell = ERROR.`;
+            return `Documentation: no document_cif row for country "${baseG}" (after canonical name match). Cell = N/A.`;
         }
         const lc = _exportDocCifFloatForCountry(baseG, "LC", documentCifRows);
         const ins = _exportDocCifFloatForCountry(baseG, "INS", documentCifRows);
@@ -5806,7 +5806,7 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
             return "CIF: Base (country) is blank on this row.";
         }
         if (!_exportDocumentCifFindRow(baseG, documentCifRows)) {
-            return `CIF: no document_cif row for country "${baseG}" (after canonical name match). Cell = ERROR.`;
+            return `CIF: no document_cif row for country "${baseG}" (after canonical name match). Cell = N/A.`;
         }
         const com = _exportDocCifFloatForCountry(baseG, "COM", documentCifRows);
         const cof = _exportDocCifFloatForCountry(baseG, "COF", documentCifRows);
@@ -5839,9 +5839,9 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
             for (const g of EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS) {
                 const h = _exportHeaderSampleCellDisplayValue(g, abbr, o);
                 const str = String(h ?? "").trim();
-                if (str === "ERROR") {
+                if (str === "N/A") {
                     hasError = true;
-                    parts.push(`${g}=ERROR`);
+                    parts.push(`${g}=N/A`);
                     break;
                 }
                 const n = _exportParseNumericCell(str);
@@ -5850,7 +5850,7 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
                 parts.push(`${g}=${str === "" ? "0" : str}`);
             }
             if (hasError) {
-                return `Total Terms (${abbr}) — header sample: ${parts.join(", ")} → ERROR because a contributing header cell is ERROR.`;
+                return `Total Terms (${abbr}) — header sample: ${parts.join(", ")} → N/A because a contributing header cell is N/A.`;
             }
             return (
                 `Total Terms (${abbr}) — Export header row 3: sum of the values shown in that row for each section at ${abbr} ` +
@@ -5865,9 +5865,9 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
             const k = `${g}|${abbr}`;
             const cell = row[k];
             const str = cell === undefined || cell === null ? "" : String(cell).trim();
-            if (str === "ERROR") {
+            if (str === "N/A") {
                 hasError = true;
-                parts.push(`${g}=ERROR`);
+                parts.push(`${g}=N/A`);
             } else {
                 const n = _exportParseNumericCell(str);
                 const add = Number.isFinite(n) ? n : 0;
@@ -5876,7 +5876,7 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
             }
         }
         if (hasError) {
-            return `Total Terms (${abbr}): ${parts.join(", ")} → ERROR because a contributing cell is ERROR.`;
+            return `Total Terms (${abbr}): ${parts.join(", ")} → N/A because a contributing cell is N/A.`;
         }
         return (
             `Total Terms (${abbr}): sum of this row for region ${abbr} — ` +
@@ -5898,9 +5898,9 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         }
         const cifN = _exportCifTotalTermsCashNumber(cifByRegion, abbr);
         const cifLabel = cifRegion ? `GET /api/cif [ Region="${cifRegion}" ] . Cash (Total Terms)` : "CIF region";
-        if (String(ttStr).trim() === "ERROR") {
+        if (String(ttStr).trim() === "N/A") {
             return (
-                `Premium and Discounts (${abbr}): Export Total Terms is ERROR, so reconcile is omitted — cell is blank. ` +
+                `Premium and Discounts (${abbr}): Export Total Terms is N/A, so reconcile is omitted — cell is blank. ` +
                 `Fix the contributing section(s) for Total Terms (${abbr}) first; Premium is round(Export Total Terms − CIF Cash) when Total Terms is numeric.`
             );
         }
@@ -5945,10 +5945,10 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
                 : "";
         const loc = `Country="${baseG}", Destination≈"${cifFe}", primary hub "${hub || "?"}"`;
         const ptsTrim = String(ptsStr ?? "").trim();
-        if (!ptsTrim || ptsTrim.toUpperCase() === "ERROR") {
+        if (!ptsTrim || ptsTrim.toUpperCase() === "N/A") {
             return (
                 `ERROR: no matching deduped GET /api/ocean row for ${loc}, or ocean Total pts is missing/invalid.${hubNote} ` +
-                `Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = ERROR.`
+                `Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = N/A.`
             );
         }
         const drayN = _exportParseNumericCell(drayStr);
@@ -5956,7 +5956,7 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         const hasD = Number.isFinite(drayN);
         const hasP = Number.isFinite(ptsN);
         if (!hasD && !hasP) {
-            return `ERROR: no numeric CIF Dray and no Ocean Total pts for ${loc}. Cell shows ERROR (not CIF Total_Out).`;
+            return `ERROR: no numeric CIF Dray and no Ocean Total pts for ${loc}. Cell shows N/A (not CIF Total_Out).`;
         }
         const bits = [];
         if (hasD) {
@@ -5993,14 +5993,14 @@ function _exportOutboundLogisticsBodyCell(cifByRegion, exportOpts, exportRow, ab
     const baseG = String(exportRow._exportBaseGroup || exportRow.Base || "").trim();
     const cifFe = String(exportRow["CIF FE"] || "").trim();
     if (!baseG || !cifFe) {
-        return "ERROR";
+        return "N/A";
     }
     const oceanPtsStr = _exportOceanTotalPtsForOutboundRow(opts.oceanCostingRows, baseG, cifFe, abbr);
     const drayStr = _exportCifDrayForAbbr(cifByRegion, abbr);
 
     const oceanRaw = String(oceanPtsStr ?? "").trim();
-    if (!oceanRaw || oceanRaw.toUpperCase() === "ERROR") {
-        return "ERROR";
+    if (!oceanRaw || oceanRaw.toUpperCase() === "N/A") {
+        return "N/A";
     }
     const oceanN = _exportParseNumericCell(oceanPtsStr);
     const drayN = _exportParseNumericCell(drayStr);
@@ -6008,26 +6008,26 @@ function _exportOutboundLogisticsBodyCell(cifByRegion, exportOpts, exportRow, ab
     const hasDray = String(drayStr).trim() !== "" && Number.isFinite(drayN);
 
     if (!hasOcean && !hasDray) {
-        return "ERROR";
+        return "N/A";
     }
     const sum = (hasDray ? drayN : 0) + (hasOcean ? oceanN : 0);
     if (!Number.isFinite(sum)) {
-        return "ERROR";
+        return "N/A";
     }
     return _exportWholeNumberString(sum);
 }
 
-/** Export view: numeric CIF / computed values display as whole numbers; invalid → ERROR. */
+/** Export view: numeric CIF / computed values display as whole numbers; invalid → N/A. */
 function _exportWholeNumberString(raw) {
     if (raw === undefined || raw === null || raw === "") {
         return "";
     }
-    if (String(raw).trim().toUpperCase() === "ERROR") {
-        return "ERROR";
+    if (String(raw).trim().toUpperCase() === "N/A") {
+        return "N/A";
     }
     const n = typeof raw === "number" ? raw : parseFloat(String(raw).replace(/,/g, ""));
     if (!Number.isFinite(n)) {
-        return "ERROR";
+        return "N/A";
     }
     return String(Math.round(n));
 }
@@ -6130,7 +6130,7 @@ function _exportCellValueForGroupRegion(cifByRegion, group, abbr) {
         return "";
     }
     if (!cifRow) {
-        return "ERROR";
+        return "N/A";
     }
     const raw = cifRow[cifKey];
     if (raw === undefined || raw === null || raw === "") {
@@ -6148,7 +6148,7 @@ function _exportFillTotalTermsCellsForRow(row) {
             const key = group + "|" + abbr;
             const raw = row[key];
             const s = raw === undefined || raw === null ? "" : String(raw).trim();
-            if (s === "ERROR") {
+            if (s === "N/A") {
                 hasError = true;
                 break;
             }
@@ -6157,7 +6157,7 @@ function _exportFillTotalTermsCellsForRow(row) {
                 sum += n;
             }
         }
-        row[ttKey] = hasError ? "ERROR" : _exportWholeNumberString(sum);
+        row[ttKey] = hasError ? "N/A" : _exportWholeNumberString(sum);
     });
 }
 
@@ -6195,7 +6195,7 @@ function _exportPremiumDiscountsCell(cifByRegion, row, abbr) {
     }
     const ttKey = "Total Terms|" + abbr;
     const ttStr = row[ttKey];
-    if (String(ttStr).trim() === "ERROR") {
+    if (String(ttStr).trim() === "N/A") {
         return "";
     }
     const cifN = _exportCifTotalTermsCashNumber(cifByRegion, abbr);
@@ -6241,7 +6241,7 @@ function _exportHeaderSampleCellDisplayValue(group, abbr, o) {
         } else {
             samplePts = NaN;
         }
-        return Number.isFinite(samplePts) ? _exportWholeNumberString(samplePts) : "ERROR";
+        return Number.isFinite(samplePts) ? _exportWholeNumberString(samplePts) : "N/A";
     }
     if (group === "CIF") {
         const sampleBase = EXPORT_DATA[0]?.base || "";
@@ -6255,14 +6255,14 @@ function _exportHeaderSampleCellDisplayValue(group, abbr, o) {
         } else {
             samplePts = NaN;
         }
-        return Number.isFinite(samplePts) ? _exportWholeNumberString(samplePts) : "ERROR";
+        return Number.isFinite(samplePts) ? _exportWholeNumberString(samplePts) : "N/A";
     }
     if (group === "Premium and Discounts") {
         if (_exportRegionColumnDeferred(abbr)) {
             return "";
         }
         const ttStr = _exportHeaderSampleTotalTermsForAbbr(abbr, o);
-        if (String(ttStr).trim() === "ERROR") {
+        if (String(ttStr).trim() === "N/A") {
             return "";
         }
         const cifN = _exportCifTotalTermsCashNumber(cifByRegion, abbr);
@@ -6288,7 +6288,7 @@ function _exportHeaderSampleTotalTermsForAbbr(abbr, o) {
     let hasError = false;
     for (const group of EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS) {
         const s = String(_exportHeaderSampleCellDisplayValue(group, abbr, o) ?? "").trim();
-        if (s === "ERROR") {
+        if (s === "N/A") {
             hasError = true;
             break;
         }
@@ -6297,7 +6297,7 @@ function _exportHeaderSampleTotalTermsForAbbr(abbr, o) {
             sum += n;
         }
     }
-    return hasError ? "ERROR" : _exportWholeNumberString(sum);
+    return hasError ? "N/A" : _exportWholeNumberString(sum);
 }
 
 /** Premium header reconcile: 0 = match; larger |Δ| = worse. */
@@ -6326,7 +6326,7 @@ function _applyPremiumReconcileHeaderStyle(th, displayValue, abbr) {
         return;
     }
     const s = String(displayValue ?? "").trim();
-    if (s.toUpperCase() === "ERROR") {
+    if (s.toUpperCase() === "N/A") {
         th.classList.add("cell-error");
         th.title =
             (th.title ? th.title + " " : "") +
@@ -6358,7 +6358,7 @@ function _applyPremiumReconcileHeaderStyle(th, displayValue, abbr) {
 }
 
 /**
- * On Export view load: log every ERROR cell with derivation text, and Premium header
+ * On Export view load: log every N/A cell with derivation text, and Premium header
  * reconcile gaps (non-zero in row 3). Copy console output for debugging.
  */
 function _logExportViewDiagnostics(derivationCtx, rows, columns, headerSampleOpts) {
@@ -6366,7 +6366,7 @@ function _logExportViewDiagnostics(derivationCtx, rows, columns, headerSampleOpt
     rows.forEach((row, rowIdx) => {
         columns.forEach((col) => {
             const val = row[col];
-            if (String(val ?? "").trim().toUpperCase() !== "ERROR") {
+            if (String(val ?? "").trim().toUpperCase() !== "N/A") {
                 return;
             }
             const lines = _exportCellDerivation(row, col, rowIdx, derivationCtx);
@@ -6402,10 +6402,10 @@ function _logExportViewDiagnostics(derivationCtx, rows, columns, headerSampleOpt
             if (!s) {
                 continue;
             }
-            if (s.toUpperCase() === "ERROR") {
+            if (s.toUpperCase() === "N/A") {
                 premiumReconcile.push({
                     region: abbr,
-                    value: "ERROR",
+                    value: "N/A",
                     delta: null,
                     absDelta: null,
                     severity: "error",
@@ -6445,10 +6445,10 @@ function _logExportViewDiagnostics(derivationCtx, rows, columns, headerSampleOpt
     const sampleLabel =
         sampleBase || sampleCifFe ? `${sampleBase} / ${sampleCifFe}` : "(no rows)";
     console.log(
-        `[Export view] ${errorCells.length} ERROR cell(s); ${premiumReconcile.length} Premium header reconcile gap(s). Header sample: ${sampleLabel}`,
+        `[Export view] ${errorCells.length} N/A cell(s); ${premiumReconcile.length} Premium header reconcile gap(s). Header sample: ${sampleLabel}`,
     );
 
-    console.group("[Export view] ERROR cells — column and why");
+    console.group("[Export view] N/A cells — column and why");
     if (errorCells.length === 0) {
         console.log("(none)");
     } else {
@@ -6523,7 +6523,7 @@ function _buildExportRows(cifByRegion, exportOpts) {
                         } else {
                             pts = NaN;
                         }
-                        row[key] = Number.isFinite(pts) ? _exportWholeNumberString(pts) : "ERROR";
+                        row[key] = Number.isFinite(pts) ? _exportWholeNumberString(pts) : "N/A";
                     } else if (group === "CIF") {
                         const map = (exportOpts && exportOpts.exportCifPtsByCountryKey) || {};
                         const ck = _exportNormCountryKey(entry.base);
@@ -6537,7 +6537,7 @@ function _buildExportRows(cifByRegion, exportOpts) {
                         } else {
                             pts = NaN;
                         }
-                        row[key] = Number.isFinite(pts) ? _exportWholeNumberString(pts) : "ERROR";
+                        row[key] = Number.isFinite(pts) ? _exportWholeNumberString(pts) : "N/A";
                     }
                 });
             });
@@ -6996,7 +6996,7 @@ async function renderExportTable() {
                 const val = row[col] ?? "";
                 td.textContent = val;
                 const isNumCol =
-                    val !== "ERROR" &&
+                    val !== "N/A" &&
                     (col.indexOf("|") > 0 || typeof row[col] === "number");
                 td.className = isNumCol ? "td-num" : "td-text";
                 _applyCellErrorClass(td, val);
@@ -7028,7 +7028,7 @@ async function renderExportTable() {
                     const val = row[col] ?? "";
                     td.textContent = val;
                     const isNumCol =
-                        val !== "ERROR" &&
+                        val !== "N/A" &&
                         (col.indexOf("|") > 0 || typeof row[col] === "number");
                     td.className = isNumCol ? "td-num" : "td-text";
                     _applyCellErrorClass(td, val);
