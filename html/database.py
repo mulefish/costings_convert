@@ -34,6 +34,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     _ensure_dthc_prepaid_seeded(conn)
     _ensure_document_cif_gri_column(conn)
     _ensure_document_cif_cad_lc_coa_columns(conn)
+    _ensure_document_cif_usda_columns(conn)
     _ensure_drayage_gri_column(conn)
     _ensure_cif_regions_drop_brz_aus(conn)
     _ensure_lc_bank_cost_seeded(conn)
@@ -322,6 +323,42 @@ def _ensure_document_cif_cad_lc_coa_columns(conn: sqlite3.Connection) -> None:
             conn.execute(f"ALTER TABLE document_cif ADD COLUMN {col} REAL NOT NULL DEFAULT {default}")
             changed = True
     if changed:
+        conn.commit()
+
+
+def _ensure_document_cif_usda_columns(conn: sqlite3.Connection) -> None:
+    """Add USDA USD/Bale and Pts/lb columns to document_cif."""
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='document_cif'"
+    ).fetchone():
+        return
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(document_cif)").fetchall()}
+    changed = False
+    for col in ("usda_usd_bale", "usda_pts_lb"):
+        if col not in cols:
+            conn.execute(f"ALTER TABLE document_cif ADD COLUMN {col} REAL NOT NULL DEFAULT 0")
+            changed = True
+    if changed:
+        import math
+        def _ceil5(x):
+            return int(math.ceil(x / 5.0)) * 5
+        # Pre-populate with known USDA USD/Bale values by country code;
+        # Pts/lb is computed: ceil5(((USD/Bale * 90) / 20) / 22.046 * 100)
+        usda_by_code = {
+            "CN": 0.617, "VN": 0.567, "KO": 0.633,
+            "JP": 1.200, "MA": 0.793, "TW": 0.600,
+            "ID": 0.690, "TH": 0.533, "BD": 0.343,
+            "PK": 0.473, "IN": 0.430, "TR": 0.567,
+            "MX": 0.757, "PE": 1.007, "CO": 0.833,
+            "EC": 1.423, "GU": 0.923, "HO": 0.0,
+            "ES": 0.0, "IT": 0.0,
+        }
+        for code, usd in usda_by_code.items():
+            pts = _ceil5(((usd * 90) / 20) / 22.046 * 100) if usd else 0
+            conn.execute(
+                "UPDATE document_cif SET usda_usd_bale=?, usda_pts_lb=? WHERE UPPER(code)=?",
+                (usd, pts, code),
+            )
         conn.commit()
 
 
@@ -1044,7 +1081,8 @@ def get_document_cif() -> list[dict]:
     conn = _get_conn()
     rows = conn.execute(
         "SELECT country, code, lc, ins, cont, com, cof, ciq_qc, gri, "
-        "cad_usa, cad_brz, cad_aus, lc_usa, lc_brz, lc_aus, coa_usa, coa_brz, coa_aus "
+        "cad_usa, cad_brz, cad_aus, lc_usa, lc_brz, lc_aus, coa_usa, coa_brz, coa_aus, "
+        "usda_usd_bale, usda_pts_lb "
         "FROM document_cif ORDER BY id"
     ).fetchall()
     return [
@@ -1067,6 +1105,8 @@ def get_document_cif() -> list[dict]:
             "COA_USA": r["coa_usa"],
             "COA_BRZ": r["coa_brz"],
             "COA_AUS": r["coa_aus"],
+            "USDA_USD_BALE": r["usda_usd_bale"],
+            "USDA_PTS_LB": r["usda_pts_lb"],
         }
         for r in rows
     ]
@@ -1102,12 +1142,15 @@ def save_document_cif(data: list[dict]) -> None:
                 float(row.get("COA_USA") or 0),
                 float(row.get("COA_BRZ") or 0),
                 float(row.get("COA_AUS") or 0),
+                float(row.get("USDA_USD_BALE") or 0),
+                float(row.get("USDA_PTS_LB") or 0),
             )
         )
     conn.executemany(
         "INSERT INTO document_cif (country, code, lc, ins, cont, com, cof, ciq_qc, gri, "
-        "cad_usa, cad_brz, cad_aus, lc_usa, lc_brz, lc_aus, coa_usa, coa_brz, coa_aus) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "cad_usa, cad_brz, cad_aus, lc_usa, lc_brz, lc_aus, coa_usa, coa_brz, coa_aus, "
+        "usda_usd_bale, usda_pts_lb) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         params,
     )
     conn.commit()

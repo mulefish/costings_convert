@@ -102,6 +102,7 @@ DOCUMENT_CIF_NUMERIC_KEYS = frozenset({
     "CAD_USA", "CAD_BRZ", "CAD_AUS",
     "LC_USA", "LC_BRZ", "LC_AUS",
     "COA_USA", "COA_BRZ", "COA_AUS",
+    "USDA_USD_BALE", "USDA_PTS_LB",
 })
 
 CIF_REGIONS_DEFAULT: tuple[str, ...] = (
@@ -782,7 +783,7 @@ def _normalize_document_cif_row(raw: dict) -> dict:
     }
     for k in DOCUMENT_CIF_NUMERIC_KEYS:
         v = raw.get(k)
-        default_zero = k == "GRI" or k.startswith(("CAD_", "LC_", "COA_"))
+        default_zero = k == "GRI" or k.startswith(("CAD_", "LC_", "COA_", "USDA_"))
         if default_zero:
             if v is None:
                 out[k] = 0.0
@@ -814,12 +815,19 @@ def _merge_document_cif_loaded(loaded) -> list:
     return [_normalize_document_cif_row(r) for r in loaded if isinstance(r, dict)]
 
 
+def _ceil5(x: float) -> int:
+    """Round up to the nearest multiple of 5."""
+    import math
+    return int(math.ceil(x / 5.0)) * 5
+
+
 def _recompute_document_cif_computed() -> None:
     """Overwrite computed columns on every in-memory document_cif row.
     LC  = round((avg_lowest_3 * 0.01) * (Daily Spot + Basis))
     INS = round((Daily Spot + Basis) * 0.1)
     COF = round((LC_USA / 365) * (EDF Interest Rate * Daily Spot))
     COM = round(Daily Spot + Basis * 0.1)
+    USDA_PTS_LB = ceil5(((USD/Bale * 90) / 20) / 22.046 * 100)
     """
     edf = _to_float(control_panel.get("EDF Interest Rate"), 0.0)
     daily_spot = _to_float(control_panel.get("Daily Spot"), 0.0)
@@ -837,6 +845,11 @@ def _recompute_document_cif_computed() -> None:
         lc_usa = _to_float(row.get("LC_USA"), 0.0)
         row["COF"] = round((lc_usa / 365.0) * cof_factor)
         row["COM"] = com_value
+        usd_bale = _to_float(row.get("USDA_USD_BALE"), 0.0)
+        if usd_bale:
+            row["USDA_PTS_LB"] = _ceil5(((usd_bale * 90) / 20) / 22.046 * 100)
+        else:
+            row["USDA_PTS_LB"] = 0
 
 
 def _persist_document_cif() -> None:
@@ -1046,7 +1059,7 @@ def document_cif_api():
         }
         for k in DOCUMENT_CIF_NUMERIC_KEYS:
             v = raw.get(k)
-            _default_zero = k == "GRI" or k.startswith(("CAD_", "LC_", "COA_"))
+            _default_zero = k == "GRI" or k.startswith(("CAD_", "LC_", "COA_", "USDA_"))
             if _default_zero:
                 if v is None:
                     row[k] = 0.0

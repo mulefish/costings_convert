@@ -971,7 +971,6 @@ async function renderControlPanelView() {
         { key: "dthc_prepaid", label: "DTHC Prepaid", kind: "readonly" },
         { key: "LC", label: "LC", kind: "readonly" },
         { key: "INS", label: "INS", kind: "readonly" },
-        { key: "CONT", label: "CONT", kind: "number" },
         { key: "COM", label: "COM", kind: "readonly" },
         { key: "COF", label: "COF", kind: "readonly" },
         { key: "CIQ_QC", label: "CIQ/QC", kind: "number" },
@@ -984,7 +983,22 @@ async function renderControlPanelView() {
         { key: "COA_USA", label: "USA", kind: "number", defaultZero: true, group: "COA" },
         { key: "COA_BRZ", label: "BRZ", kind: "number", defaultZero: true, group: "COA" },
         { key: "COA_AUS", label: "AUS", kind: "number", defaultZero: true, group: "COA" },
+        { key: "USDA_USD_BALE", label: "USD/Bale", kind: "number", defaultZero: true, group: "Controlling" },
+        { key: "USDA_PTS_LB", label: "Pts/lb", kind: "readonly", group: "Controlling" },
     ];
+
+    function calcPtsLb(usdBale) {
+        const v = parseFloat(usdBale);
+        if (!v || isNaN(v)) return 0;
+        const raw = (((v * 90) / 20) / 22.046) * 100;
+        return Math.ceil(raw / 5) * 5;
+    }
+
+    function refreshPtsLbForRow(tr) {
+        const usdInp = tr.querySelector('input[data-doc-cif-field="USDA_USD_BALE"]');
+        const ptsInp = tr.querySelector('input[data-doc-cif-field="USDA_PTS_LB"]');
+        if (usdInp && ptsInp) ptsInp.value = calcPtsLb(usdInp.value);
+    }
 
     const hDocCif = document.createElement("h3");
     hDocCif.style.marginTop = "28px";
@@ -1076,10 +1090,14 @@ async function renderControlPanelView() {
                 inp.tabIndex = -1;
                 inp.style.background = "#f5f5f5";
                 inp.style.color = "#333";
-                inp.value =
-                    d[key] !== undefined && d[key] !== null && String(d[key]).trim() !== ""
-                        ? String(d[key])
-                        : resolveDocCifDthcPrepaid(d.country, d.code);
+                if (key === "USDA_PTS_LB") {
+                    inp.value = calcPtsLb(d["USDA_USD_BALE"] || 0);
+                } else {
+                    inp.value =
+                        d[key] !== undefined && d[key] !== null && String(d[key]).trim() !== ""
+                            ? String(d[key])
+                            : resolveDocCifDthcPrepaid(d.country, d.code);
+                }
             } else {
                 inp.type = kind === "text" ? "text" : "number";
                 if (kind === "number") {
@@ -1116,6 +1134,9 @@ async function renderControlPanelView() {
             }
             if (key === "code") {
                 inp.addEventListener("input", () => refreshDocCifDthcPrepaidForRow(tr));
+            }
+            if (key === "USDA_USD_BALE") {
+                inp.addEventListener("input", () => refreshPtsLbForRow(tr));
             }
             tr.appendChild(td);
         });
@@ -1155,7 +1176,7 @@ async function renderControlPanelView() {
     addDocCifBtn.style.padding = "8px 16px";
     addDocCifBtn.style.cursor = "pointer";
     addDocCifBtn.addEventListener("click", () => {
-        addJarvisDocCifRow({ GRI: 0, CAD_USA: 14, CAD_BRZ: 18, CAD_AUS: 14, LC_USA: 21, LC_BRZ: 65, LC_AUS: 14, COA_USA: 30, COA_BRZ: 14, COA_AUS: 40 });
+        addJarvisDocCifRow({ GRI: 0, CAD_USA: 14, CAD_BRZ: 18, CAD_AUS: 14, LC_USA: 21, LC_BRZ: 65, LC_AUS: 14, COA_USA: 30, COA_BRZ: 14, COA_AUS: 40, USDA_USD_BALE: 0, USDA_PTS_LB: 0 });
     });
 
     const saveDocCifBtn = document.createElement("button");
@@ -1199,13 +1220,13 @@ async function renderControlPanelView() {
                     rowObj.GRI !== 0 ||
                     rowObj.LC != null ||
                     rowObj.INS != null ||
-                    rowObj.CONT != null ||
                     rowObj.COM != null ||
                     rowObj.COF != null ||
                     rowObj.CIQ_QC != null ||
                     rowObj.CAD_USA !== 0 || rowObj.CAD_BRZ !== 0 || rowObj.CAD_AUS !== 0 ||
                     rowObj.LC_USA !== 0 || rowObj.LC_BRZ !== 0 || rowObj.LC_AUS !== 0 ||
-                    rowObj.COA_USA !== 0 || rowObj.COA_BRZ !== 0 || rowObj.COA_AUS !== 0;
+                    rowObj.COA_USA !== 0 || rowObj.COA_BRZ !== 0 || rowObj.COA_AUS !== 0 ||
+                    rowObj.USDA_USD_BALE !== 0;
                 if (!hasOther) {
                     continue;
                 }
