@@ -1,3 +1,64 @@
+/* --- Save toast — brief confirmation modal, auto-dismisses --- */
+function showSaveToast(message, durationMs) {
+    durationMs = durationMs || 500;
+    let el = document.getElementById("save-toast");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "save-toast";
+        el.style.cssText =
+            "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);" +
+            "z-index:10000;background:#1e3a6e;color:#fff;padding:14px 28px;" +
+            "border-radius:8px;font-family:Arial,sans-serif;font-size:14px;" +
+            "font-weight:600;box-shadow:0 4px 16px rgba(0,0,0,0.25);" +
+            "pointer-events:none;opacity:0;transition:opacity 0.15s;";
+        document.body.appendChild(el);
+    }
+    el.textContent = message;
+    el.style.opacity = "1";
+    clearTimeout(el._tid);
+    el._tid = setTimeout(() => { el.style.opacity = "0"; }, durationMs);
+}
+
+/* --- Sticky scrollbar helper for wide tables --- */
+function addStickyScrollbar(tableHost) {
+    const outer = document.createElement("div");
+    outer.style.cssText = "position:relative;";
+    // Sticky bar pinned to viewport bottom
+    const bar = document.createElement("div");
+    bar.style.cssText =
+        "position:sticky;bottom:0;overflow-x:auto;overflow-y:hidden;" +
+        "height:14px;background:rgba(255,255,255,0.85);z-index:2;" +
+        "border-top:1px solid #ddd;";
+    const barInner = document.createElement("div");
+    barInner.style.height = "1px";
+    bar.appendChild(barInner);
+    // Sync widths + scroll positions
+    let syncing = false;
+    const syncWidth = () => {
+        const tbl = tableHost.querySelector("table");
+        barInner.style.width = (tbl ? tbl.scrollWidth : tableHost.scrollWidth) + "px";
+    };
+    bar.addEventListener("scroll", () => {
+        if (syncing) return;
+        syncing = true;
+        tableHost.scrollLeft = bar.scrollLeft;
+        syncing = false;
+    });
+    tableHost.addEventListener("scroll", () => {
+        if (syncing) return;
+        syncing = true;
+        bar.scrollLeft = tableHost.scrollLeft;
+        syncing = false;
+    });
+    // Re-sync on draw (table may be rebuilt)
+    const obs = new MutationObserver(syncWidth);
+    obs.observe(tableHost, { childList: true, subtree: true });
+    outer.appendChild(tableHost);
+    outer.appendChild(bar);
+    setTimeout(syncWidth, 0);
+    return outer;
+}
+
 /* --- Progress modal with running timer --- */
 function showProgressModal(message) {
     let overlay = document.getElementById("progress-modal-overlay");
@@ -118,20 +179,29 @@ async function renderControlPanelView() {
     const wrap = document.createElement("div");
     wrap.id = "jarvis-view";
 
+    const hRow = document.createElement("div");
+    hRow.style.display = "flex";
+    hRow.style.alignItems = "center";
+    hRow.style.gap = "16px";
+    hRow.style.marginBottom = "8px";
     const h = document.createElement("h3");
-    h.style.marginTop = "0";
+    h.style.margin = "0";
     h.textContent = "Jarvis";
-    wrap.appendChild(h);
+    hRow.appendChild(h);
 
-    const p = document.createElement("p");
-    p.style.fontSize = "13px";
-    p.style.color = "#444";
-    p.style.maxWidth = "720px";
-    p.style.lineHeight = "1.45";
-    p.textContent =
-        "Values edited here are saved to the SQLite database (costings/data/costings.db): global control-panel numbers (fuel surcharge, OTR GRI, ocean GRI, interest, commission, and related inputs), consolidation, consolidation days storage, drayage by port, document/CIF by country, USA forwarding, and themes (Export tints the Base country cell using Themes → Country vs Export Base). " +
-        "They drive the OTR, OCEAN, USD, PTS, CIF, and Export views.";
-    wrap.appendChild(p);
+    const notesLabel = document.createElement("label");
+    notesLabel.style.fontSize = "13px";
+    notesLabel.style.cursor = "pointer";
+    notesLabel.style.userSelect = "none";
+    const notesCb = document.createElement("input");
+    notesCb.type = "checkbox";
+    notesCb.id = "jarvis-show-notes";
+    notesCb.style.marginRight = "4px";
+    notesCb.style.cursor = "pointer";
+    notesLabel.appendChild(notesCb);
+    notesLabel.appendChild(document.createTextNode("Show notes"));
+    hRow.appendChild(notesLabel);
+    wrap.appendChild(hRow);
 
     const hExportSec = document.createElement("h4");
     hExportSec.style.margin = "14px 0 6px 0";
@@ -184,6 +254,7 @@ async function renderControlPanelView() {
             }
             persistExportSectionExpandedState(next);
             exportSecToggleStatus.textContent = "Saved to browser storage. Switch to Export to refresh the table if it is already open.";
+            showSaveToast("Export sections saved");
             exportSecToggleStatus.style.color = "#1b5e20";
         });
         exportSecCbByLabel.set(label, cb);
@@ -421,7 +492,7 @@ async function renderControlPanelView() {
     table.appendChild(thead);
     const tbody = document.createElement("tbody");
 
-    const CP_READONLY_KEYS = new Set(["EDF Interest Rate", "Cert Interest"]);
+    const CP_READONLY_KEYS = new Set(["SOFR", "EDF Interest Rate", "Cert Interest"]);
 
     Object.keys(data).forEach((key) => {
         const tr = document.createElement("tr");
@@ -511,6 +582,7 @@ async function renderControlPanelView() {
                 throw new Error(err.error || res.statusText);
             }
             status.textContent = "Saved.";
+            showSaveToast("Control panel saved");
             status.style.color = "#1b5e20";
         } catch (err) {
             console.error(err);
@@ -712,6 +784,7 @@ async function renderControlPanelView() {
             }
             consolStatus.textContent = "Consolidation saved.";
             consolStatus.style.color = "#1b5e20";
+            showSaveToast("Consolidation saved");
         } catch (err) {
             console.error(err);
             consolStatus.textContent = err.message || "Save failed.";
@@ -954,6 +1027,7 @@ async function renderControlPanelView() {
             });
             drayageStatus.textContent = "Drayage saved.";
             drayageStatus.style.color = "#1b5e20";
+            showSaveToast("Drayage saved");
         } catch (err) {
             console.error(err);
             drayageStatus.textContent = err.message || "Save failed.";
@@ -1250,6 +1324,7 @@ async function renderControlPanelView() {
             });
             docCifStatus.textContent = "Document / CIF saved.";
             docCifStatus.style.color = "#1b5e20";
+            showSaveToast("Document / CIF saved");
         } catch (err) {
             console.error(err);
             docCifStatus.textContent = err.message || "Save failed.";
@@ -1417,6 +1492,7 @@ async function renderControlPanelView() {
             usaFwdData = await res.json();
             usaFwdStatus.textContent = "USA forwarding cost saved.";
             usaFwdStatus.style.color = "#1b5e20";
+            showSaveToast("USA forwarding cost saved");
         } catch (err) {
             console.error(err);
             usaFwdStatus.textContent = err.message || "Save failed.";
@@ -1591,6 +1667,7 @@ async function renderControlPanelView() {
             }
             themesStatus.textContent = `Saved ${payload.count ?? rowsOut.length} theme row(s).`;
             themesStatus.style.color = "#1b5e20";
+            showSaveToast("Themes saved");
             invalidateThemeCountryColorMapCache();
             const reload = await fetch("/api/themes");
             if (reload.ok) {
@@ -1709,6 +1786,7 @@ async function renderControlPanelView() {
             cdsStatus.textContent =
                 "Saved. Consolidation months updated (saved to consolidation.json).";
             cdsStatus.style.color = "#1b5e20";
+            showSaveToast("Days storage saved");
             await pullConsolidationFromServer();
         } catch (err) {
             console.error(err);
@@ -1724,20 +1802,67 @@ async function renderControlPanelView() {
     }
     refreshAllConsolidationMonths();
 
-    // --- Cell derivation for Jarvis view ---
-    const derivPanel = document.getElementById("cell-derivation");
+    // --- Cell notes floating modal for Jarvis view ---
+    // Track last mouse position for note placement
+    let _lastMouseEvt = null;
+    wrap.addEventListener("mousemove", (e) => { _lastMouseEvt = e; });
+    wrap.addEventListener("mousedown", (e) => { _lastMouseEvt = e; });
+
+    let _notesModal = document.getElementById("jarvis-notes-modal");
+    if (!_notesModal) {
+        _notesModal = document.createElement("div");
+        _notesModal.id = "jarvis-notes-modal";
+        _notesModal.style.cssText =
+            "position:fixed;z-index:9999;background:#fffde7;border:1px solid #ccc;" +
+            "border-radius:4px;padding:6px 10px;font-family:monospace;font-size:12px;" +
+            "color:#333;max-width:480px;box-shadow:0 2px 8px rgba(0,0,0,0.18);" +
+            "pointer-events:none;display:none;line-height:1.4;";
+        document.body.appendChild(_notesModal);
+    }
+    let _notesDismissHandler = null;
+    let _lastClickEvt = null;
     function showJarvisDerivation(text) {
-        if (!derivPanel) return;
-        derivPanel.style.display = "block";
-        derivPanel.textContent = text;
+        const cb = document.getElementById("jarvis-show-notes");
+        if (!cb || !cb.checked) return;
+        _notesModal.textContent = text;
+        _notesModal.style.display = "block";
+        // Position near cursor: 50px below, slightly to the right
+        const evt = _lastClickEvt || _lastMouseEvt;
+        if (evt) {
+            let top = evt.clientY + 50;
+            let left = evt.clientX + 12;
+            // Keep within viewport
+            const mw = _notesModal.offsetWidth || 300;
+            const mh = _notesModal.offsetHeight || 40;
+            if (left + mw > window.innerWidth - 8) left = window.innerWidth - mw - 8;
+            if (top + mh > window.innerHeight - 8) top = window.innerHeight - mh - 8;
+            _notesModal.style.top = top + "px";
+            _notesModal.style.left = left + "px";
+        }
+        // Dismiss on mousemove (one-shot)
+        if (_notesDismissHandler) document.removeEventListener("mousemove", _notesDismissHandler);
+        _notesDismissHandler = () => {
+            _notesModal.style.display = "none";
+            document.removeEventListener("mousemove", _notesDismissHandler);
+            _notesDismissHandler = null;
+        };
+        // Delay attaching so the current event doesn't immediately dismiss
+        setTimeout(() => {
+            if (_notesDismissHandler) document.addEventListener("mousemove", _notesDismissHandler, { once: true });
+        }, 50);
     }
 
-    // Control panel
-    for (const inp of wrap.querySelectorAll("input[data-key]")) {
-        inp.addEventListener("focus", () => {
+    // Delegated click handler for cell notes (works for dynamically added rows too)
+    wrap.addEventListener("click", (e) => {
+        const inp = e.target.closest("input");
+        if (!inp) return;
+        _lastClickEvt = e;
+
+        // Control panel
+        if (inp.dataset.key) {
             const k = inp.dataset.key;
             if (k === "SOFR") {
-                showJarvisDerivation(`[control_panel] "SOFR" — independent value (will be API-driven, not yet implemented)`);
+                showJarvisDerivation(`[control_panel] "SOFR" — See SOFR.py in /database`);
             } else if (k === "EDF Interest Rate") {
                 showJarvisDerivation(`[control_panel] "EDF Interest Rate" = SOFR + EDF Rate — computed`);
             } else if (k === "Cert Interest") {
@@ -1745,12 +1870,11 @@ async function renderControlPanelView() {
             } else {
                 showJarvisDerivation(`[control_panel] "${k}" — independent value`);
             }
-        });
-    }
+            return;
+        }
 
-    // Consolidation
-    for (const inp of wrap.querySelectorAll("input[data-consol-region]")) {
-        inp.addEventListener("focus", () => {
+        // Consolidation
+        if (inp.dataset.consolRegion) {
             const region = inp.dataset.consolRegion;
             const field = inp.dataset.consolField;
             if (field === "month") {
@@ -1758,20 +1882,18 @@ async function renderControlPanelView() {
             } else {
                 showJarvisDerivation(`[consolidation] "${region}" → ${field} — independent value`);
             }
-        });
-    }
+            return;
+        }
 
-    // Consolidation Days Storage
-    for (const inp of wrap.querySelectorAll("input[data-cds-key]")) {
-        inp.addEventListener("focus", () => {
-            const k = inp.getAttribute("data-cds-key");
+        // Consolidation Days Storage
+        if (inp.dataset.cdsKey) {
+            const k = inp.dataset.cdsKey;
             showJarvisDerivation(`[consolidation_days_storage] "${k}" — independent value`);
-        });
-    }
+            return;
+        }
 
-    // Drayage
-    for (const inp of wrap.querySelectorAll("input[data-drayage-field]")) {
-        inp.addEventListener("focus", () => {
+        // Drayage
+        if (inp.dataset.drayageField) {
             const field = inp.dataset.drayageField;
             const regionInp = inp.closest("tr")?.querySelector('input[data-drayage-field="__region__"]');
             const region = regionInp ? regionInp.value : "?";
@@ -1780,12 +1902,11 @@ async function renderControlPanelView() {
             } else {
                 showJarvisDerivation(`[drayage] "${region}" → ${field} — independent value`);
             }
-        });
-    }
+            return;
+        }
 
-    // Document / CIF
-    for (const inp of wrap.querySelectorAll("input[data-doc-cif-field]")) {
-        inp.addEventListener("focus", () => {
+        // Document / CIF
+        if (inp.dataset.docCifField) {
             const field = inp.dataset.docCifField;
             const countryInp = inp.closest("tr")?.querySelector('input[data-doc-cif-field="country"]');
             const codeInp = inp.closest("tr")?.querySelector('input[data-doc-cif-field="code"]');
@@ -1804,33 +1925,34 @@ async function renderControlPanelView() {
                 showJarvisDerivation(`[document_cif] "${country}" (${code}) → COF = round((LC_USA / 365) × (EDF Interest Rate × Daily Spot)) — computed from control_panel`);
             } else if (field === "dthc_prepaid") {
                 showJarvisDerivation(`[dthc_prepaid] "${country}" (${code}) → DTHC Prepaid — read-only lookup by Code or Country`);
+            } else if (field === "USDA_PTS_LB") {
+                showJarvisDerivation(`[document_cif] "${country}" (${code}) → Pts/lb = ceil5(((USD/Bale × 90) / 20) / 22.046 × 100) — computed from USD/Bale`);
             } else {
                 showJarvisDerivation(`[document_cif] "${country}" (${code}) → ${field} — independent value`);
             }
-        });
-    }
+            return;
+        }
 
-    // USA Forwarding Cost
-    for (const inp of wrap.querySelectorAll("input[data-usa-fwd-key]")) {
-        inp.addEventListener("focus", () => {
+        // USA Forwarding Cost
+        if (inp.dataset.usaFwdKey) {
             const k = inp.dataset.usaFwdKey;
             if (k === "TOTAL") {
                 showJarvisDerivation(`[usa_forwarding_cost] TOTAL = (COO + FHTO) ÷ AVG Shipment — computed`);
             } else {
                 showJarvisDerivation(`[usa_forwarding_cost] "${k}" — independent value`);
             }
-        });
-    }
+            return;
+        }
 
-    // Themes
-    for (const inp of wrap.querySelectorAll("input[data-theme-field]")) {
-        inp.addEventListener("focus", () => {
-            const field = inp.getAttribute("data-theme-field");
+        // Themes
+        if (inp.dataset.themeField) {
+            const field = inp.dataset.themeField;
             const countryInp = inp.closest("tr")?.querySelector('input[data-theme-field="Country"]');
             const country = countryInp ? countryInp.value : "?";
             showJarvisDerivation(`[themes] "${country}" → ${field} — independent value`);
-        });
-    }
+            return;
+        }
+    });
 
     content.appendChild(wrap);
 }
@@ -1875,6 +1997,8 @@ async function select_view() {
 
     const derivPanel = document.getElementById("cell-derivation");
     if (derivPanel) { derivPanel.style.display = "none"; derivPanel.textContent = ""; }
+    const notesModal = document.getElementById("jarvis-notes-modal");
+    if (notesModal) notesModal.style.display = "none";
 
     if (viewName === "Jarvis") {
         await renderControlPanelView();
@@ -2734,6 +2858,106 @@ const _DOCUMENTATION_DIAGRAMS = [
     TT --> PREM
     PREM --> TABLE["Export pricing table"]`,
     },
+    {
+        title: "CIF columns — how each value is determined",
+        blurb:
+            "CIF (GET /api/cif) groups PTS warehouse rows by Region and averages each column. " +
+            "Houston and Dallas are direct port rows (no averaging). WTXH aliases WTX for origin columns. " +
+            "Cash and Equity are re-summed from averaged subtotals, not averaged directly.<br><br>" +
+            "<strong>Origin Warehouse</strong> (averaged per region): " +
+            "Terms (most common), Recv, Load, Compr, Class, Mark (seam_tariffs), " +
+            "Strg (seam_tariffs; ×30 if daily), ESO (regions_and_ports), " +
+            "Interest = (EDF Rate/100/12) × (Spot/100 × AvgBaleWt), " +
+            "Origin Comm (control_panel). " +
+            "Total Equity = sum of all. Total Origin = Terms-dependent subset.<br>" +
+            "<strong>Inland Logistics</strong>: Flatbed, Late Fee (regions_and_ports), Transit Truck = OTR Final ÷ 88. Total Transit = sum.<br>" +
+            "<strong>Consolidation</strong>: InAndOut = consol[Port].bale, TotalStorage = consol[Port].month, " +
+            "Interest = (AvgPP × EDF ÷ 100 × AvgBaleWt) ÷ 52 × (DaysStrg ÷ 7). Total_Consol = sum.<br>" +
+            "<strong>Outbound</strong>: Dray = drayage[Port].Bale, Ocean = drayage[Port].OceanBase ÷ 88. Total_Out = sum.<br>" +
+            "<strong>Documentation</strong> (same every row): Sight_LC = China LC ÷ 20, Forwarding = usa_fwd TOTAL, " +
+            "Controlling = China USDA_PTS_LB ÷ 20, Insurance = China INS ÷ 20. Total_Doc = sum.<br>" +
+            "<strong>CIF</strong> (same every row): Dest_Commission = China COM ÷ 20, Cost_of_Funds = China COF ÷ 20, " +
+            "Qclaim = China CIQ_QC ÷ 20. Total_CIF = sum.<br>" +
+            "<strong>Cash</strong> = TotalOrigin + TotalTransit + TotalConsol + TotalOut + TotalDoc + TotalCIF. " +
+            "<strong>Equity</strong> = TotalEquity + TotalTransit + TotalConsol + TotalOut + TotalDoc + TotalCIF.",
+        chart: `flowchart LR
+    PTS["PTS rows\\n(per warehouse)"] --> GROUP["Group by Region"]
+    GROUP --> AVG["Average each column"]
+
+    AVG --> S1["Origin Warehouse\\nTerms → Total Origin"]
+    AVG --> S2["Inland Logistics\\nFlatbed → Total Transit"]
+    AVG --> S3["Consolidation\\nInAndOut → Total_Consol"]
+    AVG --> S4["Outbound\\nDray + Ocean → Total_Out"]
+
+    DOC_CIF["document_cif\\n(China row)"] --> S5["Documentation\\nSight_LC + Fwd + Ctrl + Ins"]
+    DOC_CIF --> S6["CIF\\nDest_Com + CoF + Qclaim"]
+
+    S1 & S2 & S3 & S4 & S5 & S6 --> CASH["Cash / Equity"]`,
+    },
+    {
+        title: "Export view — sections, columns, and data sources",
+        blurb:
+            "Export has 8 section groups × 10 regions (WTX, WTXH, STX, MR5, GA, ER5, EMOT, ME, HOU, DAL) plus Base and CIF FE columns. " +
+            "Sections can be collapsed via checkboxes (saved in localStorage). " +
+            "Origin/Inland/Consolidation pull from CIF by region. Outbound uses CIF Dray + Ocean Costing for hub columns. " +
+            "Documentation and CIF are per-country from document_cif. Total Terms sums sections 1-6. " +
+            "Premium and Discounts = Total Terms − CIF Cash (0 = reconciled).",
+        chart: `flowchart LR
+    subgraph sections["8 Header Groups"]
+        S1["1. Origin Warehouse → CIF Total Origin"]
+        S2["2. Inland Logistics → CIF Total Transit"]
+        S3["3. Consolidation → CIF Total_Consol"]
+        S4["4. Outbound Logistics → CIF Dray + Ocean pts"]
+        S5["5. Documentation → (LC/20 + PTS_LB/20 + INS/20 + FWD) × 20"]
+        S6["6. CIF → (COM/20 + COF/20 + CIQ_QC/20) × 20"]
+        S7["7. Total Terms → sum of sections 1–6 per region"]
+        S8["8. Premium & Discounts → Total Terms − CIF Cash"]
+    end
+    subgraph sources["Data Sources"]
+        CIF_API["GET /api/cif (by Region)"]
+        OCEAN_API["GET /api/ocean (by country+port)"]
+        DOC_API["GET /api/document-cif (by country)"]
+        FWD_API["GET /api/usa-forwarding-cost"]
+    end
+    CIF_API --> S1 & S2 & S3 & S4
+    OCEAN_API --> S4
+    DOC_API --> S5 & S6
+    FWD_API --> S5
+    CIF_API -->|Cash| S8`,
+    },
+    {
+        title: "LC Bank Cost — how LC is computed in document_cif",
+        blurb:
+            "The LC (Letter of Credit) column in document_cif is auto-computed from the lc_bank_cost table. " +
+            "Each country has costs from up to 24 banks. For China: average of Rabo, Credit Agricole, Intesa. " +
+            "For all other countries: average of the lowest 3 bank values. " +
+            "Formula: LC = round((avg_bank_cost × 0.01) × (Daily Spot + Basis)). " +
+            "Editable in the LC_Bank_Cost tab; recomputed whenever document_cif is loaded.",
+        chart: `flowchart TB
+    subgraph banks["lc_bank_cost table (24 banks × 20 countries)"]
+        FAB["FAB"]
+        RABO["Rabo"]
+        CA["Credit Agricole"]
+        INTESA["Intesa"]
+        OTHER["... 20 more banks"]
+    end
+    subgraph rules["Averaging Rules"]
+        CN_RULE["China: avg(Rabo, Credit Agricole, Intesa)"]
+        OTHER_RULE["Others: avg(lowest 3 values)"]
+    end
+    subgraph formula["LC Formula"]
+        FORMULA["LC = round((avg_bank_cost × 0.01) × (Daily Spot + Basis))"]
+    end
+    RABO --> CN_RULE
+    CA --> CN_RULE
+    INTESA --> CN_RULE
+    FAB --> OTHER_RULE
+    RABO --> OTHER_RULE
+    OTHER --> OTHER_RULE
+    CN_RULE --> FORMULA
+    OTHER_RULE --> FORMULA
+    FORMULA --> DOC_CIF["document_cif LC column"]`,
+    },
 ];
 
 async function renderDocumentationView() {
@@ -2750,7 +2974,7 @@ async function renderDocumentationView() {
     content.innerHTML =
         `<div class="doc-view">` +
         `<h2>Data flow documentation</h2>` +
-        `<p class="doc-lead">How <strong>SEAM</strong> (warehouse tariffs) and <strong>OTR</strong> (lane rates) combine with <strong>regions_and_ports</strong> and Jarvis settings, then flow through <strong>USD</strong> → <strong>PTS</strong> → <strong>CIF</strong> into the <strong>Export</strong> pricing grid. Implementation: <code>server.py</code> for APIs; <code>script.js</code> for Export assembly.</p>` +
+        `<p class="doc-lead">How <strong>SEAM</strong> (warehouse tariffs) and <strong>OTR</strong> (lane rates) combine with <strong>regions_and_ports</strong> and Jarvis settings, then flow through <strong>USD</strong> → <strong>PTS</strong> → <strong>CIF</strong> into the <strong>Export</strong> pricing grid. Includes CIF column formulas, Export section breakdown, and LC Bank Cost computation. Implementation: <code>server.py</code> for APIs; <code>script.js</code> for Export assembly.</p>` +
         cards +
         `</div>`;
 
@@ -3384,7 +3608,7 @@ function createUsdColumnDiscussion() {
         "Flatbed, Late Fee — Looked up by Warehouse id in regions_and_ports.csv (“Flat Bed Fees” and “Late Fees”).",
         "Transit Truck — Take the FINAL rate from the OTR (OTR_Rates.csv, same as the OTR view) for that warehouse city and export port, then divide that value by 88. If there is no matching OTR lane, Transit Truck is 0.",
         "Total Transit — Flatbed + Late Fee + Transit Truck.",
-        "Consolidation — InAndOut (Consol_Block): per row, Port → consolidation.json region → bale. TotalStorage (Consol_Strg): same Port → region → TotalStorage column (stored key month = Storage × Days Storage). Port “Weslaco” uses Houston’s consolidation row. Unmapped ports use Jarvis fallbacks (InAndOut, TotalStorage). Interest (Consol_Interest): (Avg Purchase Price × EDF Interest Rate ÷ 100 × Avg Bale Weight) ÷ 52 × (Days Storage ÷ 7). Total Consol: InAndOut + TotalStorage + Interest for that row. Outbound — Dray / Ocean: SQLite drayage table (Port→region) → Bale, and OceanBase ÷ 88 for Ocean USD. Total_Out: Dray + Ocean. Documentation — Sight LC: China LC ÷ 20; Forwarding: Jarvis usa_forwarding TOTAL ((COO + FHTO) ÷ 88); Controlling: China CONT ÷ 20; Insurance: China INS ÷ 20 (all same every row). Total Doc: sum of those four. CIF — Dest Com: China COM ÷ 20; CoF: China COF ÷ 20; Qclaim: China CIQ_QC ÷ 20 (0 if null). Total CIF: sum of those three. Weslaco / Shelby transit — per server implementation.",
+        "Consolidation — InAndOut (Consol_Block): per row, Port → consolidation.json region → bale. TotalStorage (Consol_Strg): same Port → region → TotalStorage column (stored key month = Storage × Days Storage). Port “Weslaco” uses Houston’s consolidation row. Unmapped ports use Jarvis fallbacks (InAndOut, TotalStorage). Interest (Consol_Interest): (Avg Purchase Price × EDF Interest Rate ÷ 100 × Avg Bale Weight) ÷ 52 × (Days Storage ÷ 7). Total Consol: InAndOut + TotalStorage + Interest for that row. Outbound — Dray / Ocean: SQLite drayage table (Port→region) → Bale, and OceanBase ÷ 88 for Ocean USD. Total_Out: Dray + Ocean. Documentation — Sight LC: China LC ÷ 20; Forwarding: Jarvis usa_forwarding TOTAL ((COO + FHTO) ÷ 88); Controlling: China USDA_PTS_LB ÷ 20; Insurance: China INS ÷ 20 (all same every row). Total Doc: sum of those four. CIF — Dest Com: China COM ÷ 20; CoF: China COF ÷ 20; Qclaim: China CIQ_QC ÷ 20 (0 if null). Total CIF: sum of those three. Weslaco / Shelby transit — per server implementation.",
     ];
     for (const text of items) {
         const li = document.createElement("li");
@@ -3458,7 +3682,7 @@ function createCifColumnDiscussion() {
     box.style.background = "#f8f9fb";
 
     box.innerHTML =
-        "<p style='margin-top:0'><strong>Overview:</strong> CIF is served by GET /api/cif. " +
+        "<p style=’margin-top:0’><strong>Overview:</strong> CIF is served by GET /api/cif. " +
         "Row order follows the <code>cif_regions</code> array in <code>usa_forwarding_cost.json</code>. " +
         "For each region label, every column except Total Terms is the average of that PTS column over rows whose Region matches " +
         "(Terms = most common). Weslaco and Shelby transit columns are omitted. " +
@@ -3469,10 +3693,71 @@ function createCifColumnDiscussion() {
         "The Origin Warehouse columns (Terms through Total Origin) use the <strong>WTX</strong> warehouses as an alias. " +
         "All other columns (Transit, Consolidation, Outbound, etc.) use WTXH-specific data.</p>" +
 
-        "<p><strong>Consolidation (Consol_Block, Consol_Strg, Total_Consol):</strong> " +
-        "Each warehouse's consolidation costs depend on its <strong>Port</strong> (from <code>regions_and_ports.csv</code>), " +
-        "which maps to a consolidation region in <code>consolidation.json</code>:</p>" +
-        "<ul style='margin:4px 0 8px 20px'>" +
+        "<p><strong>Houston / Dallas port rows:</strong> Computed directly (not averaged). " +
+        "Consolidation, drayage, ocean, and document costs are looked up by port name, not by averaging PTS rows.</p>" +
+
+        "<h4 style=’margin:12px 0 6px 0;color:#2f5fa7’>Column-by-column formulas</h4>" +
+
+        "<p style=’margin:4px 0’><strong>Origin Warehouse section</strong> (averaged from PTS rows in region):</p>" +
+        "<ul style=’margin:4px 0 8px 20px’>" +
+        "<li><strong>Terms</strong> — Most common Terms value among matching warehouses</li>" +
+        "<li><strong>Recv, Load, Compr, Class, Mark</strong> — From seam_tariffs (per warehouse), averaged across region</li>" +
+        "<li><strong>Strg</strong> — From seam_tariffs; if &lt; 1.0 in USD, treated as daily rate and × 30</li>" +
+        "<li><strong>ESO</strong> — From regions_and_ports (per warehouse), averaged</li>" +
+        "<li><strong>Interest</strong> — (EDF Interest Rate ÷ 100 ÷ 12) × (Daily Spot ÷ 100 × Avg Bale Weight); global, same for all rows</li>" +
+        "<li><strong>Origin Comm</strong> — From control_panel; global, same for all rows</li>" +
+        "<li><strong>Total Equity</strong> — Recv + Load + Compr + Class + Mark + Strg + ESO + Interest + Origin Comm</li>" +
+        "<li><strong>Total Origin</strong> — Terms-dependent: T1 = Strg+Int+OC; T2 = Compr+Strg+Int+OC; T3 = Load+Compr+Strg+Class+Int+OC; T4 = Class+Int+OC</li>" +
+        "</ul>" +
+
+        "<p style=’margin:4px 0’><strong>Inland Logistics section</strong> (averaged from PTS):</p>" +
+        "<ul style=’margin:4px 0 8px 20px’>" +
+        "<li><strong>Flatbed</strong> — regions_and_ports &ldquo;Flat Bed Fees&rdquo; column</li>" +
+        "<li><strong>Late Fee</strong> — regions_and_ports &ldquo;Late Fees&rdquo; column</li>" +
+        "<li><strong>Transit Truck</strong> — OTR Final (from OTR_Rates.csv for warehouse City → export Port) ÷ 88</li>" +
+        "<li><strong>Total Transit</strong> — Flatbed + Late Fee + Transit Truck</li>" +
+        "</ul>" +
+
+        "<p style=’margin:4px 0’><strong>Consolidation section</strong> (averaged from PTS):</p>" +
+        "<ul style=’margin:4px 0 8px 20px’>" +
+        "<li><strong>Consol_Block (InAndOut)</strong> — consolidation.json[Port region].bale; Weslaco uses Houston; unmapped ports use control_panel fallback</li>" +
+        "<li><strong>Consol_Strg (TotalStorage)</strong> — consolidation.json[Port region].month (= Storage × Days Storage from Jarvis)</li>" +
+        "<li><strong>Consol_Interest</strong> — (Avg Purchase Price × EDF Interest Rate ÷ 100 × Avg Bale Weight) ÷ 52 × (Days Storage ÷ 7)</li>" +
+        "<li><strong>Total_Consol</strong> — InAndOut + TotalStorage + Consol_Interest</li>" +
+        "</ul>" +
+
+        "<p style=’margin:4px 0’><strong>Outbound section</strong> (averaged from PTS):</p>" +
+        "<ul style=’margin:4px 0 8px 20px’>" +
+        "<li><strong>Dray</strong> — SQLite drayage table (Port → region) → Bale field</li>" +
+        "<li><strong>Ocean</strong> — SQLite drayage table (Port → region) → OceanBase ÷ 88</li>" +
+        "<li><strong>Total_Out</strong> — Dray + Ocean</li>" +
+        "</ul>" +
+
+        "<p style=’margin:4px 0’><strong>Documentation section</strong> (same for every row — from China document_cif):</p>" +
+        "<ul style=’margin:4px 0 8px 20px’>" +
+        "<li><strong>Sight_LC</strong> — China LC ÷ 20 (LC auto-computed from lc_bank_cost: avg of Rabo, Credit Agricole, Intesa × 0.01 × (Spot + Basis))</li>" +
+        "<li><strong>Forwarding</strong> — usa_forwarding_cost TOTAL = (COO + FHTO) ÷ AVG Shipment</li>" +
+        "<li><strong>Controlling</strong> — China USDA_PTS_LB ÷ 20 (Pts/lb = ceil5(((USD/Bale × 90) ÷ 20) ÷ 22.046 × 100))</li>" +
+        "<li><strong>Insurance</strong> — China INS ÷ 20</li>" +
+        "<li><strong>Total_Doc</strong> — Sight_LC + Forwarding + Controlling + Insurance</li>" +
+        "</ul>" +
+
+        "<p style=’margin:4px 0’><strong>CIF section</strong> (same for every row — from China document_cif):</p>" +
+        "<ul style=’margin:4px 0 8px 20px’>" +
+        "<li><strong>Dest_Commission</strong> — China COM ÷ 20</li>" +
+        "<li><strong>Cost_of_Funds</strong> — China COF ÷ 20</li>" +
+        "<li><strong>Qclaim</strong> — China CIQ_QC ÷ 20 (0 if null)</li>" +
+        "<li><strong>Total_CIF</strong> — Dest_Commission + Cost_of_Funds + Qclaim</li>" +
+        "</ul>" +
+
+        "<p style=’margin:4px 0’><strong>Total Terms</strong>:</p>" +
+        "<ul style=’margin:4px 0 8px 20px’>" +
+        "<li><strong>Cash</strong> — Total Origin + Total Transit + Total_Consol + Total_Out + Total_Doc + Total_CIF</li>" +
+        "<li><strong>Equity</strong> — Total Equity + Total Transit + Total_Consol + Total_Out + Total_Doc + Total_CIF</li>" +
+        "</ul>" +
+
+        "<p><strong>Consolidation port-to-region mapping:</strong></p>" +
+        "<ul style=’margin:4px 0 8px 20px’>" +
         "<li><strong>WTX</strong> → all Port=Dallas (52 warehouses) → Dallas consol rates</li>" +
         "<li><strong>STEX</strong> → all Port=Houston (28) → Houston consol rates</li>" +
         "<li><strong>Memphis Rule 5</strong> → Port=Memphis (64) + Port=Houston (9) → mixed Memphis/Houston rates</li>" +
@@ -3480,11 +3765,7 @@ function createCifColumnDiscussion() {
         "<li><strong>GA 30 Day</strong> → all Port=Savannah (68) → Savannah consol rates</li>" +
         "<li><strong>Southwest</strong> → all Port=Los Angeles (12) → no consol region match (falls back to Control Panel defaults)</li>" +
         "</ul>" +
-        "<p>So regions with mixed Ports (Eastern Rule 5, Memphis Rule 5) will average different consol rates together.</p>" +
-
-        "<p><strong>Total Terms:</strong> " +
-        "Cash = Total Origin + Total Transit + Total_Consol + Total_Out + Total_Doc + Total_CIF. " +
-        "Equity = Total Equity + Total Transit + Total_Consol + Total_Out + Total_Doc + Total_CIF.</p>";
+        "<p>Regions with mixed Ports (Eastern Rule 5, Memphis Rule 5) average different consol rates together.</p>";
 
     details.appendChild(box);
     return details;
@@ -4164,7 +4445,7 @@ function renderUsdTable(config) {
     const tableHost = document.createElement("div");
     tableHost.id = "usd-table-host";
     tableHost.style.overflowX = "auto";
-    content.appendChild(tableHost);
+    content.appendChild(addStickyScrollbar(tableHost));
 
     content.appendChild(createUsdColumnDiscussion());
 
@@ -4242,7 +4523,7 @@ function renderPtsTable(config) {
     const tableHost = document.createElement("div");
     tableHost.id = "pts-table-host";
     tableHost.style.overflowX = "auto";
-    content.appendChild(tableHost);
+    content.appendChild(addStickyScrollbar(tableHost));
 
     content.appendChild(createPtsColumnDiscussion());
 
@@ -5262,7 +5543,7 @@ function _usdDerivation(row, column) {
     // Documentation
     if (column === "Sight_LC") return `document_cif.json [ Country="China" ] . "LC" ÷ 20`;
     if (column === "Forwarding") return `usa_forwarding_cost.json . "TOTAL"`;
-    if (column === "Controlling") return `document_cif.json [ Country="China" ] . "CONT" ÷ 20`;
+    if (column === "Controlling") return `document_cif.json [ Country="China" ] . "USDA_PTS_LB" ÷ 20`;
     if (column === "Insurance") return `document_cif.json [ Country="China" ] . "INS" ÷ 20`;
     if (column === "Total_Doc") return `Sight LC + Forwarding + Controlling + Insurance`;
 
@@ -5798,7 +6079,7 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         }
         const lc = _exportDocCifFloatForCountry(baseG, "LC", documentCifRows);
         const ins = _exportDocCifFloatForCountry(baseG, "INS", documentCifRows);
-        const cont = _exportDocCifFloatForCountry(baseG, "CONT", documentCifRows);
+        const ptsLb = _exportDocCifFloatForCountry(baseG, "USDA_PTS_LB", documentCifRows);
         const tRaw = usaFwd.TOTAL !== undefined && usaFwd.TOTAL !== null ? usaFwd.TOTAL : 0;
         const totalFwd = parseFloat(String(tRaw).replace(/,/g, ""));
         const fwd = Number.isFinite(totalFwd) ? totalFwd : 0;
@@ -5812,11 +6093,11 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
             ? ctx.documentationPtsByCountryKey[ck]
             : _exportDocumentationTotalDocPts(baseG, documentCifRows, usaFwd);
         const src = fromApi
-            ? "GET /api/export/documentation-totals (LC, INS, CONT from document_cif + USA forwarding TOTAL)"
+            ? "GET /api/export/documentation-totals (LC, INS, USDA_PTS_LB from document_cif + USA forwarding TOTAL)"
             : "computed in browser from GET /api/document-cif + GET /api/usa-forwarding-cost";
         return (
             `Documentation Total Doc (PTS, rounded) = ${pts}. ` +
-            `Country="${baseG}": LC=${lc}, CONT=${cont}, INS=${ins}; USA forwarding TOTAL=${fwd}. ` +
+            `Country="${baseG}": LC=${lc}, Pts/lb=${ptsLb}, INS=${ins}; USA forwarding TOTAL=${fwd}. ` +
             `Source: ${src}. Same value for all region columns (${abbr}).`
         );
     }
@@ -6088,7 +6369,7 @@ function _exportDocCifFloatFromRow(r, field) {
     return Number.isFinite(n) ? n : 0;
 }
 
-/** LC / INS / CONT from GET /api/document-cif row matched on country (canonical name). */
+/** LC / INS / USDA_PTS_LB from GET /api/document-cif row matched on country (canonical name). */
 function _exportDocCifFloatForCountry(country, field, documentCifRows) {
     const r = _exportDocumentCifFindRow(country, documentCifRows);
     if (!r) {
@@ -6098,7 +6379,7 @@ function _exportDocCifFloatForCountry(country, field, documentCifRows) {
 }
 
 /**
- * Total Doc in PTS (whole number) for Export Documentation: (LC/20 + CONT/20 + INS/20 + TOTAL) × 20.
+ * Total Doc in PTS (whole number) for Export Documentation: (LC/20 + USDA_PTS_LB/20 + INS/20 + TOTAL) × 20.
  */
 function _exportDocumentationTotalDocPts(country, documentCifRows, usaFwd) {
     const r = _exportDocumentCifFindRow(country, documentCifRows);
@@ -6107,10 +6388,9 @@ function _exportDocumentationTotalDocPts(country, documentCifRows, usaFwd) {
     }
     const lc = _exportDocCifFloatFromRow(r, "LC");
     const ins = _exportDocCifFloatFromRow(r, "INS");
-    const cont = _exportDocCifFloatFromRow(r, "CONT");
+    const controllingUsd = _exportDocCifFloatFromRow(r, "USDA_PTS_LB") / 20;
     const sightUsd = lc / 20;
     const insuranceUsd = ins / 20;
-    const controllingUsd = cont / 20;
     const tRaw = usaFwd && usaFwd.TOTAL !== undefined && usaFwd.TOTAL !== null ? usaFwd.TOTAL : 0;
     const forwardingParsed = parseFloat(String(tRaw).replace(/,/g, ""));
     const forwardingUsd = Number.isFinite(forwardingParsed) ? forwardingParsed : 0;
@@ -6705,6 +6985,7 @@ async function renderLcBankCostView() {
                 throw new Error(err.error || res.statusText);
             }
             statusEl.textContent = "LC Bank Cost saved.";
+            showSaveToast("LC Bank Cost saved");
             statusEl.style.color = "#1b5e20";
         } catch (err) {
             statusEl.textContent = err.message || "Save failed.";

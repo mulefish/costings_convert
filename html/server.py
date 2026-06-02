@@ -482,6 +482,34 @@ def _reload_control_panel() -> None:
     _recompute_control_panel_derived()
 
 
+def _fetch_latest_sofr() -> float | None:
+    """Fetch the latest SOFR rate (as percentage, e.g. 3.63) from the internal API.
+    Returns None on failure so callers can silently skip."""
+    try:
+        from database.SOFR import get_sofr_rates
+        from datetime import timedelta
+        end = datetime.now()
+        start = end - timedelta(days=30)
+        df = get_sofr_rates(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+        if df is not None and not df.empty:
+            latest = float(df.iloc[-1]["sofr_pct"])
+            return latest
+    except Exception as exc:
+        print(f"[SOFR] Could not fetch rate: {exc}")
+    return None
+
+
+def _refresh_sofr_into_control_panel() -> float | None:
+    """Fetch latest SOFR and store it in the control panel. Returns the rate or None."""
+    rate = _fetch_latest_sofr()
+    if rate is not None:
+        control_panel["SOFR"] = rate
+        _recompute_control_panel_derived()
+        db.save_control_panel(control_panel)
+        print(f"[SOFR] Updated to {rate}%")
+    return rate
+
+
 def _sync_control_panel_from_disk_if_needed() -> None:
     _reload_control_panel()
 
@@ -999,6 +1027,7 @@ def _otr_final_lookup_from_db(fsc: float, otr_gri: float) -> dict:
 
 
 _init_control_panel()
+_refresh_sofr_into_control_panel()
 _init_consolidation_days_storage()
 _init_consolidation()
 _init_drayage()
@@ -1129,6 +1158,15 @@ def control_panel_api():
     _recompute_control_panel_derived()
     _persist_control_panel()
     return jsonify(control_panel)
+
+
+@app.route("/api/sofr-refresh", methods=["POST"])
+def sofr_refresh_api():
+    """Fetch the latest SOFR rate and update the control panel."""
+    rate = _refresh_sofr_into_control_panel()
+    if rate is None:
+        return jsonify({"error": "Could not fetch SOFR rate"}), 502
+    return jsonify({"sofr_pct": rate, "control_panel": control_panel})
 
 
 @app.route("/api/consolidation", methods=["GET", "PUT", "POST"])
@@ -2340,8 +2378,7 @@ def _build_cif_port_row(port_name: str, row_num: int) -> dict:
 
     china_lc = _document_cif_float_for_country("China", "LC")
     sight_lc = china_lc / 20.0
-    china_cont = _document_cif_float_for_country("China", "CONT")
-    controlling_usd = china_cont / 20.0
+    controlling_usd = _document_cif_float_for_country("China", "USDA_PTS_LB") / 20.0
     china_ins = _document_cif_float_for_country("China", "INS")
     insurance_usd = china_ins / 20.0
     forwarding_usd = _to_float(usa_forwarding_cost.get("TOTAL"), 0.0)
@@ -2447,7 +2484,7 @@ def cif_rows_api():
 
 @app.route("/api/export/documentation-totals")
 def export_documentation_totals_api():
-    """Per-country Total Doc in PTS for Export Documentation: (LC/20 + CONT/20 + INS/20 + USA forwarding TOTAL) × 20.
+    """Per-country Total Doc in PTS for Export Documentation: (LC/20 + USDA_PTS_LB/20 + INS/20 + USA forwarding TOTAL) × 20.
 
     Keys are normalized country names (uppercase, collapsed spaces) for Export view lookup.
     """
@@ -2465,10 +2502,9 @@ def export_documentation_totals_api():
             continue
         lc = _to_float(row.get("LC"), 0.0)
         ins = _to_float(row.get("INS"), 0.0)
-        cont = _to_float(row.get("CONT"), 0.0)
+        controlling_usd = _to_float(row.get("USDA_PTS_LB"), 0.0) / 20.0
         sight_usd = lc / 20.0
         insurance_usd = ins / 20.0
-        controlling_usd = cont / 20.0
         total_usd = sight_usd + forwarding_usd + controlling_usd + insurance_usd
         k = _normalize_key(country)
         totals[k] = int(round(total_usd * pts))
@@ -2651,8 +2687,7 @@ def _build_usd_rows():
 
     china_lc = _document_cif_float_for_country("China", "LC")
     sight_lc = china_lc / 20.0
-    china_cont = _document_cif_float_for_country("China", "CONT")
-    controlling_usd = china_cont / 20.0
+    controlling_usd = _document_cif_float_for_country("China", "USDA_PTS_LB") / 20.0
     china_ins = _document_cif_float_for_country("China", "INS")
     insurance_usd = china_ins / 20.0
     china_com = _document_cif_float_for_country("China", "COM")
