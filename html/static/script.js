@@ -497,9 +497,11 @@ async function renderControlPanelView() {
     const DAILY_SPOT_KEYS = new Set(
         ["Daily Spot Month", ...DAILY_SPOT_MONTHS.map(m => `Daily Spot ${m}`)]
     );
+    const CP_HIDDEN_KEYS = new Set(["Avg Purchase Price"]);
 
     Object.keys(data).forEach((key) => {
         if (DAILY_SPOT_KEYS.has(key)) return; // rendered separately below
+        if (CP_HIDDEN_KEYS.has(key)) return; // hidden from UI
 
         const tr = document.createElement("tr");
         const tdL = document.createElement("td");

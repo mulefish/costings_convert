@@ -29,7 +29,6 @@ UPLOAD_DIR = BASE_DIR / "csv_to_upload"
 CONTROL_PANEL_DEFAULTS = {
     "Fuel Surcharge": 1.47,
     "OTR GRI": 0.00,
-    "Ocean GRI": 250.0,
     "Buffer": 0.00,
     "Avg Purchase Price": 0.70,
     "SOFR": 0.00,
@@ -45,7 +44,6 @@ CONTROL_PANEL_DEFAULTS = {
     "Daily Spot Dec": 0.00,
     "Basis": 0.00,
     "EIA FSC": 0.00,
-    "OTR FSC Multiplier": 1.50,
     "OTR Buffer (USD)": 50.00,
     "InAndOut": 2.7,
     "TotalStorage": 1.68,
