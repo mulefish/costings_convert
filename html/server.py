@@ -41,6 +41,7 @@ CONTROL_PANEL_DEFAULTS = {
     "Daily Spot Dec": 0.00,
     "Basis": 0.00,
     "EIA FSC": 0.00,
+    "Ocean Cost Method": "Lowest",
 }
 
 CONSOLIDATION_DEFAULTS: dict = {

@@ -974,7 +974,7 @@ def get_control_panel() -> dict:
     cur = conn.execute(
         f'SELECT [key] AS cp_k, [value] AS cp_v FROM control_panel{wh}'
     )
-    CP_STRING_KEYS = {"Daily Spot Month"}
+    CP_STRING_KEYS = {"Daily Spot Month", "Ocean Cost Method"}
     out: dict = {}
     for r in cur:
         k = r["cp_k"]
@@ -993,7 +993,7 @@ def get_control_panel() -> dict:
 
 
 def save_control_panel(data: dict) -> None:
-    CP_STRING_KEYS = {"Daily Spot Month"}
+    CP_STRING_KEYS = {"Daily Spot Month", "Ocean Cost Method"}
     conn = _get_conn()
     rows = []
     for k, v in data.items():

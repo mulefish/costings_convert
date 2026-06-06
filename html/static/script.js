@@ -501,7 +501,7 @@ async function renderControlPanelView() {
         "Daily Spot",  // legacy single key
         "Ocean GRI", "OTR FSC Multiplier", "OTR GRI", "Buffer",
         "InAndOut", "TotalStorage", "Avg Purchase Price",
-        "OTR Buffer (USD)",
+        "OTR Buffer (USD)", "Ocean Cost Method",
     ]);
 
     const sortedKeys = Object.keys(data).slice().sort((a, b) => a.localeCompare(b));
@@ -6273,43 +6273,109 @@ function _exportCifDrayForAbbr(cifByRegion, abbr) {
     return String(v);
 }
 
+/* ── Destination groups for Export Outbound ─────────────────── */
+const EXPORT_DEST_GROUP_INDIAN_SUB_CON = new Set([
+    "india", "pakistan", "bangladesh", "sri lanka", "turkey",
+]);
+
+function _exportDestinationGroup(country) {
+    const c = _exportNormLoose(country);
+    return EXPORT_DEST_GROUP_INDIAN_SUB_CON.has(c) ? "Indian Sub Con" : "Asia / Others";
+}
+
+const OCEAN_COST_METHODS = ["Lowest", "Avg Cheapest 2", "Avg Cheapest 3"];
+
 /**
- * Ocean Costing Total pts: Country = Export Base; Destination matches Export CIF FE (city);
- * Port matches export hub (Dallas / Houston / Memphis / Savannah).
+ * Collect all raw ocean rows matching country + destination + port hub,
+ * then apply the selected Ocean Cost Method.
+ * Returns { value: string, meta: { method, carriers, count, destGroup, limited, cheapGap, highSpread } }
  */
-function _exportOceanTotalPtsForOutboundRow(oceanCostingRows, baseGroup, cifFe, abbr) {
-    if (!Array.isArray(oceanCostingRows)) {
-        return "N/A";
-    }
+function _exportOceanTotalPtsForOutboundRow(oceanRawRows, baseGroup, cifFe, abbr, method) {
+    const NA_RESULT = { value: "N/A", meta: null };
+    if (!Array.isArray(oceanRawRows)) return NA_RESULT;
     const country = _exportNormLoose(baseGroup);
     const fe = String(cifFe || "").trim();
-    if (!country || !fe) {
-        return "N/A";
-    }
+    if (!country || !fe) return NA_RESULT;
+
     const hubs = _exportOceanHubPortsToTry(abbr);
+    let matched = [];
     for (const hub of hubs) {
-        for (const r of oceanCostingRows) {
-            if (!_exportOceanCountryKeysMatch(r.Country, baseGroup)) {
-                continue;
-            }
-            if (!_exportOceanPortMatchesHubNorm(r.Port, hub)) {
-                continue;
-            }
-            if (!_exportDestinationMatchesExportCity(r.Destination, fe)) {
-                continue;
-            }
-            const tp = r["Total pts"];
-            if (tp === undefined || tp === null || tp === "") {
-                continue;
-            }
-            const tps = String(tp).trim();
-            if (tps.toUpperCase() === "N/A") {
-                continue;
-            }
-            return tps;
+        for (const r of oceanRawRows) {
+            if (!_exportOceanCountryKeysMatch(r.Country, baseGroup)) continue;
+            if (!_exportOceanPortMatchesHubNorm(r.Port, hub)) continue;
+            if (!_exportDestinationMatchesExportCity(r.Destination, fe)) continue;
+            const freight = _parseOceanCostingNumber(r["Ocean Freight"]);
+            if (!Number.isFinite(freight) || freight <= 0) continue;
+            const gri = _parseOceanCostingNumber(r.GRI);
+            matched.push({
+                freight,
+                gri: Number.isFinite(gri) ? gri : 0,
+                scac: String(r.SCAC || "").trim(),
+            });
         }
+        if (matched.length > 0) break; // use first hub that has matches
     }
-    return "N/A";
+    if (matched.length === 0) return NA_RESULT;
+
+    // Sort by freight ascending
+    matched.sort((a, b) => a.freight - b.freight);
+
+    const m = method || "Lowest";
+    let selectedFreight;
+    let carriersUsed;
+    let limited = false;
+
+    if (m === "Avg Cheapest 2") {
+        const pool = matched.slice(0, 2);
+        selectedFreight = pool.reduce((s, r) => s + r.freight, 0) / pool.length;
+        carriersUsed = pool.map(r => r.scac).filter(Boolean);
+        if (matched.length < 2) limited = true;
+    } else if (m === "Avg Cheapest 3") {
+        const pool = matched.slice(0, 3);
+        selectedFreight = pool.reduce((s, r) => s + r.freight, 0) / pool.length;
+        carriersUsed = pool.map(r => r.scac).filter(Boolean);
+        if (matched.length < 3) limited = true;
+    } else {
+        // Lowest
+        selectedFreight = matched[0].freight;
+        carriersUsed = [matched[0].scac].filter(Boolean);
+    }
+
+    // Use GRI from cheapest row (same for all rows with same country+port)
+    const gri = matched[0].gri;
+    const oceanTotal = selectedFreight + gri;
+    const totalPts = (oceanTotal / 88.0) * 20.0;
+
+    // Warnings
+    let cheapGap = false;
+    if (matched.length >= 2) {
+        const gap = (matched[1].freight - matched[0].freight) / matched[1].freight;
+        if (gap > 0.15) cheapGap = true; // cheapest is >15% below next
+    }
+    let highSpread = false;
+    if (matched.length >= 2) {
+        const ratio = matched[matched.length - 1].freight / matched[0].freight;
+        if (ratio > 2.0) highSpread = true;
+    }
+
+    const destGroup = _exportDestinationGroup(baseGroup);
+    const allCarriers = matched.map(r => r.scac).filter(Boolean);
+
+    return {
+        value: _roundOceanCostingMoney(totalPts),
+        meta: {
+            method: m,
+            carriers: carriersUsed,
+            allCarriers,
+            count: matched.length,
+            destGroup,
+            limited,
+            cheapGap,
+            highSpread,
+            selectedFreight: Math.round(selectedFreight * 100) / 100,
+            oceanTotal: Math.round(oceanTotal * 100) / 100,
+        },
+    };
 }
 
 function _exportNormLoose(s) {
@@ -6537,38 +6603,30 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         if (!baseG || !cifFe) {
             return "ERROR: Base (country) or CIF FE (city) is blank on this row; cannot match Ocean Costing.";
         }
-        const hubsTry = _exportOceanHubPortsToTry(abbr);
         const hub = _exportOceanHubPortNorm(abbr);
         const drayStr = _exportCifDrayForAbbr(cifByRegion, abbr);
-        const ptsStr = _exportOceanTotalPtsForOutboundRow(oceanRows, baseG, cifFe, abbr);
-        const hubNote =
-            hubsTry.length > 1
-                ? ` Port hubs tried in order: ${hubsTry.map((h) => `"${h}"`).join(", ")}.`
-                : "";
-        const loc = `Country="${baseG}", Destination≈"${cifFe}", primary hub "${hub || "?"}"`;
-        const ptsTrim = String(ptsStr ?? "").trim();
-        if (!ptsTrim || ptsTrim.toUpperCase() === "N/A") {
-            return (
-                `ERROR: no matching deduped GET /api/ocean row for ${loc}, or ocean Total pts is missing/invalid.${hubNote} ` +
-                `Country is matched with canonical names (e.g. Export "Korea" vs ocean "Korea, Republic of"). Cell = N/A.`
-            );
+        const meta = (row._outboundMeta && row._outboundMeta[abbr]) || null;
+        const loc = `Country="${baseG}", Destination="${cifFe}", hub="${hub || "?"}"`;
+        if (!meta) {
+            return `ERROR: no matching ocean rates for ${loc}. Cell = N/A.`;
         }
         const drayN = _exportParseNumericCell(drayStr);
-        const ptsN = _exportParseNumericCell(ptsStr);
         const hasD = Number.isFinite(drayN);
-        const hasP = Number.isFinite(ptsN);
-        if (!hasD && !hasP) {
-            return `ERROR: no numeric CIF Dray and no Ocean Total pts for ${loc}. Cell shows N/A (not CIF Total_Out).`;
-        }
         const bits = [];
+        bits.push(`Method: ${meta.method} | Group: ${meta.destGroup}`);
+        bits.push(`Rates found: ${meta.count} | Carriers used: ${meta.carriers.join(", ") || "none"} | All carriers: ${meta.allCarriers.join(", ") || "none"}`);
+        bits.push(`Ocean Freight (${meta.method}): $${meta.selectedFreight} → Ocean Total: $${meta.oceanTotal}`);
         if (hasD) {
-            bits.push(`CIF Dray: GET /api/cif [ Region="${cifRegion}" ] . Dray = ${drayStr}`);
+            bits.push(`CIF Dray: ${drayStr}`);
         }
-        if (hasP) {
-            bits.push(`Ocean Total pts: deduped GET /api/ocean row where ${loc} → Total pts = ${ptsStr}`);
+        const warnings = [];
+        if (meta.limited) warnings.push("LIMITED DATA (fewer rates than method requires)");
+        if (meta.cheapGap) warnings.push("CHEAP GAP (lowest rate >15% below next)");
+        if (meta.highSpread) warnings.push("HIGH SPREAD (max/min ratio > 2x)");
+        if (warnings.length) {
+            bits.push(`Warnings: ${warnings.join(", ")}`);
         }
-        bits.push(`Cell = sum of available parts, rounded to a whole number.`);
-        return bits.join(" · ");
+        return bits.join("\n");
     }
 
     if (group === "Outbound Logistics") {
@@ -6597,11 +6655,19 @@ function _exportOutboundLogisticsBodyCell(cifByRegion, exportOpts, exportRow, ab
     if (!baseG || !cifFe) {
         return "N/A";
     }
-    const oceanPtsStr = _exportOceanTotalPtsForOutboundRow(opts.oceanCostingRows, baseG, cifFe, abbr);
+    const method = opts.oceanCostMethod || "Lowest";
+    const oceanResult = _exportOceanTotalPtsForOutboundRow(
+        opts.oceanRawRows, baseG, cifFe, abbr, method
+    );
+    // Stash meta on the row for derivation panel
+    if (oceanResult.meta) {
+        if (!exportRow._outboundMeta) exportRow._outboundMeta = {};
+        exportRow._outboundMeta[abbr] = oceanResult.meta;
+    }
     const drayStr = _exportCifDrayForAbbr(cifByRegion, abbr);
 
-    const oceanRaw = String(oceanPtsStr ?? "").trim();
-    if (!oceanRaw || oceanRaw.toUpperCase() === "N/A") {
+    const oceanPtsStr = String(oceanResult.value ?? "").trim();
+    if (!oceanPtsStr || oceanPtsStr.toUpperCase() === "N/A") {
         return "N/A";
     }
     const oceanN = _exportParseNumericCell(oceanPtsStr);
@@ -7331,16 +7397,19 @@ async function renderExportTable() {
     let usaFwd = {};
     let documentationPtsByCountryKey = {};
     let exportCifPtsByCountryKey = {};
+    let cpData = {};
     try {
-        const [cifRes, oceanRes, docRes, ufcRes, docTotRes, cifTotRes] = await Promise.all([
+        const [cifRes, oceanRes, docRes, ufcRes, docTotRes, cifTotRes, cpRes] = await Promise.all([
             fetch("/api/cif"),
             fetch("/api/ocean"),
             fetch("/api/document-cif"),
             fetch("/api/usa-forwarding-cost"),
             fetch("/api/export/documentation-totals"),
             fetch("/api/export/cif-totals"),
+            fetch("/api/control-panel"),
         ]);
         if (cifRes.ok) cifData = await cifRes.json();
+        if (cpRes.ok) cpData = await cpRes.json();
         if (oceanRes.ok) {
             const od = await oceanRes.json();
             oceanRaw = Array.isArray(od.rows) ? od.rows : [];
@@ -7372,15 +7441,19 @@ async function renderExportTable() {
     const oceanCfg = getViewConfig("Ocean Costing");
     const oceanColumns = (oceanCfg && oceanCfg.columns) ? oceanCfg.columns : [];
     const oceanCostingRows = dedupeOceanCostingRows(oceanRaw, oceanColumns);
+    let oceanCostMethod = String(cpData["Ocean Cost Method"] || "Lowest").trim();
+    if (!OCEAN_COST_METHODS.includes(oceanCostMethod)) oceanCostMethod = "Lowest";
     const exportCellOpts = {
         oceanCostingRows,
+        oceanRawRows: oceanRaw,
+        oceanCostMethod,
         documentCifRows,
         usaFwd,
         documentationPtsByCountryKey,
         exportCifPtsByCountryKey,
     };
     const columns = _buildExportColumns();
-    const rows = _buildExportRows(cifByRegion, exportCellOpts);
+    let rows = _buildExportRows(cifByRegion, exportCellOpts);
     const regionCount = EXPORT_REGIONS.length;
 
     const derivationCtx = {
@@ -7433,6 +7506,46 @@ async function renderExportTable() {
     cifFeSearchInput.style.minWidth = "160px";
     controls.appendChild(baseSearchInput);
     controls.appendChild(cifFeSearchInput);
+
+    // Ocean Cost Method dropdown
+    const methodLabel = document.createElement("label");
+    methodLabel.style.display = "flex";
+    methodLabel.style.alignItems = "center";
+    methodLabel.style.gap = "6px";
+    methodLabel.style.fontSize = "13px";
+    methodLabel.style.fontWeight = "600";
+    methodLabel.textContent = "Ocean Cost Method:";
+    const methodSelect = document.createElement("select");
+    methodSelect.style.padding = "6px 10px";
+    methodSelect.style.fontSize = "13px";
+    OCEAN_COST_METHODS.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        if (m === oceanCostMethod) opt.selected = true;
+        methodSelect.appendChild(opt);
+    });
+    methodLabel.appendChild(methodSelect);
+    controls.appendChild(methodLabel);
+
+    methodSelect.addEventListener("change", async () => {
+        oceanCostMethod = methodSelect.value;
+        exportCellOpts.oceanCostMethod = oceanCostMethod;
+        // Save to control panel
+        try {
+            const cp = await (await fetch("/api/control-panel")).json();
+            cp["Ocean Cost Method"] = oceanCostMethod;
+            await fetch("/api/control-panel", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(cp),
+            });
+        } catch (e) { console.error("[Ocean Cost Method] save failed", e); }
+        // Rebuild rows with new method
+        rows = _buildExportRows(cifByRegion, exportCellOpts);
+        redrawExportBody();
+    });
+
     content.appendChild(controls);
 
     const table = document.createElement("table");
