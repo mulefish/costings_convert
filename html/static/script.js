@@ -492,7 +492,7 @@ async function renderControlPanelView() {
     table.appendChild(thead);
     const tbody = document.createElement("tbody");
 
-    const CP_READONLY_KEYS = new Set(["SOFR", "EDF Interest Rate", "Cert Interest"]);
+    const CP_READONLY_KEYS = new Set(["SOFR", "EDF Interest Rate", "Cert Interest", "EIA FSC"]);
     const DAILY_SPOT_MONTHS = ["Mar", "May", "Jul", "Dec"];
     const DAILY_SPOT_KEYS = new Set(
         ["Daily Spot Month", ...DAILY_SPOT_MONTHS.map(m => `Daily Spot ${m}`)]

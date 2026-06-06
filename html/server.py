@@ -44,6 +44,7 @@ CONTROL_PANEL_DEFAULTS = {
     "Daily Spot Jul": 0.00,
     "Daily Spot Dec": 0.00,
     "Basis": 0.00,
+    "EIA FSC": 0.00,
     "OTR FSC Multiplier": 1.50,
     "OTR Buffer (USD)": 50.00,
     "InAndOut": 2.7,
@@ -611,6 +612,49 @@ def _refresh_cotton_into_control_panel() -> None:
     db.save_control_panel(control_panel)
 
 
+EIA_API_KEY = "fucE0PEHafFwh7UODPPKoelkuj0fXtxFXN4bwAFa"
+
+
+def _fetch_eia_diesel_price() -> float | None:
+    """Fetch the most recent U.S. No 2 Diesel price from EIA API."""
+    import requests as http_requests
+
+    url = (
+        "https://api.eia.gov/v2/petroleum/pri/gnd/data/"
+        "?frequency=weekly"
+        "&data[0]=value"
+        "&sort[0][column]=period"
+        "&sort[0][direction]=desc"
+        "&offset=0&length=1"
+        f"&api_key={EIA_API_KEY}"
+    )
+    try:
+        resp = http_requests.get(url, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        records = data["response"]["data"]
+        if records:
+            val = records[0].get("value")
+            if val is not None:
+                return float(val)
+    except Exception as exc:
+        print(f"[EIA] Could not fetch diesel price: {exc}")
+    return None
+
+
+def _refresh_eia_into_control_panel() -> None:
+    """If EIA FSC is 0, fetch from EIA API and update."""
+    if _to_float(control_panel.get("EIA FSC"), 0.0) != 0.0:
+        return
+    price = _fetch_eia_diesel_price()
+    if price is None:
+        print("[EIA] Could not fetch diesel price")
+        return
+    control_panel["EIA FSC"] = price
+    db.save_control_panel(control_panel)
+    print(f"[EIA] Updated EIA FSC to ${price}/gal")
+
+
 def _sync_control_panel_from_disk_if_needed() -> None:
     _reload_control_panel()
 
@@ -1160,6 +1204,7 @@ def _init_fsc_fuel() -> None:
 _init_control_panel()
 _refresh_sofr_into_control_panel()
 _refresh_cotton_into_control_panel()
+_refresh_eia_into_control_panel()
 _init_fsc_fuel()
 _init_consolidation_days_storage()
 _init_consolidation()
