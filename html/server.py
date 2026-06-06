@@ -642,8 +642,21 @@ def _fetch_eia_diesel_price() -> float | None:
     return None
 
 
+def _lookup_fsc_multiplier(fuel_price: float) -> float | None:
+    """Look up the total_percent from fsc_fuel for the given fuel price, return as multiplier."""
+    rows = db.get_fsc_fuel()
+    if not rows:
+        return None
+    # Find closest fuel_price match
+    best = min(rows, key=lambda r: abs(r["fuel_price"] - fuel_price))
+    total_pct = best.get("total_percent")
+    if total_pct is not None:
+        return round(total_pct / 100.0, 4)
+    return None
+
+
 def _refresh_eia_into_control_panel() -> None:
-    """If EIA FSC is 0, fetch from EIA API and update."""
+    """If EIA FSC is 0, fetch from EIA API, update EIA FSC and Fuel Surcharge."""
     if _to_float(control_panel.get("EIA FSC"), 0.0) != 0.0:
         return
     price = _fetch_eia_diesel_price()
@@ -651,6 +664,10 @@ def _refresh_eia_into_control_panel() -> None:
         print("[EIA] Could not fetch diesel price")
         return
     control_panel["EIA FSC"] = price
+    multiplier = _lookup_fsc_multiplier(price)
+    if multiplier is not None:
+        control_panel["Fuel Surcharge"] = multiplier
+        print(f"[EIA] Updated Fuel Surcharge to {multiplier} (from ${price}/gal)")
     db.save_control_panel(control_panel)
     print(f"[EIA] Updated EIA FSC to ${price}/gal")
 
@@ -1171,41 +1188,10 @@ def _otr_final_lookup_from_db(fsc: float, otr_gri: float) -> dict:
     return out
 
 
-def _init_fsc_fuel() -> None:
-    """Seed fsc_fuel table from CSV if empty."""
-    existing = db.get_fsc_fuel()
-    if existing:
-        return
-    csv_path = BASE_DIR / "data" / "fsc.csv"
-    if not csv_path.exists():
-        # Also check Downloads as a fallback
-        dl_path = Path.home() / "Downloads" / "fsc.csv"
-        if dl_path.exists():
-            csv_path = dl_path
-        else:
-            print("[FSC] No fsc.csv found to seed")
-            return
-    rows = []
-    with open(csv_path, newline="") as f:
-        reader = csv.reader(f)
-        next(reader)  # skip header
-        for line in reader:
-            if len(line) >= 3:
-                rows.append({
-                    "fuel_price": line[0],
-                    "fsc_percent": line[1],
-                    "total_percent": line[2],
-                })
-    if rows:
-        db.save_fsc_fuel(rows)
-        print(f"[FSC] Seeded {len(rows)} rows from {csv_path}")
-
-
 _init_control_panel()
 _refresh_sofr_into_control_panel()
 _refresh_cotton_into_control_panel()
 _refresh_eia_into_control_panel()
-_init_fsc_fuel()
 _init_consolidation_days_storage()
 _init_consolidation()
 _init_drayage()
