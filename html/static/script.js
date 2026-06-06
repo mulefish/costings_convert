@@ -497,7 +497,7 @@ async function renderControlPanelView() {
     const DAILY_SPOT_KEYS = new Set(
         ["Daily Spot Month", ...DAILY_SPOT_MONTHS.map(m => `Daily Spot ${m}`)]
     );
-    const CP_HIDDEN_KEYS = new Set(["InAndOut", "TotalStorage"]);
+    const CP_HIDDEN_KEYS = new Set([]);
 
     Object.keys(data).forEach((key) => {
         if (DAILY_SPOT_KEYS.has(key)) return; // rendered separately below
@@ -693,7 +693,7 @@ async function renderControlPanelView() {
     p2.style.maxWidth = "720px";
     p2.style.lineHeight = "1.45";
     p2.textContent =
-        "Per-region InAndOut and Storage are saved to costings/data/consolidation.json (keys bale, storage). " +
+        "Per-region bale and Storage are saved to the consolidation table. " +
         "TotalStorage is Storage × Days Storage; it updates live when Days Storage changes, and saving Days Storage " +
         "also recomputes and saves consolidation on the server.";
     wrap.appendChild(p2);
@@ -3038,7 +3038,10 @@ async function renderNotesView() {
                 return;
             }
             const cols = data.columns || [];
-            const rows = data.rows || [];
+            let rows = data.rows || [];
+            if (tableName === "control_panel" && cols.includes("key")) {
+                rows = rows.slice().sort((a, b) => String(a["key"] || "").localeCompare(String(b["key"] || "")));
+            }
             countEl.textContent = `(${rows.length} row${rows.length !== 1 ? "s" : ""})`;
             if (!cols.length) {
                 out.innerHTML = "<p style='font-size:13px; color:#888;'>No columns.</p>";
@@ -3280,8 +3283,8 @@ const _DOCUMENTATION_DIAGRAMS = [
             "Origin Comm (control_panel). " +
             "Total Equity = sum of all. Total Origin = Terms-dependent subset.<br>" +
             "<strong>Inland Logistics</strong>: Flatbed, Late Fee (regions_and_ports), Transit Truck = OTR Final ÷ 88. Total Transit = sum.<br>" +
-            "<strong>Consolidation</strong>: InAndOut = consol[Port].bale, TotalStorage = consol[Port].month, " +
-            "Interest = (AvgPP × EDF ÷ 100 × AvgBaleWt) ÷ 52 × (DaysStrg ÷ 7). Total_Consol = sum.<br>" +
+            "<strong>Consolidation</strong>: Consol_Block = consol[Port].bale, TotalStorage = consol[Port].month, " +
+            "Interest = (EDF Interest Rate ÷ 100 ÷ 365) × (Daily Spot ÷ 100) × Avg Bale Weight. Total_Consol = sum.<br>" +
             "<strong>Outbound</strong>: Dray = drayage[Port].Bale, Ocean = drayage[Port].OceanBase ÷ 88. Total_Out = sum.<br>" +
             "<strong>Documentation</strong> (same every row): Sight_LC = China LC ÷ 20, Forwarding = usa_fwd TOTAL, " +
             "Controlling = China USDA_PTS_LB ÷ 20, Insurance = China INS ÷ 20. Total_Doc = sum.<br>" +
@@ -4017,7 +4020,7 @@ function createUsdColumnDiscussion() {
         'Flatbed, Late Fee — Looked up by Warehouse id in regions_and_ports.csv ("Flat Bed Fees" and "Late Fees").',
         "Transit Truck — Take the FINAL rate from the OTR (OTR_Rates.csv, same as the OTR view) for that warehouse city and export port, then divide that value by 88. If there is no matching OTR lane, Transit Truck is 0.",
         "Total Transit — Flatbed + Late Fee + Transit Truck.",
-        "Consolidation — InAndOut (Consol_Block): per row, Port → consolidation.json region → bale. TotalStorage (Consol_Strg): same Port → region → TotalStorage column (stored key month = Storage × Days Storage). Port ‘Weslaco’ uses Houston’s consolidation row. Unmapped ports use Jarvis fallbacks (InAndOut, TotalStorage). Interest (Consol_Interest): (Avg Purchase Price × EDF Interest Rate ÷ 100 × Avg Bale Weight) ÷ 52 × (Days Storage ÷ 7). Total Consol: InAndOut + TotalStorage + Interest for that row. Outbound — Dray / Ocean: SQLite drayage table (Port→region) → Bale, and OceanBase ÷ 88 for Ocean USD. Total_Out: Dray + Ocean. Documentation — Sight LC: China LC ÷ 20; Forwarding: Jarvis usa_forwarding TOTAL ((COO + FHTO) ÷ 88); Controlling: China USDA_PTS_LB ÷ 20; Insurance: China INS ÷ 20 (all same every row). Total Doc: sum of those four. CIF — Dest Com: China COM ÷ 20; CoF: China COF ÷ 20; Qclaim: China CIQ_QC ÷ 20 (0 if null). Total CIF: sum of those three. Weslaco / Shelby transit — per server implementation.",
+        "Consolidation — Consol_Block: per row, Port → consolidation region → bale. TotalStorage (Consol_Strg): same Port → region → month (Storage × Days Storage). Port ‘Weslaco’ uses Houston’s consolidation row. Unmapped ports return 0. Interest (Consol_Interest): (EDF Interest Rate ÷ 100 ÷ 365) × (Daily Spot ÷ 100) × Avg Bale Weight. Total Consol: Consol_Block + TotalStorage + Interest for that row. Outbound — Dray / Ocean: SQLite drayage table (Port→region) → Bale, and OceanBase ÷ 88 for Ocean USD. Total_Out: Dray + Ocean. Documentation — Sight LC: China LC ÷ 20; Forwarding: Jarvis usa_forwarding TOTAL ((COO + FHTO) ÷ 88); Controlling: China USDA_PTS_LB ÷ 20; Insurance: China INS ÷ 20 (all same every row). Total Doc: sum of those four. CIF — Dest Com: China COM ÷ 20; CoF: China COF ÷ 20; Qclaim: China CIQ_QC ÷ 20 (0 if null). Total CIF: sum of those three. Weslaco / Shelby transit — per server implementation.",
     ];
     for (const text of items) {
         const li = document.createElement("li");
@@ -4129,10 +4132,10 @@ function createCifColumnDiscussion() {
 
         "<p style=’margin:4px 0’><strong>Consolidation section</strong> (averaged from PTS):</p>" +
         "<ul style=’margin:4px 0 8px 20px’>" +
-        "<li><strong>Consol_Block (InAndOut)</strong> — consolidation.json[Port region].bale; Weslaco uses Houston; unmapped ports use control_panel fallback</li>" +
-        "<li><strong>Consol_Strg (TotalStorage)</strong> — consolidation.json[Port region].month (= Storage × Days Storage from Jarvis)</li>" +
-        "<li><strong>Consol_Interest</strong> — (Avg Purchase Price × EDF Interest Rate ÷ 100 × Avg Bale Weight) ÷ 52 × (Days Storage ÷ 7)</li>" +
-        "<li><strong>Total_Consol</strong> — InAndOut + TotalStorage + Consol_Interest</li>" +
+        "<li><strong>Consol_Block</strong> — consolidation[Port region].bale; Weslaco uses Houston; unmapped ports return 0</li>" +
+        "<li><strong>Consol_Strg (TotalStorage)</strong> — consolidation[Port region].month (= Storage × Days Storage from Jarvis)</li>" +
+        "<li><strong>Consol_Interest</strong> — (EDF Interest Rate ÷ 100 ÷ 365) × (Daily Spot ÷ 100) × Avg Bale Weight</li>" +
+        "<li><strong>Total_Consol</strong> — Consol_Block + TotalStorage + Consol_Interest</li>" +
         "</ul>" +
 
         "<p style=’margin:4px 0’><strong>Outbound section</strong> (averaged from PTS):</p>" +
@@ -5777,12 +5780,12 @@ function _usdDerivation(row, column) {
     }
 
     // Consolidation
-    if (column === "Consol_Block") return `consolidation.json [ Port="${port}" ] . InAndOut`;
-    if (column === "Consol_Strg") return `consolidation.json [ Port="${port}" ] . TotalStorage  (from consolidation_days_storage.json)`;
+    if (column === "Consol_Block") return `consolidation [ Port="${port}" ] . bale`;
+    if (column === "Consol_Strg") return `consolidation [ Port="${port}" ] . TotalStorage`;
     if (column === "Consol_Interest") {
-        return `(Avg Purchase Price × Avg Bale Weight × EDF Rate / 100 / 365) × days_storage_factor  [control_panel.json + consolidation_days_storage.json]`;
+        return `(EDF Interest Rate / 100 / 365) × (Daily Spot / 100) × Avg Bale Weight  [from control_panel]`;
     }
-    if (column === "Total_Consol") return `Consol InAndOut + Consol TotalStorage + Consol Interest`;
+    if (column === "Total_Consol") return `Consol_Block + TotalStorage + Consol Interest`;
 
     // Outbound
     if (column === "Dray") {

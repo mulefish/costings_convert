@@ -44,8 +44,6 @@ CONTROL_PANEL_DEFAULTS = {
     "Basis": 0.00,
     "EIA FSC": 0.00,
     "OTR Buffer (USD)": 50.00,
-    "InAndOut": 2.7,
-    "TotalStorage": 1.68,
 }
 
 CONSOLIDATION_DEFAULTS: dict = {
@@ -732,23 +730,25 @@ def _consolidation_region_key_for_port(port: str) -> str | None:
 
 
 def _usd_consolidation_in_and_out_for_port(port: str) -> float:
-    """InAndOut for USD Consolidation: consolidation region bale for Port, else Control Panel InAndOut."""
+    """InAndOut for USD Consolidation: consolidation region bale for Port."""
     region = _consolidation_region_key_for_port(port)
     if region:
         inner = consolidation.get(region)
         if isinstance(inner, dict):
             return _to_float(inner.get("bale"), 0.0)
-    return _to_float(control_panel.get("InAndOut"), 0.0)
+    print(f"[WARNING] No consolidation region mapped for port {port!r} (InAndOut)")
+    return 0.0
 
 
 def _usd_consolidation_total_storage_for_port(port: str) -> float:
-    """Consol_Strg (TotalStorage column): consolidation region month (Storage × Days Storage), else CP TotalStorage."""
+    """Consol_Strg (TotalStorage column): consolidation region month (Storage × Days Storage)."""
     region = _consolidation_region_key_for_port(port)
     if region:
         inner = consolidation.get(region)
         if isinstance(inner, dict):
             return _to_float(inner.get("month"), 0.0)
-    return _to_float(control_panel.get("TotalStorage"), 0.0)
+    print(f"[WARNING] No consolidation region mapped for port {port!r} (TotalStorage)")
+    return 0.0
 
 
 def _drayage_field_for_port(port: str, field: str) -> float:
