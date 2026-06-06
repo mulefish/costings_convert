@@ -493,8 +493,14 @@ async function renderControlPanelView() {
     const tbody = document.createElement("tbody");
 
     const CP_READONLY_KEYS = new Set(["SOFR", "EDF Interest Rate", "Cert Interest"]);
+    const DAILY_SPOT_MONTHS = ["Mar", "May", "Jul", "Dec"];
+    const DAILY_SPOT_KEYS = new Set(
+        ["Daily Spot Month", ...DAILY_SPOT_MONTHS.map(m => `Daily Spot ${m}`)]
+    );
 
     Object.keys(data).forEach((key) => {
+        if (DAILY_SPOT_KEYS.has(key)) return; // rendered separately below
+
         const tr = document.createElement("tr");
         const tdL = document.createElement("td");
         tdL.textContent = key;
@@ -521,6 +527,77 @@ async function renderControlPanelView() {
         tr.appendChild(tdR);
         tbody.appendChild(tr);
     });
+
+    // --- Daily Spot row: dropdown for month + value input ---
+    const dsTr = document.createElement("tr");
+    const dsTdL = document.createElement("td");
+    dsTdL.textContent = "Daily Spot";
+    dsTdL.style.border = "1px solid #d9d9d9";
+    dsTdL.style.padding = "6px 10px";
+    const dsTdR = document.createElement("td");
+    dsTdR.style.border = "1px solid #d9d9d9";
+    dsTdR.style.padding = "6px 10px";
+    dsTdR.style.display = "flex";
+    dsTdR.style.gap = "6px";
+    dsTdR.style.alignItems = "center";
+
+    const dsSelect = document.createElement("select");
+    dsSelect.dataset.key = "Daily Spot Month";
+    dsSelect.style.padding = "6px 8px";
+    const selectedMonth = data["Daily Spot Month"] || "Mar";
+    for (const m of DAILY_SPOT_MONTHS) {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        if (m === selectedMonth) opt.selected = true;
+        dsSelect.appendChild(opt);
+    }
+    dsTdR.appendChild(dsSelect);
+
+    // Hidden inputs for each month's value (for save)
+    for (const m of DAILY_SPOT_MONTHS) {
+        const hiddenInp = document.createElement("input");
+        hiddenInp.type = "hidden";
+        hiddenInp.dataset.key = `Daily Spot ${m}`;
+        hiddenInp.value = data[`Daily Spot ${m}`] || 0;
+        dsTdR.appendChild(hiddenInp);
+    }
+
+    // Visible input showing the selected month's value
+    const dsInput = document.createElement("input");
+    dsInput.type = "number";
+    dsInput.step = "any";
+    dsInput.style.flex = "1";
+    dsInput.style.padding = "6px 8px";
+    dsInput.style.boxSizing = "border-box";
+    dsInput.readOnly = true;
+    dsInput.style.background = "#f5f5f5";
+    dsInput.style.color = "#333";
+    dsInput.value = data[`Daily Spot ${selectedMonth}`] || 0;
+
+    function syncDsInput() {
+        const m = dsSelect.value;
+        const hidden = dsTdR.querySelector(`input[data-key="Daily Spot ${m}"]`);
+        dsInput.value = hidden ? hidden.value : 0;
+    }
+
+    dsSelect.addEventListener("change", () => {
+        syncDsInput();
+        recomputeCpDerived();
+    });
+
+    dsInput.addEventListener("input", () => {
+        const m = dsSelect.value;
+        const hidden = dsTdR.querySelector(`input[data-key="Daily Spot ${m}"]`);
+        if (hidden) hidden.value = dsInput.value;
+        recomputeCpDerived();
+    });
+
+    dsTdR.appendChild(dsInput);
+    dsTr.appendChild(dsTdL);
+    dsTr.appendChild(dsTdR);
+    tbody.appendChild(dsTr);
+
     table.appendChild(tbody);
     wrap.appendChild(table);
 
@@ -537,11 +614,13 @@ async function renderControlPanelView() {
         };
         const edfInterest = getVal("SOFR") + getVal("EDF Rate");
         setVal("EDF Interest Rate", Math.round(edfInterest * 100) / 100);
-        const certInterest = ((getVal("Daily Spot") + getVal("Basis")) / 12) * edfInterest;
+        const dsMonth = dsSelect.value;
+        const activeDailySpot = getVal(`Daily Spot ${dsMonth}`);
+        const certInterest = ((activeDailySpot + getVal("Basis")) / 12) * edfInterest;
         setVal("Cert Interest", Math.round(certInterest * 100) / 100);
     }
 
-    for (const triggerKey of ["SOFR", "EDF Rate", "Daily Spot", "Basis"]) {
+    for (const triggerKey of ["SOFR", "EDF Rate", "Basis"]) {
         const el = wrap.querySelector(`input[data-key="${triggerKey}"]`);
         if (el) el.addEventListener("input", recomputeCpDerived);
     }
@@ -565,12 +644,14 @@ async function renderControlPanelView() {
             const k = inp.dataset.key;
             const v = parseFloat(inp.value, 10);
             if (Number.isNaN(v)) {
-                status.textContent = `Invalid number for “${k}”.`;
+                status.textContent = `Invalid number for "${k}".`;
                 status.style.color = "#b00020";
                 return;
             }
             body[k] = v;
         }
+        // Include the Daily Spot Month dropdown value
+        body["Daily Spot Month"] = dsSelect.value;
         try {
             const res = await fetch("/api/control-panel", {
                 method: "POST",
@@ -1469,7 +1550,7 @@ async function renderControlPanelView() {
             }
             const v = parseFloat(inp.value, 10);
             if (Number.isNaN(v)) {
-                usaFwdStatus.textContent = `Invalid number for “${k}”.`;
+                usaFwdStatus.textContent = `Invalid number for "${k}".`;
                 usaFwdStatus.style.color = "#b00020";
                 return;
             }
@@ -1767,7 +1848,7 @@ async function renderControlPanelView() {
             const k = inp.getAttribute("data-cds-key");
             const v = parseFloat(inp.value, 10);
             if (Number.isNaN(v)) {
-                cdsStatus.textContent = `Invalid number for “${k}”.`;
+                cdsStatus.textContent = `Invalid number for "${k}".`;
                 cdsStatus.style.color = "#b00020";
                 return;
             }
@@ -2010,6 +2091,11 @@ async function select_view() {
         return;
     }
 
+    if (viewName === "API Test") {
+        await renderApiTestView();
+        return;
+    }
+
     if (viewName === "Documentation") {
         await renderDocumentationView();
         return;
@@ -2028,12 +2114,6 @@ async function select_view() {
     if (viewName === "OTR") {
         await loadOtrRows(config);
         renderOtrTable(config);
-        return;
-    }
-
-    if (viewName === "OCEAN") {
-        await loadOceanRows(config);
-        renderOceanTable(config);
         return;
     }
 
@@ -2227,7 +2307,7 @@ async function mountOceanRatesExtractEditor(hostEl) {
         if (!oceanExtractColumns.length) {
             const tr = document.createElement("tr");
             const td = document.createElement("td");
-            td.textContent = oceanExtractRows.length ? "No columns." : "Not loaded — click “Load / refresh”.";
+            td.textContent = oceanExtractRows.length ? "No columns." : 'Not loaded — click "Load / refresh".';
             td.style.padding = "8px";
             tr.appendChild(td);
             oceanTbody.appendChild(tr);
@@ -2491,6 +2571,333 @@ async function mountOceanRatesExtractEditor(hostEl) {
     hostEl.appendChild(oceanBtnRow);
 
     renderOceanExtractTableImmediate();
+}
+
+function _apiTestEscapeHtml(s) {
+    return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
+function _apiTestFormatJson(value, maxLen) {
+    let text;
+    try {
+        text = JSON.stringify(value, null, 2);
+    } catch (e) {
+        text = String(value);
+    }
+    if (maxLen && text.length > maxLen) {
+        return text.slice(0, maxLen) + `\n\n... truncated (${text.length} chars total)`;
+    }
+    return text;
+}
+
+async function renderApiTestView() {
+    const content = document.getElementById("content");
+    content.innerHTML = "<p>Loading API catalog...</p>";
+
+    let catalog;
+    try {
+        const resp = await fetch("/api/catalog");
+        if (!resp.ok) {
+            throw new Error(`HTTP ${resp.status}`);
+        }
+        catalog = await resp.json();
+    } catch (e) {
+        content.innerHTML = "<p style='color:#b71c1c;'>Failed to load API catalog.</p>";
+        return;
+    }
+
+    const wrap = document.createElement("div");
+    wrap.style.fontFamily = "Arial, sans-serif";
+    wrap.style.maxWidth = "1100px";
+
+    const intro = document.createElement("p");
+    intro.className = "note";
+    intro.style.marginBottom = "12px";
+    intro.textContent =
+        "Catalog of external services and internal Jarvis /api routes. Select an API, run a test, and inspect the response below.";
+    wrap.appendChild(intro);
+
+    const filterInput = document.createElement("input");
+    filterInput.type = "search";
+    filterInput.placeholder = "Filter APIs...";
+    filterInput.style.cssText = "padding:6px 10px;border:1px solid #ccc;border-radius:4px;width:280px;margin-bottom:12px;font-size:13px;";
+    wrap.appendChild(filterInput);
+
+    const panel = document.createElement("div");
+    panel.style.cssText =
+        "margin:16px 0;padding:12px;border:1px solid #ccc;border-radius:6px;background:#f8f8f0;display:none;";
+    const panelTitle = document.createElement("div");
+    panelTitle.style.fontWeight = "600";
+    panelTitle.style.marginBottom = "8px";
+    panel.appendChild(panelTitle);
+
+    const panelMeta = document.createElement("div");
+    panelMeta.style.fontSize = "12px";
+    panelMeta.style.color = "#444";
+    panelMeta.style.marginBottom = "10px";
+    panelMeta.style.lineHeight = "1.45";
+    panel.appendChild(panelMeta);
+
+    const panelControls = document.createElement("div");
+    panelControls.style.display = "flex";
+    panelControls.style.flexWrap = "wrap";
+    panelControls.style.gap = "8px";
+    panelControls.style.alignItems = "center";
+    panelControls.style.marginBottom = "10px";
+
+    const methodSel = document.createElement("select");
+    methodSel.style.fontSize = "12px";
+    panelControls.appendChild(methodSel);
+
+    const pathInput = document.createElement("input");
+    pathInput.style.cssText = "flex:1;min-width:200px;padding:5px 8px;font-size:12px;font-family:monospace;";
+    panelControls.appendChild(pathInput);
+
+    const bodyArea = document.createElement("textarea");
+    bodyArea.rows = 4;
+    bodyArea.style.cssText =
+        "width:100%;font-family:monospace;font-size:11px;margin-bottom:8px;display:none;";
+    bodyArea.placeholder = "JSON request body (POST)";
+
+    const runBtn = document.createElement("button");
+    runBtn.textContent = "Run test";
+    runBtn.style.cssText = "padding:6px 14px;font-size:12px;cursor:pointer;";
+    panelControls.appendChild(runBtn);
+
+    const statusEl = document.createElement("span");
+    statusEl.style.fontSize = "12px";
+    statusEl.style.color = "#555";
+    panelControls.appendChild(statusEl);
+
+    panel.appendChild(panelControls);
+    panel.appendChild(bodyArea);
+
+    const resultPre = document.createElement("pre");
+    resultPre.style.cssText =
+        "margin:0;padding:10px;background:#fff;border:1px solid #ddd;border-radius:4px;font-size:11px;max-height:360px;overflow:auto;white-space:pre-wrap;";
+    panel.appendChild(resultPre);
+    wrap.appendChild(panel);
+
+    let selected = null;
+
+    function showPanel(item, kind) {
+        selected = { item, kind };
+        panel.style.display = "block";
+        resultPre.textContent = "";
+        statusEl.textContent = "";
+
+        if (kind === "external") {
+            const it = item;
+            panelTitle.textContent = it.name;
+            panelMeta.innerHTML =
+                `<div><strong>URL:</strong> <code>${_apiTestEscapeHtml(it.url)}</code></div>` +
+                `<div><strong>Upstream method:</strong> ${_apiTestEscapeHtml(it.method)}</div>` +
+                `<div>${_apiTestEscapeHtml(it.description)}</div>` +
+                `<div><strong>Used by:</strong> ${_apiTestEscapeHtml((it.used_by || []).join(", "))}</div>` +
+                (it.test_body_hint
+                    ? `<div><strong>Test body hint:</strong> <code>${_apiTestEscapeHtml(it.test_body_hint)}</code></div>`
+                    : "");
+            methodSel.innerHTML = "";
+            const opt = document.createElement("option");
+            opt.value = it.test_method || "GET";
+            opt.textContent = it.test_method || "GET";
+            methodSel.appendChild(opt);
+            methodSel.disabled = true;
+            pathInput.value = it.test_endpoint || "";
+            pathInput.readOnly = true;
+            bodyArea.style.display = it.test_method === "POST" ? "block" : "none";
+            bodyArea.value = it.test_body_hint || "{}";
+        } else {
+            const it = item;
+            panelTitle.textContent = it.path;
+            panelMeta.innerHTML =
+                `<div>${_apiTestEscapeHtml(it.description || "(no description)")}</div>` +
+                `<div><strong>Group:</strong> ${_apiTestEscapeHtml(it.group)}</div>` +
+                `<div><strong>Used by:</strong> ${_apiTestEscapeHtml((it.used_by || []).join(", ") || "-")}</div>` +
+                (it.writes_data
+                    ? `<div style="color:#b71c1c;font-weight:600;">Writes data - use with care.</div>`
+                    : "");
+            methodSel.disabled = false;
+            methodSel.innerHTML = "";
+            (it.methods || ["GET"]).forEach((m) => {
+                const o = document.createElement("option");
+                o.value = m;
+                o.textContent = m;
+                methodSel.appendChild(o);
+            });
+            pathInput.readOnly = false;
+            pathInput.value = it.path;
+            bodyArea.style.display = methodSel.value === "GET" ? "none" : "block";
+            bodyArea.value = "{}";
+        }
+    }
+
+    methodSel.addEventListener("change", () => {
+        if (selected && selected.kind === "internal") {
+            bodyArea.style.display = methodSel.value === "GET" ? "none" : "block";
+        }
+    });
+
+    runBtn.addEventListener("click", async () => {
+        if (!selected) {
+            return;
+        }
+        const method = methodSel.value;
+        const path = pathInput.value.trim();
+        if (!path) {
+            statusEl.textContent = "No path.";
+            return;
+        }
+        if (
+            selected.kind === "internal" &&
+            selected.item.writes_data &&
+            !window.confirm("This endpoint may change the database. Continue?")
+        ) {
+            return;
+        }
+
+        const slow = selected.kind === "external" || path.includes("ocean-api");
+        if (slow) {
+            showProgressModal("Calling API...");
+        }
+        statusEl.textContent = "Running...";
+        resultPre.textContent = "";
+        const t0 = performance.now();
+
+        try {
+            const opts = { method, headers: {} };
+            if (method !== "GET" && method !== "HEAD") {
+                let bodyJson = {};
+                if (bodyArea.style.display !== "none" && bodyArea.value.trim()) {
+                    bodyJson = JSON.parse(bodyArea.value);
+                }
+                opts.headers["Content-Type"] = "application/json";
+                opts.body = JSON.stringify(bodyJson);
+            }
+            const resp = await fetch(path, opts);
+            const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+            let payload;
+            const ct = resp.headers.get("content-type") || "";
+            if (ct.includes("application/json")) {
+                payload = await resp.json();
+            } else {
+                payload = await resp.text();
+            }
+            statusEl.textContent = `HTTP ${resp.status} in ${elapsed}s`;
+            statusEl.style.color = resp.ok ? "#2e7d32" : "#b71c1c";
+            resultPre.textContent = _apiTestFormatJson(
+                { status: resp.status, ok: resp.ok, body: payload },
+                120000,
+            );
+        } catch (err) {
+            statusEl.textContent = err.message;
+            statusEl.style.color = "#b71c1c";
+            resultPre.textContent = String(err);
+        } finally {
+            if (slow) {
+                hideProgressModal();
+            }
+        }
+    });
+
+    function makeTable(headers, rowsHtml) {
+        const table = document.createElement("table");
+        table.style.cssText = "border-collapse:collapse;width:100%;font-size:12px;margin-bottom:20px;";
+        const thead = document.createElement("thead");
+        const hr = document.createElement("tr");
+        headers.forEach((h) => {
+            const th = document.createElement("th");
+            th.textContent = h;
+            th.style.cssText = "border:1px solid #d9d9d9;padding:6px 8px;background:#2f5fa7;color:#fff;text-align:left;";
+            hr.appendChild(th);
+        });
+        thead.appendChild(hr);
+        table.appendChild(thead);
+        const tbody = document.createElement("tbody");
+        tbody.innerHTML = rowsHtml;
+        table.appendChild(tbody);
+        return table;
+    }
+
+    const extHost = document.createElement("div");
+    extHost.dataset.section = "external";
+    const extH = document.createElement("h3");
+    extH.textContent = "External APIs";
+    extH.style.margin = "0 0 8px 0";
+    extHost.appendChild(extH);
+
+    let extRows = "";
+    (catalog.external || []).forEach((api, idx) => {
+        const searchText = [api.name, api.url, api.description, (api.used_by || []).join(" ")].join(" ").toLowerCase();
+        extRows +=
+            `<tr data-search="${_apiTestEscapeHtml(searchText)}" data-ext-idx="${idx}">` +
+            `<td style="border:1px solid #ddd;padding:6px 8px;">${_apiTestEscapeHtml(api.name)}</td>` +
+            `<td style="border:1px solid #ddd;padding:6px 8px;font-family:monospace;font-size:11px;">${_apiTestEscapeHtml(api.method)} ${_apiTestEscapeHtml(api.url)}</td>` +
+            `<td style="border:1px solid #ddd;padding:6px 8px;">${_apiTestEscapeHtml((api.used_by || []).join(", "))}</td>` +
+            `<td style="border:1px solid #ddd;padding:6px 8px;"><button type="button" class="api-test-pick" data-kind="external" data-idx="${idx}" style="font-size:11px;padding:4px 10px;cursor:pointer;">Test</button></td>` +
+            "</tr>";
+    });
+    extHost.appendChild(makeTable(["Name", "Endpoint", "Used by", ""], extRows));
+    wrap.appendChild(extHost);
+
+    const intHost = document.createElement("div");
+    intHost.dataset.section = "internal";
+    const intH = document.createElement("h3");
+    intH.textContent = "Internal APIs (this Flask app)";
+    intH.style.margin = "0 0 8px 0";
+    intHost.appendChild(intH);
+
+    let intRows = "";
+    (catalog.internal || []).forEach((api, idx) => {
+        const searchText = [api.path, api.group, api.description, (api.used_by || []).join(" "), (api.methods || []).join(" ")]
+            .join(" ")
+            .toLowerCase();
+        const writeBadge = api.writes_data ? ' <span style="color:#b71c1c;">write</span>' : "";
+        intRows +=
+            `<tr data-search="${_apiTestEscapeHtml(searchText)}" data-int-idx="${idx}">` +
+            `<td style="border:1px solid #ddd;padding:6px 8px;font-family:monospace;">${_apiTestEscapeHtml(api.path)}</td>` +
+            `<td style="border:1px solid #ddd;padding:6px 8px;">${_apiTestEscapeHtml((api.methods || []).join(", "))}${writeBadge}</td>` +
+            `<td style="border:1px solid #ddd;padding:6px 8px;">${_apiTestEscapeHtml(api.group)}</td>` +
+            `<td style="border:1px solid #ddd;padding:6px 8px;">${_apiTestEscapeHtml((api.used_by || []).join(", ") || "-")}</td>` +
+            `<td style="border:1px solid #ddd;padding:6px 8px;"><button type="button" class="api-test-pick" data-kind="internal" data-idx="${idx}" style="font-size:11px;padding:4px 10px;cursor:pointer;">Test</button></td>` +
+            "</tr>";
+    });
+    intHost.appendChild(
+        makeTable(["Path", "Methods", "Group", "Used by", ""], intRows),
+    );
+    wrap.appendChild(intHost);
+
+    content.innerHTML = "";
+    content.appendChild(wrap);
+
+    const externalList = catalog.external || [];
+    const internalList = catalog.internal || [];
+
+    wrap.addEventListener("click", (e) => {
+        const btn = e.target.closest(".api-test-pick");
+        if (!btn) {
+            return;
+        }
+        const kind = btn.getAttribute("data-kind");
+        const idx = Number(btn.getAttribute("data-idx"));
+        if (kind === "external" && externalList[idx]) {
+            showPanel(externalList[idx], "external");
+        } else if (kind === "internal" && internalList[idx]) {
+            showPanel(internalList[idx], "internal");
+        }
+        panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+
+    filterInput.addEventListener("input", () => {
+        const q = filterInput.value.trim().toLowerCase();
+        wrap.querySelectorAll("tbody tr[data-search]").forEach((tr) => {
+            const hay = tr.getAttribute("data-search") || "";
+            tr.style.display = !q || hay.includes(q) ? "" : "none";
+        });
+    });
 }
 
 async function renderNotesView() {
@@ -3021,7 +3428,7 @@ async function loadOceanRows(config) {
     try {
         const response = await fetch("/api/ocean");
         if (!response.ok) {
-            throw new Error(`Failed to load OCEAN rows (${response.status})`);
+            throw new Error(`Failed to load ocean rows (${response.status})`);
         }
         const payload = await response.json();
         config.rows = Array.isArray(payload.rows) ? payload.rows : [];
@@ -3168,7 +3575,7 @@ function createOceanCostingHelpNote() {
     const pIntro = document.createElement("p");
     pIntro.style.marginTop = "0";
     pIntro.innerHTML =
-        "This view starts from the same data as <strong>OCEAN</strong> (one row per carrier contract in " +
+        "This view starts from the same data as <strong>Ocean API</strong> (one row per carrier contract in " +
         "<code>ocean_rates_extract</code>), then <strong>collapses</strong> to one costing row per " +
         "<strong>Port + Destination + Country</strong>. The displayed <strong>Ocean Freight</strong> is not a single " +
         "CSV cell — it is chosen by <strong>country-specific rules</strong> from all carrier rows in that group.";
@@ -3176,17 +3583,17 @@ function createOceanCostingHelpNote() {
 
     const pStep1 = document.createElement("p");
     pStep1.innerHTML =
-        "<strong>Step 1 — per-carrier Ocean Freight (OCEAN view):</strong> Each underlying row’s freight comes from " +
-        "the extract file using <strong>DTHC Prepaid</strong> for the destination country: " +
+        "<strong>Step 1 — per-carrier Ocean Freight (Ocean API):</strong> Each underlying row’s freight comes from " +
+        "the extract using <strong>DTHC Prepaid</strong> for the destination country: " +
         "<em>Yes</em> → ALLIN40HC, else ALLIN40FT; <em>No</em> → 40HC, else 40FT (zero/blank uses the fallback column). " +
-        "See the OCEAN view <strong>DTHC Prepaid</strong> column.";
+        "See the Ocean API table <strong>DTHC Prepaid</strong> column.";
     box.appendChild(pStep1);
 
     const pStep2 = document.createElement("p");
     pStep2.innerHTML =
         "<strong>Step 2 — country rule (this view):</strong> All carrier rows sharing the same Port, Destination, and " +
         "Country are combined. The rule depends on the <strong>Country</strong> name (after normalizing aliases such as " +
-        "“Korea, Republic of” → Korea). Countries not listed below also use the <strong>cheapest</strong> rule.";
+        '&ldquo;Korea, Republic of&rdquo; → Korea). Countries not listed below also use the <strong>cheapest</strong> rule.';
     box.appendChild(pStep2);
 
     const rules = document.createElement("ul");
@@ -3605,10 +4012,10 @@ function createUsdColumnDiscussion() {
         "Origin Comm — Global: Jarvis → Origin Commission (same for every row).",
         "Total Equity — Recv + Load + Compr + Class + Mark + Strg + ESO + Interest + Origin Comm.",
         "Total Origin — Depends on Terms: 1 → Strg + Interest + Origin Comm; 2 → Compr + Strg + Interest + Origin Comm; 3 → Load + Compr + Strg + Class + Interest + Origin Comm; 4 → Class + Interest + Origin Comm; otherwise 0.",
-        "Flatbed, Late Fee — Looked up by Warehouse id in regions_and_ports.csv (“Flat Bed Fees” and “Late Fees”).",
+        'Flatbed, Late Fee — Looked up by Warehouse id in regions_and_ports.csv ("Flat Bed Fees" and "Late Fees").',
         "Transit Truck — Take the FINAL rate from the OTR (OTR_Rates.csv, same as the OTR view) for that warehouse city and export port, then divide that value by 88. If there is no matching OTR lane, Transit Truck is 0.",
         "Total Transit — Flatbed + Late Fee + Transit Truck.",
-        "Consolidation — InAndOut (Consol_Block): per row, Port → consolidation.json region → bale. TotalStorage (Consol_Strg): same Port → region → TotalStorage column (stored key month = Storage × Days Storage). Port “Weslaco” uses Houston’s consolidation row. Unmapped ports use Jarvis fallbacks (InAndOut, TotalStorage). Interest (Consol_Interest): (Avg Purchase Price × EDF Interest Rate ÷ 100 × Avg Bale Weight) ÷ 52 × (Days Storage ÷ 7). Total Consol: InAndOut + TotalStorage + Interest for that row. Outbound — Dray / Ocean: SQLite drayage table (Port→region) → Bale, and OceanBase ÷ 88 for Ocean USD. Total_Out: Dray + Ocean. Documentation — Sight LC: China LC ÷ 20; Forwarding: Jarvis usa_forwarding TOTAL ((COO + FHTO) ÷ 88); Controlling: China USDA_PTS_LB ÷ 20; Insurance: China INS ÷ 20 (all same every row). Total Doc: sum of those four. CIF — Dest Com: China COM ÷ 20; CoF: China COF ÷ 20; Qclaim: China CIQ_QC ÷ 20 (0 if null). Total CIF: sum of those three. Weslaco / Shelby transit — per server implementation.",
+        "Consolidation — InAndOut (Consol_Block): per row, Port → consolidation.json region → bale. TotalStorage (Consol_Strg): same Port → region → TotalStorage column (stored key month = Storage × Days Storage). Port ‘Weslaco’ uses Houston’s consolidation row. Unmapped ports use Jarvis fallbacks (InAndOut, TotalStorage). Interest (Consol_Interest): (Avg Purchase Price × EDF Interest Rate ÷ 100 × Avg Bale Weight) ÷ 52 × (Days Storage ÷ 7). Total Consol: InAndOut + TotalStorage + Interest for that row. Outbound — Dray / Ocean: SQLite drayage table (Port→region) → Bale, and OceanBase ÷ 88 for Ocean USD. Total_Out: Dray + Ocean. Documentation — Sight LC: China LC ÷ 20; Forwarding: Jarvis usa_forwarding TOTAL ((COO + FHTO) ÷ 88); Controlling: China USDA_PTS_LB ÷ 20; Insurance: China INS ÷ 20 (all same every row). Total Doc: sum of those four. CIF — Dest Com: China COM ÷ 20; CoF: China COF ÷ 20; Qclaim: China CIQ_QC ÷ 20 (0 if null). Total CIF: sum of those three. Weslaco / Shelby transit — per server implementation.",
     ];
     for (const text of items) {
         const li = document.createElement("li");
@@ -3916,162 +4323,6 @@ function renderOtrTable(config) {
             await loadOtrRows(config);
             hideProgressModal();
             statusMsg.textContent = `Applied. ${payload.updated || 0} updated, ${payload.new || 0} new.`;
-            applyBtn.style.display = "none";
-            legend.style.display = "none";
-            draw();
-        } catch (err) {
-            hideProgressModal();
-            statusMsg.textContent = err.message;
-        }
-    });
-
-    draw();
-}
-
-function renderOceanTable(config) {
-    const content = document.getElementById("content");
-    const controls = document.createElement("div");
-    const portInput = document.createElement("input");
-    const countryInput = document.createElement("input");
-
-    portInput.placeholder = "Search Port";
-    countryInput.placeholder = "Search Country or Destination";
-
-    controls.appendChild(portInput);
-    controls.appendChild(countryInput);
-    controls.style.display = "flex";
-    controls.style.gap = "8px";
-    controls.style.marginBottom = "10px";
-    controls.style.flexWrap = "wrap";
-    controls.style.alignItems = "center";
-
-    const localSelect = document.createElement("select");
-    localSelect.style.fontSize = "12px";
-    localSelect.innerHTML = '<option value="">-- select local CSV --</option>';
-    controls.appendChild(localSelect);
-
-    const localCompareBtn = document.createElement("button");
-    localCompareBtn.textContent = "Compare Local";
-    localCompareBtn.style.padding = "6px 12px";
-    localCompareBtn.style.fontSize = "12px";
-    controls.appendChild(localCompareBtn);
-
-    const applyBtn = document.createElement("button");
-    applyBtn.textContent = "Apply Changes";
-    applyBtn.style.padding = "6px 12px";
-    applyBtn.style.fontSize = "12px";
-    applyBtn.style.display = "none";
-    controls.appendChild(applyBtn);
-
-    const statusMsg = document.createElement("span");
-    statusMsg.style.fontSize = "12px";
-    statusMsg.style.color = "#555";
-    controls.appendChild(statusMsg);
-
-    fetch("/api/ocean/local-files")
-        .then((r) => r.json())
-        .then((data) => {
-            (data.files || []).forEach((f) => {
-                const opt = document.createElement("option");
-                opt.value = f;
-                opt.textContent = f;
-                localSelect.appendChild(opt);
-            });
-        })
-        .catch(() => {});
-
-    content.appendChild(controls);
-
-    const legend = document.createElement("div");
-    legend.style.fontSize = "11px";
-    legend.style.marginBottom = "8px";
-    legend.style.display = "none";
-    legend.innerHTML =
-        '<span style="background:#d4edda;padding:2px 6px;margin-right:8px;">Updated</span>' +
-        '<span style="background:#d6eaf8;padding:2px 6px;margin-right:8px;">Unchanged</span>' +
-        '<span style="background:#f8d7da;padding:2px 6px;margin-right:8px;">In system, not in CSV</span>' +
-        '<span style="background:#fff9c4;padding:2px 6px;">New (in CSV, not in system)</span>' +
-        '<span style="margin-left:8px;color:#555;">CSV: 470OceanRatesExtract format</span>';
-    content.appendChild(legend);
-
-    const tableHost = document.createElement("div");
-    tableHost.id = "ocean-table-host";
-    content.appendChild(tableHost);
-
-    let displayColumns = config.columns.filter((c) => c !== "_status" && c !== "_changed_fields");
-    const sortState = { column: null, ascending: true };
-    let lastLocalFile = null;
-
-    const draw = () => {
-        const filteredRows = filterOceanRows(config.rows, portInput.value, countryInput.value);
-        const sortedRows = sortRows(filteredRows, sortState);
-        drawTable(tableHost, displayColumns, sortedRows, {
-            sortState,
-            onHeaderClick: (column) => {
-                toggleSort(sortState, column);
-                draw();
-            }
-        });
-    };
-
-    portInput.addEventListener("input", draw);
-    countryInput.addEventListener("input", draw);
-
-    localCompareBtn.addEventListener("click", async () => {
-        const filename = localSelect.value;
-        if (!filename) {
-            statusMsg.textContent = "Please select a local CSV file first.";
-            return;
-        }
-        lastLocalFile = filename;
-        statusMsg.textContent = "Comparing...";
-        try {
-            const resp = await fetch("/api/ocean/compare-local", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ filename })
-            });
-            if (!resp.ok) throw new Error(`Compare failed (${resp.status})`);
-            const payload = await resp.json();
-            config.rows = Array.isArray(payload.rows) ? payload.rows : [];
-            legend.style.display = "block";
-            applyBtn.style.display = "inline-block";
-            const counts = { updated: 0, unchanged: 0, removed: 0, "new": 0 };
-            config.rows.forEach((r) => { if (r._status) counts[r._status]++; });
-            statusMsg.textContent = `${counts.updated} updated, ${counts["new"]} new, ${counts.removed} removed, ${counts.unchanged} unchanged`;
-            draw();
-            const gapPayload = { ...(payload.lookup_gaps || {}), compare_stats: payload.compare_stats };
-            const hasLookupGaps = payload.lookup_gaps && Object.keys(payload.lookup_gaps).length > 0;
-            const cs = payload.compare_stats;
-            const manyStrictMisses =
-                cs &&
-                cs.uploaded_rows > 0 &&
-                (cs.strict_key_overlap || 0) === 0 &&
-                (cs.lane_key_overlap || 0) > 0;
-            if (hasLookupGaps || manyStrictMisses) {
-                showOceanImpactModal(gapPayload);
-            }
-        } catch (err) {
-            statusMsg.textContent = err.message;
-        }
-    });
-
-    applyBtn.addEventListener("click", async () => {
-        if (!lastLocalFile) return;
-        showProgressModal("Saving ocean rates...");
-        try {
-            const resp = await fetch("/api/ocean/apply-local", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ filename: lastLocalFile })
-            });
-            if (!resp.ok) throw new Error(`Apply failed (${resp.status})`);
-            const payload = await resp.json();
-            document.getElementById("progress-modal-msg").textContent = "Reloading data...";
-            await loadOceanRows(config);
-            hideProgressModal();
-            const deact = payload.deactivated != null ? `, ${payload.deactivated} deactivated` : "";
-            statusMsg.textContent = `Applied. ${payload.updated || 0} updated, ${payload.new || 0} new${deact}.`;
             applyBtn.style.display = "none";
             legend.style.display = "none";
             draw();
@@ -5414,7 +5665,7 @@ function showCellDerivation(row, column, value, rowIdx) {
         }
     } else if (viewName === "OTR") {
         derivation = `CSV → OTR source [ row ${rowIdx + 1} ] . "${column}"`;
-    } else if (viewName === "OCEAN" || viewName === "Ocean API") {
+    } else if (viewName === "Ocean API") {
         const src =
             viewName === "Ocean API"
                 ? "Cargo Savings oceanRatesAPI (compare/apply)"
@@ -5581,7 +5832,7 @@ function _cifDerivation(row, column) {
             `(see GET /api/usd → ×20 PTS per warehouse in server.py _build_cif_rows). ` +
             `Each warehouse’s PTS Ocean = 20 × (USD Ocean), and USD Ocean = **SQLite drayage** for that warehouse’s **Port** → **OceanBase ÷ 88**. ` +
             `With **Ignore 0s** on (default), warehouses with 0 in that column are omitted from the average. ` +
-            `So 210 is not “from CIF row 1”; it is the rounded average of those underlying PTS oceans.`
+            `So 210 is not "from CIF row 1"; it is the rounded average of those underlying PTS oceans.`
         );
     }
     if (column === "Dray") {
@@ -7364,6 +7615,8 @@ function openViewFromHash() {
     let viewName = "Jarvis";
     if (h === "#notes") {
         viewName = "Notes";
+    } else if (h === "#api-test") {
+        viewName = "API Test";
     }
     setActiveViewName(viewName);
     select_view();

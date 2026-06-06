@@ -38,6 +38,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     _ensure_drayage_gri_column(conn)
     _ensure_cif_regions_drop_brz_aus(conn)
     _ensure_lc_bank_cost_seeded(conn)
+    _ensure_fsc_fuel_columns(conn)
     conn.commit()
 
 
@@ -270,6 +271,12 @@ CREATE TABLE IF NOT EXISTS dthc_prepaid (
     sort_order   INTEGER NOT NULL DEFAULT 0,
     is_active    INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1))
 );
+
+CREATE TABLE IF NOT EXISTS fsc_fuel (
+    fuel_price   REAL PRIMARY KEY,
+    fsc_percent  REAL NOT NULL DEFAULT 0,
+    total_percent    REAL NOT NULL DEFAULT 0
+);
 """
 
 
@@ -281,6 +288,7 @@ _ALL_TABLES = (
     "export_data",
     "dthc_prepaid",
     "lc_bank_cost",
+    "fsc_fuel",
 )
 
 
@@ -952,21 +960,36 @@ def get_control_panel() -> dict:
     cur = conn.execute(
         f'SELECT [key] AS cp_k, [value] AS cp_v FROM control_panel{wh}'
     )
-    out: dict[str, float] = {}
+    CP_STRING_KEYS = {"Daily Spot Month"}
+    out: dict = {}
     for r in cur:
         k = r["cp_k"]
         if k is None or str(k).strip() == "":
             continue
+        k = str(k).strip()
         v = r["cp_v"]
-        out[str(k).strip()] = float(v) if v is not None else 0.0
+        if k in CP_STRING_KEYS:
+            out[k] = str(v) if v is not None else ""
+        else:
+            try:
+                out[k] = float(v) if v is not None else 0.0
+            except (TypeError, ValueError):
+                out[k] = 0.0
     return out
 
 
 def save_control_panel(data: dict) -> None:
+    CP_STRING_KEYS = {"Daily Spot Month"}
     conn = _get_conn()
+    rows = []
+    for k, v in data.items():
+        if k in CP_STRING_KEYS:
+            rows.append((k, str(v)))
+        else:
+            rows.append((k, float(v)))
     conn.executemany(
         "INSERT OR REPLACE INTO control_panel (key, value) VALUES (?, ?)",
-        [(k, float(v)) for k, v in data.items()],
+        rows,
     )
     conn.commit()
 
@@ -2117,6 +2140,43 @@ def migrate_from_json(data_dir: Path) -> None:
     _migrate_rap_csv(data_dir)
 
     print(f"Migration complete -> {DB_PATH}")
+
+
+def _ensure_fsc_fuel_columns(conn: sqlite3.Connection) -> None:
+    """Drop and recreate fsc_fuel if it has the old column names."""
+    cols = {str(r[1]) for r in conn.execute("PRAGMA table_info(fsc_fuel)").fetchall()}
+    if cols and "fsc_percent" not in cols:
+        conn.execute("DROP TABLE IF EXISTS fsc_fuel")
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS fsc_fuel (
+                fuel_price   REAL PRIMARY KEY,
+                fsc_percent  REAL NOT NULL DEFAULT 0,
+                total_percent REAL NOT NULL DEFAULT 0
+            )
+        """)
+        conn.commit()
+
+
+# ---------------------------------------------------------------------------
+# fsc_fuel
+# ---------------------------------------------------------------------------
+
+def get_fsc_fuel() -> list[dict]:
+    conn = _get_conn()
+    rows = conn.execute(
+        "SELECT fuel_price, fsc_percent, total_percent FROM fsc_fuel ORDER BY fuel_price"
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def save_fsc_fuel(rows: list[dict]) -> None:
+    conn = _get_conn()
+    conn.execute("DELETE FROM fsc_fuel")
+    conn.executemany(
+        "INSERT INTO fsc_fuel (fuel_price, fsc_percent, total_percent) VALUES (?, ?, ?)",
+        [(float(r["fuel_price"]), float(r["fsc_percent"]), float(r["total_percent"])) for r in rows],
+    )
+    conn.commit()
 
 
 def ensure_csv_tables_populated(data_dir: Path) -> None:

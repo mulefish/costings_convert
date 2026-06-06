@@ -1,0 +1,106 @@
+
+VendorName_PI#######_SupplierINV#
+
+
+SELECT * FROM PRD_PRT_COTTON.SHARED_DATA.VOLUME_PHYSICAL_TRADE;
+
+
+
+-- ============================================================
+-- CHUNKED DOWNLOAD: PRD_PRT_COTTON.SHARED_DATA
+-- ============================================================
+--
+-- PURPOSE:
+--   Download today's snapshot of INVENTORY, HAULAGE, and HAULAGELINKSNAPSHOT
+--   from PRD_PRT_COTTON.SHARED_DATA as CSV via Snowsight "Download Results".
+--
+-- HOW TO USE:
+--   1. Set role to RL_COTTON_PRT_DB_PRD and warehouse to WH_DEV_CN_COTTON
+--   2. Run each SELECT below one at a time in Snowsight
+--   3. Click the download button (↓) on the results pane → "Download as CSV"
+--   4. Repeat for each chunk
+--
+-- NOTES:
+--   - CLOSEOFBUSINESSDATE is stored as NUMBER in YYYYMMDD format
+--   - Snowsight download limit is ~100K rows, so we chunk accordingly
+--   - INVENTORY: 4 chunks × ~90K rows
+--   - HAULAGELINKSNAPSHOT: 4 chunks × ~81K rows (smaller to stay safe)
+--   - HAULAGE: 1 chunk (small table)
+--   - The RN column is included — drop it in Excel/downstream if unwanted
+--   - Update the date (20260601) to match latest CLOSEOFBUSINESSDATE
+-- ============================================================
+
+
+-- ============================================================
+-- INVENTORY — ~357K rows × 166 cols → 4 chunks
+-- ============================================================
+
+-- Inventory Chunk 1: rows 1–90,000
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (ORDER BY PBI) AS RN
+    FROM PRD_PRT_COTTON.SHARED_DATA.INVENTORY
+    WHERE CLOSEOFBUSINESSDATE = 20260601
+) WHERE RN BETWEEN 1 AND 90000;
+
+-- Inventory Chunk 2: rows 90,001–180,000
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (ORDER BY PBI) AS RN
+    FROM PRD_PRT_COTTON.SHARED_DATA.INVENTORY
+    WHERE CLOSEOFBUSINESSDATE = 20260601
+) WHERE RN BETWEEN 90001 AND 180000;
+
+-- Inventory Chunk 3: rows 180,001–270,000
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (ORDER BY PBI) AS RN
+    FROM PRD_PRT_COTTON.SHARED_DATA.INVENTORY
+    WHERE CLOSEOFBUSINESSDATE = 20260601
+) WHERE RN BETWEEN 180001 AND 270000;
+
+-- Inventory Chunk 4: rows 270,001+
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (ORDER BY PBI) AS RN
+    FROM PRD_PRT_COTTON.SHARED_DATA.INVENTORY
+    WHERE CLOSEOFBUSINESSDATE = 20260601
+) WHERE RN > 270000;
+
+
+-- ============================================================
+-- HAULAGELINKSNAPSHOT — ~324K rows × 14 cols → 4 chunks
+-- ============================================================
+
+-- HaulageLinkSnapshot Chunk 1: rows 1–81,000
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (ORDER BY HAULID, INVID) AS RN
+    FROM PRD_PRT_COTTON.SHARED_DATA.HAULAGELINKSNAPSHOT
+    WHERE CLOSEOFBUSINESSDATE = 20260601
+) WHERE RN BETWEEN 1 AND 81000;
+
+-- HaulageLinkSnapshot Chunk 2: rows 81,001–162,000
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (ORDER BY HAULID, INVID) AS RN
+    FROM PRD_PRT_COTTON.SHARED_DATA.HAULAGELINKSNAPSHOT
+    WHERE CLOSEOFBUSINESSDATE = 20260601
+) WHERE RN BETWEEN 81001 AND 162000;
+
+-- HaulageLinkSnapshot Chunk 3: rows 162,001–243,000
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (ORDER BY HAULID, INVID) AS RN
+    FROM PRD_PRT_COTTON.SHARED_DATA.HAULAGELINKSNAPSHOT
+    WHERE CLOSEOFBUSINESSDATE = 20260601
+) WHERE RN BETWEEN 162001 AND 243000;
+
+-- HaulageLinkSnapshot Chunk 4: rows 243,001+
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (ORDER BY HAULID, INVID) AS RN
+    FROM PRD_PRT_COTTON.SHARED_DATA.HAULAGELINKSNAPSHOT
+    WHERE CLOSEOFBUSINESSDATE = 20260601
+) WHERE RN > 243000;
+
+
+-- ============================================================
+-- HAULAGE — ~3.6K rows → 1 chunk (small table)
+-- ============================================================
+
+SELECT *
+FROM PRD_PRT_COTTON.SHARED_DATA.HAULAGE
+    WHERE CLOSEOFBUSINESSDATE = 20260601

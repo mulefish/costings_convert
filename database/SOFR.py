@@ -57,7 +57,10 @@ def update_sofr_in_db():
     cp["EDF Interest Rate"] = latest_rate + edf_rate
 
     # Cert Interest = ((Daily Spot + Basis) / 12) * EDF Interest Rate
-    daily_spot = cp.get("Daily Spot", 0.0)
+    ds_month = cp.get("Daily Spot Month", "Mar")
+    daily_spot = cp.get(f"Daily Spot {ds_month}", 0.0)
+    if not isinstance(daily_spot, (int, float)):
+        daily_spot = 0.0
     basis = cp.get("Basis", 0.0)
     cp["Cert Interest"] = round(((daily_spot + basis) / 12.0) * cp["EDF Interest Rate"], 2)
 

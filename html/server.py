@@ -20,6 +20,7 @@ if str(BASE_DIR) not in sys.path:
 from api import ocean_api as cargo_ocean_api  # noqa: E402
 
 from flask import Flask, current_app, jsonify, render_template, request
+import api_catalog  # noqa: E402
 import database as db
 
 app = Flask(__name__)
@@ -37,7 +38,11 @@ CONTROL_PANEL_DEFAULTS = {
     "Cert Interest": 0.00,
     "Origin Commission": 0.00,
     "Avg Bale Weight": 500.00,
-    "Daily Spot": 0.00,
+    "Daily Spot Month": "Mar",
+    "Daily Spot Mar": 0.00,
+    "Daily Spot May": 0.00,
+    "Daily Spot Jul": 0.00,
+    "Daily Spot Dec": 0.00,
     "Basis": 0.00,
     "OTR FSC Multiplier": 1.50,
     "OTR Buffer (USD)": 50.00,
@@ -455,6 +460,16 @@ def _persist_control_panel() -> None:
     db.save_control_panel(control_panel)
 
 
+DAILY_SPOT_MONTHS = ["Mar", "May", "Jul", "Dec"]
+DAILY_SPOT_MONTH_MAP = {3: "Mar", 5: "May", 7: "Jul", 12: "Dec"}
+
+
+def _active_daily_spot() -> float:
+    """Return the Daily Spot value for the currently selected month."""
+    month = control_panel.get("Daily Spot Month", "Mar")
+    return _to_float(control_panel.get(f"Daily Spot {month}"), 0.0)
+
+
 def _recompute_control_panel_derived() -> None:
     """Recompute derived control panel values.
     EDF Interest Rate = SOFR + EDF Rate
@@ -463,7 +478,7 @@ def _recompute_control_panel_derived() -> None:
     sofr = _to_float(control_panel.get("SOFR"), 0.0)
     edf_rate = _to_float(control_panel.get("EDF Rate"), 0.0)
     control_panel["EDF Interest Rate"] = sofr + edf_rate
-    daily_spot = _to_float(control_panel.get("Daily Spot"), 0.0)
+    daily_spot = _active_daily_spot()
     basis = _to_float(control_panel.get("Basis"), 0.0)
     control_panel["Cert Interest"] = round(((daily_spot + basis) / 12.0) * control_panel["EDF Interest Rate"], 2)
 
@@ -482,21 +497,42 @@ def _reload_control_panel() -> None:
     _recompute_control_panel_derived()
 
 
-def _fetch_latest_sofr() -> float | None:
-    """Fetch the latest SOFR rate (as percentage, e.g. 3.63) from the internal API.
-    Returns None on failure so callers can silently skip."""
+SOFR_API_BASE = "https://settles-api.mosaic.hartreepartners.com"
+
+
+def _fetch_latest_sofr_detail() -> tuple[float | None, str | None]:
+    """Fetch latest SOFR (percent, e.g. 3.63) from Hartree API. Returns (rate, error)."""
+    import requests as http_requests
+    import urllib3
+    from datetime import timedelta
+
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    end = datetime.now()
+    start = end - timedelta(days=30)
+    url = (
+        f"{SOFR_API_BASE}/settles/api/v1/getIRFixingRateTS/SOFR/"
+        f"{start.strftime('%Y-%m-%d')}/{end.strftime('%Y-%m-%d')}"
+    )
     try:
-        from database.SOFR import get_sofr_rates
-        from datetime import timedelta
-        end = datetime.now()
-        start = end - timedelta(days=30)
-        df = get_sofr_rates(start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
-        if df is not None and not df.empty:
-            latest = float(df.iloc[-1]["sofr_pct"])
-            return latest
+        response = http_requests.get(url, verify=False, timeout=30)
+        response.raise_for_status()
+        rows = response.json()
+        if not isinstance(rows, list) or not rows:
+            return None, "Hartree API returned no SOFR rows"
+        rows_sorted = sorted(rows, key=lambda r: str(r.get("date", "")))
+        latest = rows_sorted[-1]
+        raw = latest.get("value")
+        if raw is None:
+            return None, "Latest SOFR row has no value field"
+        return float(raw) * 100.0, None
     except Exception as exc:
         print(f"[SOFR] Could not fetch rate: {exc}")
-    return None
+        return None, str(exc)
+
+
+def _fetch_latest_sofr() -> float | None:
+    rate, _ = _fetch_latest_sofr_detail()
+    return rate
 
 
 def _refresh_sofr_into_control_panel() -> float | None:
@@ -508,6 +544,71 @@ def _refresh_sofr_into_control_panel() -> float | None:
         db.save_control_panel(control_panel)
         print(f"[SOFR] Updated to {rate}%")
     return rate
+
+
+def _fetch_cotton_settlements() -> dict[str, float]:
+    """Fetch latest CT/ICE settlements for target months. Returns {month_abbr: value}."""
+    import requests as http_requests
+    import urllib3
+    from datetime import date, timedelta
+
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    today = date.today()
+    year = today.year
+    target_months = (
+        [f"{year}-{m:02d}" for m in [3, 5, 7, 12]]
+        + [f"{year+1}-{m:02d}" for m in [3, 5, 7, 12]]
+    )
+    results = {}
+    # Try the last 5 business days
+    for offset in range(5):
+        d = today - timedelta(days=offset)
+        if d.weekday() >= 5:
+            continue
+        as_of = d.strftime("%Y-%m-%d")
+        url = f"{SOFR_API_BASE}/settles/api/v1/getFutureCurveSettlement/CT/ICE/{as_of}"
+        try:
+            resp = http_requests.get(url, params={"allow_indicative": True}, verify=False, timeout=30)
+            if resp.status_code != 200:
+                continue
+            curve = resp.json()
+            if not curve:
+                continue
+            for contract in curve:
+                exp = contract.get("expiration_date", "")
+                ym = exp[:7]
+                if ym in target_months:
+                    month_num = int(ym.split("-")[1])
+                    abbr = DAILY_SPOT_MONTH_MAP.get(month_num)
+                    if abbr and abbr not in results:
+                        val = contract.get("value")
+                        if val is not None:
+                            results[abbr] = float(val)
+            if results:
+                print(f"[CT] Fetched settlements as of {as_of}: {results}")
+                return results
+        except Exception as exc:
+            print(f"[CT] Error fetching {as_of}: {exc}")
+            continue
+    return results
+
+
+def _refresh_cotton_into_control_panel() -> None:
+    """If any Daily Spot values are 0, fetch from CT API and update."""
+    all_zero = all(
+        _to_float(control_panel.get(f"Daily Spot {m}"), 0.0) == 0.0
+        for m in DAILY_SPOT_MONTHS
+    )
+    if not all_zero:
+        return
+    settlements = _fetch_cotton_settlements()
+    if not settlements:
+        print("[CT] Could not fetch cotton settlements")
+        return
+    for abbr, val in settlements.items():
+        control_panel[f"Daily Spot {abbr}"] = val
+    _recompute_control_panel_derived()
+    db.save_control_panel(control_panel)
 
 
 def _sync_control_panel_from_disk_if_needed() -> None:
@@ -783,7 +884,7 @@ def _document_cif_dthc_prepaid(row: dict) -> str:
 
 def _document_cif_with_prepaid(rows: list) -> list:
     edf = _to_float(control_panel.get("EDF Interest Rate"), 0.0)
-    daily_spot = _to_float(control_panel.get("Daily Spot"), 0.0)
+    daily_spot = _active_daily_spot()
     basis = _to_float(control_panel.get("Basis"), 0.0)
     cof_factor = edf * daily_spot
     com_value = round(daily_spot + basis * 0.1)
@@ -858,7 +959,7 @@ def _recompute_document_cif_computed() -> None:
     USDA_PTS_LB = ceil5(((USD/Bale * 90) / 20) / 22.046 * 100)
     """
     edf = _to_float(control_panel.get("EDF Interest Rate"), 0.0)
-    daily_spot = _to_float(control_panel.get("Daily Spot"), 0.0)
+    daily_spot = _active_daily_spot()
     basis = _to_float(control_panel.get("Basis"), 0.0)
     cof_factor = edf * daily_spot
     com_value = round(daily_spot + basis * 0.1)
@@ -1026,8 +1127,40 @@ def _otr_final_lookup_from_db(fsc: float, otr_gri: float) -> dict:
     return out
 
 
+def _init_fsc_fuel() -> None:
+    """Seed fsc_fuel table from CSV if empty."""
+    existing = db.get_fsc_fuel()
+    if existing:
+        return
+    csv_path = BASE_DIR / "data" / "fsc.csv"
+    if not csv_path.exists():
+        # Also check Downloads as a fallback
+        dl_path = Path.home() / "Downloads" / "fsc.csv"
+        if dl_path.exists():
+            csv_path = dl_path
+        else:
+            print("[FSC] No fsc.csv found to seed")
+            return
+    rows = []
+    with open(csv_path, newline="") as f:
+        reader = csv.reader(f)
+        next(reader)  # skip header
+        for line in reader:
+            if len(line) >= 3:
+                rows.append({
+                    "fuel_price": line[0],
+                    "fsc_percent": line[1],
+                    "total_percent": line[2],
+                })
+    if rows:
+        db.save_fsc_fuel(rows)
+        print(f"[FSC] Seeded {len(rows)} rows from {csv_path}")
+
+
 _init_control_panel()
 _refresh_sofr_into_control_panel()
+_refresh_cotton_into_control_panel()
+_init_fsc_fuel()
 _init_consolidation_days_storage()
 _init_consolidation()
 _init_drayage()
@@ -1151,6 +1284,10 @@ def control_panel_api():
     for key in CONTROL_PANEL_DEFAULTS:
         if key not in payload:
             continue
+        if key == "Daily Spot Month":
+            if payload[key] in DAILY_SPOT_MONTHS:
+                control_panel[key] = payload[key]
+            continue
         try:
             control_panel[key] = float(payload[key])
         except (TypeError, ValueError):
@@ -1163,10 +1300,19 @@ def control_panel_api():
 @app.route("/api/sofr-refresh", methods=["POST"])
 def sofr_refresh_api():
     """Fetch the latest SOFR rate and update the control panel."""
-    rate = _refresh_sofr_into_control_panel()
+    rate, err = _fetch_latest_sofr_detail()
     if rate is None:
-        return jsonify({"error": "Could not fetch SOFR rate"}), 502
+        return jsonify({"error": err or "Could not fetch SOFR rate"}), 502
+    control_panel["SOFR"] = rate
+    _recompute_control_panel_derived()
+    db.save_control_panel(control_panel)
+    print(f"[SOFR] Updated to {rate}%")
     return jsonify({"sofr_pct": rate, "control_panel": control_panel})
+
+
+@app.route("/api/fsc-fuel", methods=["GET"])
+def fsc_fuel_api():
+    return jsonify(db.get_fsc_fuel())
 
 
 @app.route("/api/consolidation", methods=["GET", "PUT", "POST"])
@@ -1284,6 +1430,67 @@ def notes_delete_api(note_id):
     if db.delete_note(note_id):
         return jsonify({"ok": True})
     return jsonify({"error": "Note not found"}), 404
+
+
+@app.route("/api/catalog")
+def api_catalog_route():
+    """API inventory for API Test view."""
+    return jsonify(api_catalog.build_api_catalog(app))
+
+
+@app.route("/api/test/sofr", methods=["GET"])
+def api_test_sofr():
+    """Read-only SOFR probe (does not update control panel)."""
+    rate, err = _fetch_latest_sofr_detail()
+    if rate is None:
+        return jsonify(
+            {
+                "error": err or "Could not fetch SOFR from Hartree API",
+                "url": (
+                    f"{SOFR_API_BASE}/settles/api/v1/getIRFixingRateTS/SOFR/"
+                    "{{start}}/{{end}}"
+                ),
+            }
+        ), 502
+    return jsonify(
+        {
+            "ok": True,
+            "sofr_pct": rate,
+            "note": "Read-only test. Use POST /api/sofr-refresh to persist to control panel.",
+        }
+    )
+
+
+@app.route("/api/test/cargo-ocean", methods=["POST"])
+def api_test_cargo_ocean():
+    """Probe one Cargo Savings origin (read-only)."""
+    import requests as http_requests
+
+    body = request.get_json(silent=True) or {}
+    origin = str(body.get("origin") or "USDAL").strip().upper()
+    dest_port = str(body.get("dest_port") or "").strip().upper() or None
+    try:
+        session = http_requests.Session()
+        rates = cargo_ocean_api.fetch_rates_for_origin(
+            session,
+            origin,
+            dest_port=dest_port,
+            timeout=90.0,
+        )
+    except Exception as exc:
+        return jsonify({"error": str(exc), "origin": origin}), 502
+
+    sample_size = 5
+    return jsonify(
+        {
+            "ok": True,
+            "origin": origin,
+            "dest_port": dest_port or "",
+            "count": len(rates),
+            "sample": rates[:sample_size],
+            "note": f"Showing first {sample_size} of {len(rates)} rate objects.",
+        }
+    )
 
 
 @app.route("/api/db-tables")
@@ -2615,7 +2822,7 @@ def _build_usd_rows():
     otr_fsc = _to_float(control_panel.get("Fuel Surcharge"), 0.0)
     otr_gri_lane = _to_float(control_panel.get("OTR GRI"), 0.0)
     otr_final_lookup = _otr_final_lookup_from_db(otr_fsc, otr_gri_lane)
-    daily_spot = _to_float(control_panel.get("Daily Spot"), 0.0)
+    daily_spot = _active_daily_spot()
     interest = (edf_rate / 100.0 / 12.0) * ((daily_spot / 100.0) * avg_bale_wt) if edf_rate and daily_spot and avg_bale_wt else 0.0
 
     usd_consol_interest = _usd_consolidation_interest(
