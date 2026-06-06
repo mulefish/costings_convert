@@ -30,7 +30,6 @@ CONTROL_PANEL_DEFAULTS = {
     "Fuel Surcharge": 1.47,
     "OTR GRI": 0.00,
     "Buffer": 0.00,
-    "Avg Purchase Price": 0.70,
     "SOFR": 0.00,
     "EDF Rate": 0.00,
     "EDF Interest Rate": 0.00,
@@ -704,24 +703,17 @@ def _days_storage_factor() -> float:
 
 
 def _usd_consolidation_interest(
-    avg_purchase: float,
     edf_rate_pct: float,
+    daily_spot: float,
     avg_bale_wt: float,
-    days_storage: float,
 ) -> float:
     """USD Consolidation Interest (same every row).
 
-    (Avg Purchase Price × EDF Interest Rate as percent × Avg Bale Weight) / 52
-    × (Consolidation days storage "Days Storage" / 7).
+    (EDF Interest Rate / 100 / 365) × (Daily Spot / 100) × Avg Bale Weight
     """
-    if not avg_purchase or not edf_rate_pct or not avg_bale_wt:
+    if not edf_rate_pct or not daily_spot or not avg_bale_wt:
         return 0.0
-    ds = float(days_storage) if days_storage else 0.0
-    return (
-        (avg_purchase * (edf_rate_pct / 100.0) * avg_bale_wt)
-        / 52.0
-        * (ds / 7.0)
-    )
+    return (edf_rate_pct / 100.0 / 365.0) * (daily_spot / 100.0) * avg_bale_wt
 
 
 def _consolidation_region_key_for_port(port: str) -> str | None:
@@ -2596,11 +2588,11 @@ def _build_cif_port_row(port_name: str, row_num: int) -> dict:
     _reload_usa_forwarding_cost()
     _recompute_usa_forwarding_total()
 
-    avg_purchase = _to_float(control_panel.get("Avg Purchase Price"), 0.0)
     edf_rate = _to_float(control_panel.get("EDF Interest Rate"), 0.0)
     avg_bale_wt = _to_float(control_panel.get("Avg Bale Weight"), 0.0)
+    daily_spot = _active_daily_spot()
     usd_consol_interest = _usd_consolidation_interest(
-        avg_purchase, edf_rate, avg_bale_wt, _days_storage_factor()
+        edf_rate, daily_spot, avg_bale_wt
     )
 
     consol_block = _usd_consolidation_in_and_out_for_port(port_name)
@@ -2844,7 +2836,6 @@ def _build_usd_rows():
             late_fee_by_warehouse[wh_key] = _to_float(rr.get("late_fees"), 0.0)
 
     edf_rate = _to_float(control_panel.get("EDF Interest Rate"), 0.0)
-    avg_purchase = _to_float(control_panel.get("Avg Purchase Price"), 0.0)
     avg_bale_wt = _to_float(control_panel.get("Avg Bale Weight"), 0.0)
     origin_comm = _to_float(control_panel.get("Origin Commission"), 0.0)
     # OTR Final from OTR_Rates.csv (same as GET /api/otr), keyed by warehouse City + export Port.
@@ -2855,10 +2846,7 @@ def _build_usd_rows():
     interest = (edf_rate / 100.0 / 12.0) * ((daily_spot / 100.0) * avg_bale_wt) if edf_rate and daily_spot and avg_bale_wt else 0.0
 
     usd_consol_interest = _usd_consolidation_interest(
-        avg_purchase,
-        edf_rate,
-        avg_bale_wt,
-        _days_storage_factor(),
+        edf_rate, daily_spot, avg_bale_wt
     )
 
     duplicated_warehouses = {
