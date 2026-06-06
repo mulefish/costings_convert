@@ -3,7 +3,8 @@
     "allow": [
       "Bash(grep:*)",
       "Bash(node:*)",
-      "Bash(git:*)"
+      "Bash(git:*)",
+      "Bash(python:*)"
     ]
   }
 }

@@ -903,7 +903,7 @@ async function renderControlPanelView() {
         ["GRI", "GRI", "number", true],
         ["LineHaul", "Line Haul", "number", false],
         ["ChasSplit", "Chas Split", "number", false],
-        ["Container", "Container", "number", false],
+        ["Container", "Container", "number", false, true],
         ["Bale", "Bale", "number", false],
         ["OceanBase", "Ocean base", "number", false],
         ["Updated", "Updated", "text", false],
@@ -920,7 +920,7 @@ async function renderControlPanelView() {
     pdray.style.maxWidth = "720px";
     pdray.style.lineHeight = "1.45";
     pdray.textContent =
-        "Per-region GRI (defaults to 0), line haul, chassis split, container, bale rate, ocean base, and updated note are stored in SQLite (drayage). Add or remove rows, then save.";
+        "Per-region GRI, line haul, chassis split, bale rate, ocean base, and updated note are stored in SQLite (drayage). Container is computed: GRI + (Line Haul x FSC) + Chas Split. Add or remove rows, then save.";
     wrap.appendChild(pdray);
 
     wrap.appendChild(drayageStatus);
@@ -975,7 +975,7 @@ async function renderControlPanelView() {
         regionInp.style.padding = "6px 8px";
         tdRegion.appendChild(regionInp);
         tr.appendChild(tdRegion);
-        DRAYAGE_FIELDS.forEach(([field, , kind, defaultZero]) => {
+        DRAYAGE_FIELDS.forEach(([field, , kind, defaultZero, computed]) => {
             const td = document.createElement("td");
             td.style.border = "1px solid #d9d9d9";
             td.style.padding = "6px 10px";
@@ -1004,9 +1004,32 @@ async function renderControlPanelView() {
             inp.style.width = "100%";
             inp.style.boxSizing = "border-box";
             inp.style.padding = "6px 8px";
+            if (computed) {
+                inp.readOnly = true;
+                inp.style.background = "#f4f4f4";
+                inp.title = "Container = GRI + (Line Haul x FSC) + Chas Split (computed)";
+            }
             td.appendChild(inp);
             tr.appendChild(td);
         });
+        // Auto-compute Container = GRI + (LineHaul * FSC) + ChasSplit
+        const syncContainer = () => {
+            const griInp = tr.querySelector('input[data-drayage-field="GRI"]');
+            const lhInp = tr.querySelector('input[data-drayage-field="LineHaul"]');
+            const chasInp = tr.querySelector('input[data-drayage-field="ChasSplit"]');
+            const contInp = tr.querySelector('input[data-drayage-field="Container"]');
+            if (!contInp) return;
+            const gri = parseFloat(griInp?.value) || 0;
+            const lh = parseFloat(lhInp?.value) || 0;
+            const chas = parseFloat(chasInp?.value) || 0;
+            const fscVal = parseFloat(data["Fuel Surcharge"]) || 0;
+            contInp.value = Math.round((gri + lh * fscVal + chas) * 100) / 100;
+        };
+        for (const f of ["GRI", "LineHaul", "ChasSplit"]) {
+            const inp = tr.querySelector(`input[data-drayage-field="${f}"]`);
+            if (inp) inp.addEventListener("input", syncContainer);
+        }
+        syncContainer();
         const tdRm = document.createElement("td");
         tdRm.style.border = "1px solid #d9d9d9";
         tdRm.style.padding = "6px 10px";

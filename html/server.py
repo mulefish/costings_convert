@@ -61,7 +61,7 @@ DRAYAGE_DEFAULTS: dict = {
         "GRI": 0.0,
         "LineHaul": 255.0,
         "ChasSplit": 210.0,
-        "Contrainer": 593.0,
+        "Container": 593.0,
         "Bale": 6.733,
         "OceanBase": 100.0,
         "Updated": "24-Jun",
@@ -70,7 +70,7 @@ DRAYAGE_DEFAULTS: dict = {
         "GRI": 0.0,
         "LineHaul": 0.0,
         "ChasSplit": 0.0,
-        "Contrainer": 485.0,
+        "Container": 485.0,
         "Bale": 5.511,
         "OceanBase": 100.0,
         "Updated": "24-Jun",
@@ -79,7 +79,7 @@ DRAYAGE_DEFAULTS: dict = {
         "GRI": 0.0,
         "LineHaul": 270.0,
         "ChasSplit": 260.0,
-        "Contrainer": 665.0,
+        "Container": 665.0,
         "Bale": 7.557,
         "OceanBase": 100.0,
         "Updated": "24-Jun",
@@ -88,7 +88,7 @@ DRAYAGE_DEFAULTS: dict = {
         "GRI": 0.0,
         "LineHaul": 0.0,
         "ChasSplit": 0.0,
-        "Contrainer": 585.0,
+        "Container": 585.0,
         "Bale": 6.648,
         "OceanBase": 100.0,
         "Updated": "24-Jun",
@@ -648,20 +648,20 @@ def _lookup_fsc_multiplier(fuel_price: float) -> float | None:
 
 
 def _refresh_eia_into_control_panel() -> None:
-    """If EIA FSC is 0, fetch from EIA API, update EIA FSC and Fuel Surcharge."""
-    if _to_float(control_panel.get("EIA FSC"), 0.0) != 0.0:
-        return
-    price = _fetch_eia_diesel_price()
-    if price is None:
-        print("[EIA] Could not fetch diesel price")
-        return
-    control_panel["EIA FSC"] = price
+    """Fetch EIA diesel price (if not already set) and always recompute Fuel Surcharge from it."""
+    price = _to_float(control_panel.get("EIA FSC"), 0.0)
+    if price == 0.0:
+        price = _fetch_eia_diesel_price()
+        if price is None:
+            print("[EIA] Could not fetch diesel price")
+            return
+        control_panel["EIA FSC"] = price
+        print(f"[EIA] Updated EIA FSC to ${price}/gal")
     multiplier = _lookup_fsc_multiplier(price)
     if multiplier is not None:
         control_panel["Fuel Surcharge"] = multiplier
-        print(f"[EIA] Updated Fuel Surcharge to {multiplier} (from ${price}/gal)")
+        print(f"[EIA] Fuel Surcharge = {multiplier} (from ${price}/gal)")
     db.save_control_panel(control_panel)
-    print(f"[EIA] Updated EIA FSC to ${price}/gal")
 
 
 def _sync_control_panel_from_disk_if_needed() -> None:
@@ -752,7 +752,7 @@ def _drayage_field_for_port(port: str, field: str) -> float:
     """Lookup numeric field in the SQLite `drayage` table (in-memory `drayage` dict from db.get_drayage()) by export Port.
 
     Port maps to a drayage region the same way as consolidation (Weslaco → Houston, etc.). Field names match
-    Jarvis / API keys: Bale, OceanBase, GRI, LineHaul, ChasSplit, Contrainer, Updated.
+    Jarvis / API keys: Bale, OceanBase, GRI, LineHaul, ChasSplit, Container, Updated.
     """
     region = _consolidation_region_key_for_port(port)
     if region and region in drayage:
@@ -895,7 +895,20 @@ def _merge_drayage_loaded(loaded: dict) -> dict:
     return out
 
 
+def _recompute_drayage_container() -> None:
+    """Container = GRI + (LineHaul × FSC) + ChasSplit."""
+    fsc = _to_float(control_panel.get("Fuel Surcharge"), 0.0)
+    for inner in drayage.values():
+        if not isinstance(inner, dict):
+            continue
+        gri = _to_float(inner.get("GRI"), 0.0)
+        lh = _to_float(inner.get("LineHaul"), 0.0)
+        chas = _to_float(inner.get("ChasSplit"), 0.0)
+        inner["Container"] = round(gri + (lh * fsc) + chas, 2)
+
+
 def _persist_drayage() -> None:
+    _recompute_drayage_container()
     db.save_drayage(drayage)
 
 
@@ -906,6 +919,7 @@ def _reload_drayage() -> None:
         drayage = _merge_drayage_loaded(loaded)
     else:
         drayage = copy.deepcopy(DRAYAGE_DEFAULTS)
+    _recompute_drayage_container()
 
 
 def _reload_drayage_from_disk() -> None:
@@ -920,6 +934,7 @@ def _init_drayage() -> None:
     else:
         drayage = copy.deepcopy(DRAYAGE_DEFAULTS)
         db.save_drayage(drayage)
+    _recompute_drayage_container()
 
 
 def _document_cif_dthc_prepaid(row: dict) -> str:
@@ -1395,6 +1410,7 @@ def consolidation_days_storage_api():
 def drayage_api():
     if request.method == "GET":
         _reload_drayage()
+        _recompute_drayage_container()
         return jsonify(drayage)
     payload = request.get_json(force=True, silent=True)
     if not isinstance(payload, dict):
