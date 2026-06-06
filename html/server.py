@@ -28,8 +28,6 @@ UPLOAD_DIR = BASE_DIR / "csv_to_upload"
 
 CONTROL_PANEL_DEFAULTS = {
     "Fuel Surcharge": 1.47,
-    "OTR GRI": 0.00,
-    "Buffer": 0.00,
     "SOFR": 0.00,
     "EDF Rate": 0.00,
     "EDF Interest Rate": 0.00,
@@ -43,16 +41,15 @@ CONTROL_PANEL_DEFAULTS = {
     "Daily Spot Dec": 0.00,
     "Basis": 0.00,
     "EIA FSC": 0.00,
-    "OTR Buffer (USD)": 50.00,
 }
 
 CONSOLIDATION_DEFAULTS: dict = {
-    "Dallas": {"bale": 2.7, "storage": 0.12, "month": 1.68},
-    "Houston": {"bale": 2.7, "storage": 0.12, "month": 1.68},
-    "Savannah": {"bale": 2.6, "storage": 0.12, "month": 1.68},
-    "Memphis": {"bale": 2.5, "storage": 0.08, "month": 1.12},
-    "Shelby": {"bale": 2.2, "storage": 0.037, "month": 0.51},
-    "CIL(MX)": {"bale": 2.6, "storage": 0.08, "month": 1.12},
+    "Dallas": {"bale": 2.7, "storage": 0.12, "month": 1.68, "otr_gri": 0},
+    "Houston": {"bale": 2.7, "storage": 0.12, "month": 1.68, "otr_gri": 0},
+    "Savannah": {"bale": 2.6, "storage": 0.12, "month": 1.68, "otr_gri": 0},
+    "Memphis": {"bale": 2.5, "storage": 0.08, "month": 1.12, "otr_gri": 0},
+    "Shelby": {"bale": 2.2, "storage": 0.037, "month": 0.51, "otr_gri": 0},
+    "CIL(MX)": {"bale": 2.6, "storage": 0.08, "month": 1.12, "otr_gri": 0},
 }
 
 CONSOLIDATION_DAYS_STORAGE_DEFAULTS: dict = {
@@ -1157,7 +1154,7 @@ def _otr_destination_port_token(raw: dict, port_names_sorted: list[str]) -> str 
     return None
 
 
-def _otr_final_lookup_from_db(fsc: float, otr_gri: float) -> dict:
+def _otr_final_lookup_from_db(fsc: float) -> dict:
     """Per (origin city, port): max OTR Final from otr_rates table."""
     out: dict = {}
     port_names = _transit_lookup_dest_port_names()
@@ -1172,7 +1169,7 @@ def _otr_final_lookup_from_db(fsc: float, otr_gri: float) -> dict:
         if not port_tok:
             continue
         lh = _to_float(r.get("base_rate"), 0.0)
-        final = lh * fsc + otr_gri
+        final = lh * fsc
         k = (_normalize_key(origin_city), _normalize_key(port_tok))
         out[k] = max(final, out.get(k, 0.0))
     return out
@@ -1646,13 +1643,12 @@ def otr_rows():
     try:
         _sync_control_panel_from_disk_if_needed()
         fsc = _to_float(control_panel.get("Fuel Surcharge"), 0.0)
-        otr_gri = _to_float(control_panel.get("OTR GRI"), 0.0)
         rows = []
         db_rows = db.get_otr_rates(active_only=True)
         for idx, raw in enumerate(db_rows, start=1):
             lh = _to_float(raw.get("base_rate"), 0.0)
             prior_lh = raw.get("prior_base_rate")
-            final = lh * fsc + otr_gri
+            final = lh * fsc
             pts = (final / 88.0) * 20.0
             if prior_lh is None:
                 previous_cell = ""
@@ -1670,7 +1666,6 @@ def otr_rows():
                     "Cargo Type": raw.get("cargo_type", ""),
                     "LH": _round2(lh),
                     "FSC": _round2(fsc),
-                    "GRI": _round2(otr_gri),
                     "Final": _round2(final),
                     "PTS": _round2(pts),
                     "Last Updated": raw.get("update_date", ""),
@@ -1759,13 +1754,12 @@ def otr_compare_local():
 
     _sync_control_panel_from_disk_if_needed()
     fsc = _to_float(control_panel.get("Fuel Surcharge"), 0.0)
-    otr_gri = _to_float(control_panel.get("OTR GRI"), 0.0)
 
     current_keys: dict[str, dict] = {}
     for r in db.get_otr_rates(active_only=True):
         key = db._otr_compound_key(r)
         lh = _to_float(r.get("base_rate"), 0.0)
-        final = lh * fsc + otr_gri
+        final = lh * fsc
         pts = (final / 88.0) * 20.0
         current_keys[key] = {
             "Origin City": r.get("origin_city", ""),
@@ -1775,7 +1769,6 @@ def otr_compare_local():
             "Cargo Type": r.get("cargo_type", ""),
             "LH": _round2(lh),
             "FSC": _round2(fsc),
-            "GRI": _round2(otr_gri),
             "Final": _round2(final),
             "PTS": _round2(pts),
             "Last Updated": r.get("update_date", ""),
@@ -1798,7 +1791,7 @@ def otr_compare_local():
                 row_data["_status"] = "updated"
                 row_data["_changed_fields"] = ["LH", "Final", "PTS"]
                 row_data["LH"] = _round2(new_lh)
-                new_final = new_lh * fsc + otr_gri
+                new_final = new_lh * fsc
                 row_data["Final"] = _round2(new_final)
                 row_data["PTS"] = _round2((new_final / 88.0) * 20.0)
                 row_data["Previous"] = _round2(old_lh)
@@ -1811,7 +1804,7 @@ def otr_compare_local():
         else:
             parts = key.split("|")
             new_lh = uploaded[key]
-            new_final = new_lh * fsc + otr_gri
+            new_final = new_lh * fsc
             row_data = {
                 "Origin City": parts[0] if len(parts) > 0 else "",
                 "Origin State": parts[1] if len(parts) > 1 else "",
@@ -1820,7 +1813,6 @@ def otr_compare_local():
                 "Cargo Type": "",
                 "LH": _round2(new_lh),
                 "FSC": _round2(fsc),
-                "GRI": _round2(otr_gri),
                 "Final": _round2(new_final),
                 "PTS": _round2((new_final / 88.0) * 20.0),
                 "Last Updated": "",
@@ -2840,8 +2832,7 @@ def _build_usd_rows():
     origin_comm = _to_float(control_panel.get("Origin Commission"), 0.0)
     # OTR Final from OTR_Rates.csv (same as GET /api/otr), keyed by warehouse City + export Port.
     otr_fsc = _to_float(control_panel.get("Fuel Surcharge"), 0.0)
-    otr_gri_lane = _to_float(control_panel.get("OTR GRI"), 0.0)
-    otr_final_lookup = _otr_final_lookup_from_db(otr_fsc, otr_gri_lane)
+    otr_final_lookup = _otr_final_lookup_from_db(otr_fsc)
     daily_spot = _active_daily_spot()
     interest = (edf_rate / 100.0 / 12.0) * ((daily_spot / 100.0) * avg_bale_wt) if edf_rate and daily_spot and avg_bale_wt else 0.0
 
@@ -3501,4 +3492,9 @@ def rap_save_edits():
 
 
 if __name__ == "__main__":
+    import socket
+    hostname = socket.gethostname()
+    local_ip = socket.gethostbyname(hostname)
+    print(f"\n  Local:   http://localhost:8501")
+    print(f"  Network: http://{local_ip}:8501\n")
     app.run(host="0.0.0.0", debug=True, port=8501)

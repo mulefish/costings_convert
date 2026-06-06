@@ -497,9 +497,15 @@ async function renderControlPanelView() {
     const DAILY_SPOT_KEYS = new Set(
         ["Daily Spot Month", ...DAILY_SPOT_MONTHS.map(m => `Daily Spot ${m}`)]
     );
-    const CP_HIDDEN_KEYS = new Set([]);
+    const CP_HIDDEN_KEYS = new Set([
+        "Daily Spot",  // legacy single key
+        "Ocean GRI", "OTR FSC Multiplier", "OTR GRI", "Buffer",
+        "InAndOut", "TotalStorage", "Avg Purchase Price",
+        "OTR Buffer (USD)",
+    ]);
 
-    Object.keys(data).forEach((key) => {
+    const sortedKeys = Object.keys(data).slice().sort((a, b) => a.localeCompare(b));
+    sortedKeys.forEach((key) => {
         if (DAILY_SPOT_KEYS.has(key)) return; // rendered separately below
         if (CP_HIDDEN_KEYS.has(key)) return; // hidden from UI
 
@@ -530,23 +536,35 @@ async function renderControlPanelView() {
         tbody.appendChild(tr);
     });
 
-    // --- Daily Spot row: dropdown for month + value input ---
+    // --- Daily Spot section: dropdown + all month values ---
+    const selectedMonth = data["Daily Spot Month"] || "Mar";
+
+    // Hidden inputs for each month's value (for save)
+    for (const m of DAILY_SPOT_MONTHS) {
+        const hiddenInp = document.createElement("input");
+        hiddenInp.type = "hidden";
+        hiddenInp.dataset.key = `Daily Spot ${m}`;
+        hiddenInp.value = data[`Daily Spot ${m}`] || 0;
+        wrap.appendChild(hiddenInp);
+    }
+
+    // Active month selector row
     const dsTr = document.createElement("tr");
     const dsTdL = document.createElement("td");
     dsTdL.textContent = "Daily Spot";
     dsTdL.style.border = "1px solid #d9d9d9";
     dsTdL.style.padding = "6px 10px";
+    dsTdL.style.fontWeight = "bold";
     const dsTdR = document.createElement("td");
     dsTdR.style.border = "1px solid #d9d9d9";
     dsTdR.style.padding = "6px 10px";
     dsTdR.style.display = "flex";
-    dsTdR.style.gap = "6px";
+    dsTdR.style.gap = "10px";
     dsTdR.style.alignItems = "center";
 
     const dsSelect = document.createElement("select");
     dsSelect.dataset.key = "Daily Spot Month";
     dsSelect.style.padding = "6px 8px";
-    const selectedMonth = data["Daily Spot Month"] || "Mar";
     for (const m of DAILY_SPOT_MONTHS) {
         const opt = document.createElement("option");
         opt.value = m;
@@ -556,46 +574,49 @@ async function renderControlPanelView() {
     }
     dsTdR.appendChild(dsSelect);
 
-    // Hidden inputs for each month's value (for save)
-    for (const m of DAILY_SPOT_MONTHS) {
-        const hiddenInp = document.createElement("input");
-        hiddenInp.type = "hidden";
-        hiddenInp.dataset.key = `Daily Spot ${m}`;
-        hiddenInp.value = data[`Daily Spot ${m}`] || 0;
-        dsTdR.appendChild(hiddenInp);
+    // Show all month values inline
+    const dsValuesSpan = document.createElement("span");
+    dsValuesSpan.style.fontSize = "13px";
+    dsValuesSpan.style.color = "#555";
+    function renderDsValues() {
+        const parts = DAILY_SPOT_MONTHS.map(m => {
+            const v = data[`Daily Spot ${m}`] || 0;
+            const active = m === dsSelect.value;
+            return active
+                ? `<strong style="color:#000;">${m}: ${v}</strong>`
+                : `${m}: ${v}`;
+        });
+        dsValuesSpan.innerHTML = parts.join(" &nbsp;|&nbsp; ");
     }
+    renderDsValues();
+    dsTdR.appendChild(dsValuesSpan);
 
-    // Visible input showing the selected month's value
-    const dsInput = document.createElement("input");
-    dsInput.type = "number";
-    dsInput.step = "any";
-    dsInput.style.flex = "1";
-    dsInput.style.padding = "6px 8px";
-    dsInput.style.boxSizing = "border-box";
-    dsInput.readOnly = true;
-    dsInput.style.background = "#f5f5f5";
-    dsInput.style.color = "#333";
-    dsInput.value = data[`Daily Spot ${selectedMonth}`] || 0;
-
-    function syncDsInput() {
-        const m = dsSelect.value;
-        const hidden = dsTdR.querySelector(`input[data-key="Daily Spot ${m}"]`);
-        dsInput.value = hidden ? hidden.value : 0;
+    async function saveDsMonth() {
+        const body = {};
+        for (const inp of wrap.querySelectorAll("input[data-key]")) {
+            const k = inp.dataset.key;
+            const v = parseFloat(inp.value);
+            if (!Number.isNaN(v)) body[k] = v;
+        }
+        body["Daily Spot Month"] = dsSelect.value;
+        try {
+            await fetch("/api/control-panel", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+            });
+            showSaveToast("Daily Spot month updated");
+        } catch (e) {
+            console.error("Failed to save Daily Spot month", e);
+        }
     }
 
     dsSelect.addEventListener("change", () => {
-        syncDsInput();
+        renderDsValues();
         recomputeCpDerived();
+        saveDsMonth();
     });
 
-    dsInput.addEventListener("input", () => {
-        const m = dsSelect.value;
-        const hidden = dsTdR.querySelector(`input[data-key="Daily Spot ${m}"]`);
-        if (hidden) hidden.value = dsInput.value;
-        recomputeCpDerived();
-    });
-
-    dsTdR.appendChild(dsInput);
     dsTr.appendChild(dsTdL);
     dsTr.appendChild(dsTdR);
     tbody.appendChild(dsTr);
@@ -680,6 +701,7 @@ async function renderControlPanelView() {
         ["bale", "InAndOut"],
         ["storage", "Storage"],
         ["month", "TotalStorage"],
+        ["otr_gri", "OTR GRI"],
     ];
     const h2 = document.createElement("h3");
     h2.style.marginTop = "28px";
@@ -811,7 +833,7 @@ async function renderControlPanelView() {
                     continue;
                 }
                 const inner = payload[region];
-                for (const field of ["bale", "storage", "month"]) {
+                for (const field of ["bale", "storage", "month", "otr_gri"]) {
                     const inp = tr.querySelector(`input[data-consol-field="${field}"]`);
                     if (
                         inp != null &&
@@ -881,7 +903,7 @@ async function renderControlPanelView() {
         ["GRI", "GRI", "number", true],
         ["LineHaul", "Line Haul", "number", false],
         ["ChasSplit", "Chas Split", "number", false],
-        ["Contrainer", "Contrainer", "number", false],
+        ["Container", "Container", "number", false],
         ["Bale", "Bale", "number", false],
         ["OceanBase", "Ocean base", "number", false],
         ["Updated", "Updated", "text", false],
@@ -3936,7 +3958,7 @@ function createOtrColumnDiscussion() {
     p1.style.marginTop = "0";
     p1.textContent =
         "Data is built in costings/html/server.py (route /api/otr) from OTR_Rates.csv (per lane). " +
-        "Fuel Surcharge and OTR GRI for OTR come from Jarvis (data/control_panel.json).";
+        "Fuel Surcharge for OTR comes from the control panel.";
     box.appendChild(p1);
 
     const ul = document.createElement("ul");
@@ -3950,7 +3972,6 @@ function createOtrColumnDiscussion() {
         "Cargo Type — CARGOTYPE from the lane row.",
         "LH (line haul) — Numeric BASE RATE from that lane row.",
         "FSC — Jarvis → Fuel Surcharge (same value on every row).",
-        "GRI — Jarvis → OTR GRI (same for every lane).",
         "Final — (LH × FSC) + GRI, using the Fuel Surcharge value shown in the FSC column.",
         "PTS — (Final / 88) × 20 (same 88-pt scale used elsewhere in this app).",
         "Last Updated / Expiration — UPDATEDATE and EXPIRATIONDATE from the lane row.",

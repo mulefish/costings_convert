@@ -35,6 +35,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     _ensure_document_cif_gri_column(conn)
     _ensure_document_cif_cad_lc_coa_columns(conn)
     _ensure_document_cif_usda_columns(conn)
+    _ensure_consolidation_otr_gri_column(conn)
     _ensure_drayage_gri_column(conn)
     _ensure_cif_regions_drop_brz_aus(conn)
     _ensure_lc_bank_cost_seeded(conn)
@@ -54,6 +55,7 @@ CREATE TABLE IF NOT EXISTS consolidation (
     bale      REAL NOT NULL DEFAULT 0,
     storage   REAL NOT NULL DEFAULT 0,
     month     REAL NOT NULL DEFAULT 0,
+    otr_gri   REAL NOT NULL DEFAULT 0,
     is_active INTEGER NOT NULL DEFAULT 1
 );
 
@@ -392,6 +394,18 @@ def _ensure_cif_regions_drop_brz_aus(conn: sqlite3.Connection) -> None:
         "INSERT INTO cif_regions (sort_order, region) VALUES (?, ?)",
         [(i, r) for i, r in enumerate(filtered)],
     )
+
+
+def _ensure_consolidation_otr_gri_column(conn: sqlite3.Connection) -> None:
+    """Add consolidation.otr_gri for DBs created before that column existed."""
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='consolidation'"
+    ).fetchone():
+        return
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(consolidation)").fetchall()}
+    if "otr_gri" not in cols:
+        conn.execute("ALTER TABLE consolidation ADD COLUMN otr_gri REAL NOT NULL DEFAULT 0")
+        conn.commit()
 
 
 def _ensure_drayage_gri_column(conn: sqlite3.Connection) -> None:
@@ -1000,17 +1014,17 @@ def save_control_panel(data: dict) -> None:
 
 def get_consolidation() -> dict:
     conn = _get_conn()
-    rows = conn.execute("SELECT region, bale, storage, month FROM consolidation").fetchall()
-    return {r["region"]: {"bale": r["bale"], "storage": r["storage"], "month": r["month"]} for r in rows}
+    rows = conn.execute("SELECT region, bale, storage, month, otr_gri FROM consolidation").fetchall()
+    return {r["region"]: {"bale": r["bale"], "storage": r["storage"], "month": r["month"], "otr_gri": r["otr_gri"]} for r in rows}
 
 
 def save_consolidation(data: dict) -> None:
     conn = _get_conn()
     conn.execute("DELETE FROM consolidation")
     conn.executemany(
-        "INSERT INTO consolidation (region, bale, storage, month) VALUES (?, ?, ?, ?)",
+        "INSERT INTO consolidation (region, bale, storage, month, otr_gri) VALUES (?, ?, ?, ?, ?)",
         [
-            (region, inner.get("bale", 0), inner.get("storage", 0), inner.get("month", 0))
+            (region, inner.get("bale", 0), inner.get("storage", 0), inner.get("month", 0), inner.get("otr_gri", 0))
             for region, inner in data.items()
             if isinstance(inner, dict)
         ],
