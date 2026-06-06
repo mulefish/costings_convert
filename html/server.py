@@ -1169,7 +1169,8 @@ def _otr_final_lookup_from_db(fsc: float) -> dict:
         if not port_tok:
             continue
         lh = _to_float(r.get("base_rate"), 0.0)
-        final = lh * fsc
+        gri = _otr_gri_for_dest(r.get("dest_city", ""))
+        final = lh * fsc + gri
         k = (_normalize_key(origin_city), _normalize_key(port_tok))
         out[k] = max(final, out.get(k, 0.0))
     return out
@@ -1638,6 +1639,35 @@ def mermaid_demo():
     return render_template("mermaid-demo.html")
 
 
+_OTR_DEST_TO_CONSOL_REGION: dict[str, str] = {
+    "DALLAS": "Dallas",
+    "DESOTO": "Dallas",
+    "LANCASTER": "Dallas",
+    "ARLINGTON": "Dallas",
+    "GRAND PRAIRIE": "Dallas",
+    "HOUSTON": "Houston",
+    "BAYTOWN": "Houston",
+    "PASADENA": "Houston",
+    "MEMPHIS": "Memphis",
+    "WEST MEMPHIS": "Memphis",
+    "GARDEN CITY": "Savannah",
+    "RINCON": "Savannah",
+    "SAVANNAH": "Savannah",
+    "SHELBY": "Shelby",
+    "GASTONIA": "Shelby",
+    "WESLACO": "CIL(MX)",
+}
+
+
+def _otr_gri_for_dest(dest_city: str) -> float:
+    """Look up the OTR GRI from the consolidation table for a destination city."""
+    region = _OTR_DEST_TO_CONSOL_REGION.get(dest_city.strip().upper())
+    if region is None:
+        return 0.0
+    inner = consolidation.get(region, {})
+    return _to_float(inner.get("otr_gri"), 0.0)
+
+
 @app.route("/api/otr")
 def otr_rows():
     try:
@@ -1648,7 +1678,8 @@ def otr_rows():
         for idx, raw in enumerate(db_rows, start=1):
             lh = _to_float(raw.get("base_rate"), 0.0)
             prior_lh = raw.get("prior_base_rate")
-            final = lh * fsc
+            gri = _otr_gri_for_dest(raw.get("dest_city", ""))
+            final = lh * fsc + gri
             pts = (final / 88.0) * 20.0
             if prior_lh is None:
                 previous_cell = ""
@@ -1666,6 +1697,7 @@ def otr_rows():
                     "Cargo Type": raw.get("cargo_type", ""),
                     "LH": _round2(lh),
                     "FSC": _round2(fsc),
+                    "GRI": _round2(gri),
                     "Final": _round2(final),
                     "PTS": _round2(pts),
                     "Last Updated": raw.get("update_date", ""),
