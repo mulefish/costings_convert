@@ -45,17 +45,14 @@ CONTROL_PANEL_DEFAULTS = {
 }
 
 CONSOLIDATION_DEFAULTS: dict = {
-    "Dallas": {"bale": 2.7, "storage": 0.12, "month": 1.68, "otr_gri": 0},
-    "Houston": {"bale": 2.7, "storage": 0.12, "month": 1.68, "otr_gri": 0},
-    "Savannah": {"bale": 2.6, "storage": 0.12, "month": 1.68, "otr_gri": 0},
-    "Memphis": {"bale": 2.5, "storage": 0.08, "month": 1.12, "otr_gri": 0},
-    "Shelby": {"bale": 2.2, "storage": 0.037, "month": 0.51, "otr_gri": 0},
-    "CIL(MX)": {"bale": 2.6, "storage": 0.08, "month": 1.12, "otr_gri": 0},
+    "Dallas": {"bale": 2.7, "storage": 0.12, "month": 1.68, "otr_gri": 0, "storage_days": 0},
+    "Houston": {"bale": 2.7, "storage": 0.12, "month": 1.68, "otr_gri": 0, "storage_days": 0},
+    "Savannah": {"bale": 2.6, "storage": 0.12, "month": 1.68, "otr_gri": 0, "storage_days": 0},
+    "Memphis": {"bale": 2.5, "storage": 0.08, "month": 1.12, "otr_gri": 0, "storage_days": 0},
+    "Shelby": {"bale": 2.2, "storage": 0.037, "month": 0.51, "otr_gri": 0, "storage_days": 0},
+    "CIL(MX)": {"bale": 2.6, "storage": 0.08, "month": 1.12, "otr_gri": 0, "storage_days": 0},
 }
 
-CONSOLIDATION_DAYS_STORAGE_DEFAULTS: dict = {
-    "Days Storage": 14.0,
-}
 
 DRAYAGE_DEFAULTS: dict = {
     "Memphis": {
@@ -129,7 +126,6 @@ USA_FORWARDING_COST_DEFAULTS: dict = {
 # In-memory caches loaded from SQLite on each request that needs them.
 control_panel: dict = {}
 consolidation: dict = {}
-consolidation_days_storage: dict = {}
 drayage: dict = {}
 document_cif: list = []
 usa_forwarding_cost: dict = {}
@@ -688,28 +684,26 @@ def _deep_copy_consolidation_defaults() -> dict:
     return copy.deepcopy(CONSOLIDATION_DEFAULTS)
 
 
-def _days_storage_factor() -> float:
-    """Days multiplier from consolidation_days_storage (key Days Storage)."""
-    return float(
-        consolidation_days_storage.get(
-            "Days Storage",
-            CONSOLIDATION_DAYS_STORAGE_DEFAULTS["Days Storage"],
-        )
-    )
-
-
 def _usd_consolidation_interest(
     edf_rate_pct: float,
     daily_spot: float,
     avg_bale_wt: float,
+    port: str | None = None,
 ) -> float:
-    """USD Consolidation Interest (same every row).
+    """USD Consolidation Interest.
 
-    (EDF Interest Rate / 100 / 365) × (Daily Spot / 100) × Avg Bale Weight
+    (EDF Interest Rate / 100 / 365) × (Daily Spot / 100) × Avg Bale Weight × Storage Days
     """
     if not edf_rate_pct or not daily_spot or not avg_bale_wt:
         return 0.0
-    return (edf_rate_pct / 100.0 / 365.0) * (daily_spot / 100.0) * avg_bale_wt
+    storage_days = 0.0
+    if port:
+        region = _consolidation_region_key_for_port(port)
+        if region:
+            inner = consolidation.get(region)
+            if isinstance(inner, dict):
+                storage_days = _to_float(inner.get("storage_days"), 0.0)
+    return (edf_rate_pct / 100.0 / 365.0) * (daily_spot / 100.0) * avg_bale_wt * storage_days
 
 
 def _consolidation_region_key_for_port(port: str) -> str | None:
@@ -739,7 +733,7 @@ def _usd_consolidation_in_and_out_for_port(port: str) -> float:
 
 
 def _usd_consolidation_total_storage_for_port(port: str) -> float:
-    """Consol_Strg (TotalStorage column): consolidation region month (Storage × Days Storage)."""
+    """Consol_Strg (TotalStorage column): consolidation region month (Storage × Storage Days)."""
     region = _consolidation_region_key_for_port(port)
     if region:
         inner = consolidation.get(region)
@@ -786,15 +780,14 @@ def _document_cif_float_for_country(country: str, field: str) -> float:
 
 
 def _apply_consolidation_month_formula() -> None:
-    """Month = storage * Days Storage (consolidation_days_storage)."""
-    factor = _days_storage_factor()
+    """Month = storage * storage_days (per-region from consolidation table)."""
     for inner in consolidation.values():
         if not isinstance(inner, dict):
             continue
         if "storage" not in inner:
             continue
         try:
-            inner["month"] = float(inner["storage"]) * factor
+            inner["month"] = float(inner["storage"]) * float(inner.get("storage_days", 0))
         except (TypeError, ValueError):
             pass
 
@@ -847,31 +840,6 @@ def _init_consolidation() -> None:
     if not loaded:
         db.save_consolidation(consolidation)
 
-
-def _persist_consolidation_days_storage() -> None:
-    db.save_consolidation_days_storage(consolidation_days_storage)
-
-
-def _reload_consolidation_days_storage() -> None:
-    global consolidation_days_storage
-    loaded = db.get_consolidation_days_storage()
-    merged = dict(CONSOLIDATION_DAYS_STORAGE_DEFAULTS)
-    merged.update(loaded)
-    consolidation_days_storage = merged
-
-
-def _reload_consolidation_days_storage_from_disk() -> None:
-    _reload_consolidation_days_storage()
-
-
-def _init_consolidation_days_storage() -> None:
-    global consolidation_days_storage
-    loaded = db.get_consolidation_days_storage()
-    merged = dict(CONSOLIDATION_DAYS_STORAGE_DEFAULTS)
-    merged.update(loaded)
-    consolidation_days_storage = merged
-    if not db.get_consolidation_days_storage().get("Days Storage"):
-        db.save_consolidation_days_storage(consolidation_days_storage)
 
 
 def _merge_drayage_loaded(loaded: dict) -> dict:
@@ -1196,7 +1164,6 @@ _init_control_panel()
 _refresh_sofr_into_control_panel()
 _refresh_cotton_into_control_panel()
 _refresh_eia_into_control_panel()
-_init_consolidation_days_storage()
 _init_consolidation()
 _init_drayage()
 _init_document_cif()
@@ -1353,7 +1320,6 @@ def fsc_fuel_api():
 @app.route("/api/consolidation", methods=["GET", "PUT", "POST"])
 def consolidation_api():
     if request.method == "GET":
-        _reload_consolidation_days_storage()
         _reload_consolidation()
         return jsonify(consolidation)
     payload = request.get_json(force=True, silent=True)
@@ -1372,12 +1338,10 @@ def consolidation_api():
                 clean[region_key][str(sk).strip()] = float(sv)
             except (TypeError, ValueError):
                 return jsonify({"error": f"Invalid number for {region_key}.{sk}"}), 400
-    _reload_consolidation_days_storage()
-    factor = _days_storage_factor()
     for inner in clean.values():
         if isinstance(inner, dict) and "storage" in inner:
             try:
-                inner["month"] = float(inner["storage"]) * factor
+                inner["month"] = float(inner["storage"]) * float(inner.get("storage_days", 0))
             except (TypeError, ValueError):
                 pass
     consolidation.clear()
@@ -1385,26 +1349,6 @@ def consolidation_api():
     _persist_consolidation()
     return jsonify(consolidation)
 
-
-@app.route("/api/consolidation-days-storage", methods=["GET", "PUT", "POST"])
-def consolidation_days_storage_api():
-    if request.method == "GET":
-        _reload_consolidation_days_storage()
-        return jsonify(consolidation_days_storage)
-    payload = request.get_json(force=True, silent=True)
-    if not isinstance(payload, dict):
-        return jsonify({"error": "JSON object required"}), 400
-    for key in CONSOLIDATION_DAYS_STORAGE_DEFAULTS:
-        if key not in payload:
-            continue
-        try:
-            consolidation_days_storage[key] = float(payload[key])
-        except (TypeError, ValueError):
-            return jsonify({"error": f"Invalid number for {key!r}"}), 400
-    _persist_consolidation_days_storage()
-    _apply_consolidation_month_formula()
-    _persist_consolidation()
-    return jsonify(consolidation_days_storage)
 
 
 @app.route("/api/drayage", methods=["GET", "PUT", "POST"])
@@ -2623,7 +2567,6 @@ def _build_cif_port_row(port_name: str, row_num: int) -> dict:
     """Build a CIF row for a port (Houston/Dallas) using port-level calculations, not PTS averages."""
     _reload_control_panel()
     _reload_consolidation()
-    _reload_consolidation_days_storage()
     _reload_drayage()
     _reload_document_cif()
     _reload_usa_forwarding_cost()
@@ -2633,7 +2576,7 @@ def _build_cif_port_row(port_name: str, row_num: int) -> dict:
     avg_bale_wt = _to_float(control_panel.get("Avg Bale Weight"), 0.0)
     daily_spot = _active_daily_spot()
     usd_consol_interest = _usd_consolidation_interest(
-        edf_rate, daily_spot, avg_bale_wt
+        edf_rate, daily_spot, avg_bale_wt, port_name
     )
 
     consol_block = _usd_consolidation_in_and_out_for_port(port_name)
@@ -2851,7 +2794,6 @@ def themes_save_api():
 
 def _build_usd_rows():
     _reload_control_panel()
-    _reload_consolidation_days_storage()
     _reload_consolidation()
     _reload_drayage()
     _reload_document_cif()
@@ -2884,10 +2826,6 @@ def _build_usd_rows():
     otr_final_lookup = _otr_final_lookup_from_db(otr_fsc)
     daily_spot = _active_daily_spot()
     interest = (edf_rate / 100.0 / 12.0) * ((daily_spot / 100.0) * avg_bale_wt) if edf_rate and daily_spot and avg_bale_wt else 0.0
-
-    usd_consol_interest = _usd_consolidation_interest(
-        edf_rate, daily_spot, avg_bale_wt
-    )
 
     duplicated_warehouses = {
         "385000", "385001", "631020", "810001", "810002", "810003", "810535",
@@ -2976,6 +2914,7 @@ def _build_usd_rows():
         total_transit = r["Flatbed"] + r["Late Fee"] + transit_truck
         consol_block = _usd_consolidation_in_and_out_for_port(r["Port"])
         consol_strg = _usd_consolidation_total_storage_for_port(r["Port"])
+        usd_consol_interest = _usd_consolidation_interest(edf_rate, daily_spot, avg_bale_wt, r["Port"])
         row_total_consol = consol_block + consol_strg + usd_consol_interest
         dray_bale = _drayage_field_for_port(r["Port"], "Bale")
         ocean_base_raw = _drayage_field_for_port(r["Port"], "OceanBase")

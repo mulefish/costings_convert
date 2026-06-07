@@ -36,6 +36,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     _ensure_document_cif_cad_lc_coa_columns(conn)
     _ensure_document_cif_usda_columns(conn)
     _ensure_consolidation_otr_gri_column(conn)
+    _ensure_consolidation_storage_days_column(conn)
     _ensure_drayage_gri_column(conn)
     _ensure_cif_regions_drop_brz_aus(conn)
     _ensure_lc_bank_cost_seeded(conn)
@@ -55,15 +56,11 @@ CREATE TABLE IF NOT EXISTS consolidation (
     bale      REAL NOT NULL DEFAULT 0,
     storage   REAL NOT NULL DEFAULT 0,
     month     REAL NOT NULL DEFAULT 0,
-    otr_gri   REAL NOT NULL DEFAULT 0,
+    otr_gri       REAL NOT NULL DEFAULT 0,
+    storage_days  REAL NOT NULL DEFAULT 0,
     is_active INTEGER NOT NULL DEFAULT 1
 );
 
-CREATE TABLE IF NOT EXISTS consolidation_days_storage (
-    id        INTEGER PRIMARY KEY CHECK (id = 1),
-    days      REAL NOT NULL DEFAULT 14.0,
-    is_active INTEGER NOT NULL DEFAULT 1
-);
 
 CREATE TABLE IF NOT EXISTS drayage (
     region     TEXT PRIMARY KEY,
@@ -283,7 +280,7 @@ CREATE TABLE IF NOT EXISTS fsc_fuel (
 
 
 _ALL_TABLES = (
-    "control_panel", "consolidation", "consolidation_days_storage",
+    "control_panel", "consolidation",
     "drayage", "document_cif", "usa_forwarding_cost", "cif_regions", "notes",
     "otr_rates", "seam_tariffs", "regions_and_ports", "ocean_costing_rules",
     "portcode_portcity", "dischargeport_country", "countrycode_country", "ocean_rates_extract", "otr_transit_lookup",
@@ -405,6 +402,18 @@ def _ensure_consolidation_otr_gri_column(conn: sqlite3.Connection) -> None:
     cols = {row[1] for row in conn.execute("PRAGMA table_info(consolidation)").fetchall()}
     if "otr_gri" not in cols:
         conn.execute("ALTER TABLE consolidation ADD COLUMN otr_gri REAL NOT NULL DEFAULT 0")
+        conn.commit()
+
+
+def _ensure_consolidation_storage_days_column(conn: sqlite3.Connection) -> None:
+    """Add consolidation.storage_days for DBs created before that column existed."""
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='consolidation'"
+    ).fetchone():
+        return
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(consolidation)").fetchall()}
+    if "storage_days" not in cols:
+        conn.execute("ALTER TABLE consolidation ADD COLUMN storage_days REAL NOT NULL DEFAULT 0")
         conn.commit()
 
 
@@ -1014,42 +1023,20 @@ def save_control_panel(data: dict) -> None:
 
 def get_consolidation() -> dict:
     conn = _get_conn()
-    rows = conn.execute("SELECT region, bale, storage, month, otr_gri FROM consolidation").fetchall()
-    return {r["region"]: {"bale": r["bale"], "storage": r["storage"], "month": r["month"], "otr_gri": r["otr_gri"]} for r in rows}
+    rows = conn.execute("SELECT region, bale, storage, month, otr_gri, storage_days FROM consolidation").fetchall()
+    return {r["region"]: {"bale": r["bale"], "storage": r["storage"], "month": r["month"], "otr_gri": r["otr_gri"], "storage_days": r["storage_days"]} for r in rows}
 
 
 def save_consolidation(data: dict) -> None:
     conn = _get_conn()
     conn.execute("DELETE FROM consolidation")
     conn.executemany(
-        "INSERT INTO consolidation (region, bale, storage, month, otr_gri) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO consolidation (region, bale, storage, month, otr_gri, storage_days) VALUES (?, ?, ?, ?, ?, ?)",
         [
-            (region, inner.get("bale", 0), inner.get("storage", 0), inner.get("month", 0), inner.get("otr_gri", 0))
+            (region, inner.get("bale", 0), inner.get("storage", 0), inner.get("month", 0), inner.get("otr_gri", 0), inner.get("storage_days", 0))
             for region, inner in data.items()
             if isinstance(inner, dict)
         ],
-    )
-    conn.commit()
-
-
-# ---------------------------------------------------------------------------
-# consolidation_days_storage
-# ---------------------------------------------------------------------------
-
-def get_consolidation_days_storage() -> dict:
-    conn = _get_conn()
-    row = conn.execute("SELECT days FROM consolidation_days_storage WHERE id = 1").fetchone()
-    if row is None:
-        return {"Days Storage": 14.0}
-    return {"Days Storage": row["days"]}
-
-
-def save_consolidation_days_storage(data: dict) -> None:
-    conn = _get_conn()
-    days = float(data.get("Days Storage", 14.0))
-    conn.execute(
-        "INSERT OR REPLACE INTO consolidation_days_storage (id, days) VALUES (1, ?)",
-        (days,),
     )
     conn.commit()
 
@@ -2128,11 +2115,6 @@ def migrate_from_json(data_dir: Path) -> None:
     if cons_path.exists():
         with cons_path.open("r", encoding="utf-8") as f:
             save_consolidation(json.load(f))
-
-    cds_path = data_dir / "consolidation_days_storage.json"
-    if cds_path.exists():
-        with cds_path.open("r", encoding="utf-8") as f:
-            save_consolidation_days_storage(json.load(f))
 
     dray_path = data_dir / "drayage.json"
     if dray_path.exists():

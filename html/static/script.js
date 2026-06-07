@@ -275,10 +275,6 @@ async function renderControlPanelView() {
     consolStatus.style.fontSize = "13px";
     consolStatus.style.minHeight = "1.2em";
 
-    const cdsStatus = document.createElement("p");
-    cdsStatus.style.fontSize = "13px";
-    cdsStatus.style.minHeight = "1.2em";
-
     const drayageStatus = document.createElement("p");
     drayageStatus.style.fontSize = "13px";
     drayageStatus.style.minHeight = "1.2em";
@@ -297,7 +293,6 @@ async function renderControlPanelView() {
 
     let data = {};
     let consol = {};
-    let cds = {};
     let drayageData = {};
     let documentCifData = [];
     let dthcPrepaidByCode = {};
@@ -329,20 +324,6 @@ async function renderControlPanelView() {
         console.error(err);
         consolStatus.textContent = "Could not load consolidation.";
         consolStatus.style.color = "#b00020";
-    }
-
-    try {
-        const cdsRes = await fetch("/api/consolidation-days-storage");
-        if (!cdsRes.ok) {
-            cdsStatus.textContent = "Could not load consolidation days storage.";
-            cdsStatus.style.color = "#b00020";
-        } else {
-            cds = await cdsRes.json();
-        }
-    } catch (err) {
-        console.error(err);
-        cdsStatus.textContent = "Could not load consolidation days storage.";
-        cdsStatus.style.color = "#b00020";
     }
 
     try {
@@ -452,20 +433,6 @@ async function renderControlPanelView() {
         themesStatus.style.color = "#b00020";
     }
 
-    function getDaysMultiplierFromForm() {
-        for (const inp of wrap.querySelectorAll("input[data-cds-key]")) {
-            const k = inp.getAttribute("data-cds-key");
-            if (k === "Days Storage") {
-                const v = parseFloat(inp.value, 10);
-                if (!Number.isNaN(v)) {
-                    return v;
-                }
-                break;
-            }
-        }
-        const fallback = Number(cds["Days Storage"]);
-        return Number.isFinite(fallback) ? fallback : 14;
-    }
 
     const hCp = document.createElement("h3");
     hCp.style.marginTop = "28px";
@@ -702,6 +669,7 @@ async function renderControlPanelView() {
         ["storage", "Storage"],
         ["month", "TotalStorage"],
         ["otr_gri", "OTR GRI"],
+        ["storage_days", "Storage Days"],
     ];
     const h2 = document.createElement("h3");
     h2.style.marginTop = "28px";
@@ -716,8 +684,7 @@ async function renderControlPanelView() {
     p2.style.lineHeight = "1.45";
     p2.textContent =
         "Per-region bale and Storage are saved to the consolidation table. " +
-        "TotalStorage is Storage × Days Storage; it updates live when Days Storage changes, and saving Days Storage " +
-        "also recomputes and saves consolidation on the server.";
+        "TotalStorage is Storage × Storage Days (per region); it updates live when either value changes.";
     wrap.appendChild(p2);
 
     wrap.appendChild(consolStatus);
@@ -759,6 +726,7 @@ async function renderControlPanelView() {
         const inner = consol[region] && typeof consol[region] === "object" ? consol[region] : {};
         let storageInput = null;
         let monthInput = null;
+        let storageDaysInput = null;
         CONSOL_METRICS.forEach(([field]) => {
             const td = document.createElement("td");
             td.style.border = "1px solid #d9d9d9";
@@ -775,27 +743,34 @@ async function renderControlPanelView() {
             inp.style.padding = "6px 8px";
             if (field === "month") {
                 inp.readOnly = true;
-                inp.title = "TotalStorage: Storage × Days Storage (computed on save)";
+                inp.title = "TotalStorage: Storage × Storage Days (computed)";
                 inp.style.background = "#f4f4f4";
                 monthInput = inp;
             }
             if (field === "storage") {
                 storageInput = inp;
             }
+            if (field === "storage_days") {
+                storageDaysInput = inp;
+            }
             td.appendChild(inp);
             tr.appendChild(td);
         });
         const syncMonth = () => {
-            if (!storageInput || !monthInput) {
+            if (!storageInput || !monthInput || !storageDaysInput) {
                 return;
             }
             const s = parseFloat(storageInput.value, 10);
-            if (!Number.isNaN(s)) {
-                monthInput.value = s * getDaysMultiplierFromForm();
+            const d = parseFloat(storageDaysInput.value, 10);
+            if (!Number.isNaN(s) && !Number.isNaN(d)) {
+                monthInput.value = s * d;
             }
         };
         if (storageInput) {
             storageInput.addEventListener("input", syncMonth);
+        }
+        if (storageDaysInput) {
+            storageDaysInput.addEventListener("input", syncMonth);
         }
         syncMonth();
         cTbody.appendChild(tr);
@@ -804,7 +779,6 @@ async function renderControlPanelView() {
     wrap.appendChild(consolTable);
 
     const refreshAllConsolidationMonths = () => {
-        const mult = getDaysMultiplierFromForm();
         for (const storageInp of consolTable.querySelectorAll(
             'input[data-consol-field="storage"]',
         )) {
@@ -813,9 +787,11 @@ async function renderControlPanelView() {
                 continue;
             }
             const monthInp = tr.querySelector('input[data-consol-field="month"]');
+            const daysInp = tr.querySelector('input[data-consol-field="storage_days"]');
             const s = parseFloat(storageInp.value, 10);
-            if (monthInp && !Number.isNaN(s)) {
-                monthInp.value = s * mult;
+            const d = daysInp ? parseFloat(daysInp.value, 10) : 0;
+            if (monthInp && !Number.isNaN(s) && !Number.isNaN(d)) {
+                monthInp.value = s * d;
             }
         }
     };
@@ -833,7 +809,7 @@ async function renderControlPanelView() {
                     continue;
                 }
                 const inner = payload[region];
-                for (const field of ["bale", "storage", "month", "otr_gri"]) {
+                for (const field of ["bale", "storage", "month", "otr_gri", "storage_days"]) {
                     const inp = tr.querySelector(`input[data-consol-field="${field}"]`);
                     if (
                         inp != null &&
@@ -1814,122 +1790,6 @@ async function renderControlPanelView() {
     themesBtnRow.appendChild(saveThemesBtn);
     wrap.appendChild(themesBtnRow);
 
-    const h3 = document.createElement("h3");
-    h3.style.marginTop = "28px";
-    h3.style.marginBottom = "8px";
-    h3.textContent = "Consolidation days storage";
-    wrap.appendChild(h3);
-
-    const p3 = document.createElement("p");
-    p3.style.fontSize = "13px";
-    p3.style.color = "#444";
-    p3.style.maxWidth = "720px";
-    p3.style.lineHeight = "1.45";
-    p3.textContent =
-        "Values saved to costings/data/consolidation_days_storage.json.";
-    wrap.appendChild(p3);
-
-    wrap.appendChild(cdsStatus);
-
-    const cdsTable = document.createElement("table");
-    cdsTable.style.borderCollapse = "collapse";
-    cdsTable.style.marginTop = "8px";
-    cdsTable.style.minWidth = "420px";
-    const cdsThead = document.createElement("thead");
-    const cdsHr = document.createElement("tr");
-    ["Parameter", "Value"].forEach((label) => {
-        const th = document.createElement("th");
-        th.textContent = label;
-        th.style.border = "1px solid #d9d9d9";
-        th.style.padding = "6px 10px";
-        th.style.background = "#2f5fa7";
-        th.style.color = "#fff";
-        cdsHr.appendChild(th);
-    });
-    cdsThead.appendChild(cdsHr);
-    cdsTable.appendChild(cdsThead);
-    const cdsTbody = document.createElement("tbody");
-
-    Object.keys(cds)
-        .sort()
-        .forEach((key) => {
-            const tr = document.createElement("tr");
-            const tdL = document.createElement("td");
-            tdL.textContent = key;
-            tdL.style.border = "1px solid #d9d9d9";
-            tdL.style.padding = "6px 10px";
-            const tdR = document.createElement("td");
-            tdR.style.border = "1px solid #d9d9d9";
-            tdR.style.padding = "6px 10px";
-            const inp = document.createElement("input");
-            inp.type = "number";
-            inp.step = "any";
-            inp.value = cds[key];
-            inp.setAttribute("data-cds-key", key);
-            inp.style.width = "100%";
-            inp.style.boxSizing = "border-box";
-            inp.style.padding = "6px 8px";
-            tdR.appendChild(inp);
-            tr.appendChild(tdL);
-            tr.appendChild(tdR);
-            cdsTbody.appendChild(tr);
-        });
-    cdsTable.appendChild(cdsTbody);
-    wrap.appendChild(cdsTable);
-
-    const cdsBtnRow = document.createElement("div");
-    cdsBtnRow.style.marginTop = "12px";
-    cdsBtnRow.style.display = "flex";
-    cdsBtnRow.style.gap = "8px";
-    cdsBtnRow.style.alignItems = "center";
-    const saveCdsBtn = document.createElement("button");
-    saveCdsBtn.type = "button";
-    saveCdsBtn.textContent = "Save consolidation days storage";
-    saveCdsBtn.style.padding = "8px 16px";
-    saveCdsBtn.style.cursor = "pointer";
-    saveCdsBtn.addEventListener("click", async () => {
-        cdsStatus.textContent = "";
-        cdsStatus.style.color = "";
-        const body = {};
-        for (const inp of wrap.querySelectorAll("input[data-cds-key]")) {
-            const k = inp.getAttribute("data-cds-key");
-            const v = parseFloat(inp.value, 10);
-            if (Number.isNaN(v)) {
-                cdsStatus.textContent = `Invalid number for "${k}".`;
-                cdsStatus.style.color = "#b00020";
-                return;
-            }
-            body[k] = v;
-        }
-        try {
-            const res = await fetch("/api/consolidation-days-storage", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(body),
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.error || res.statusText);
-            }
-            cdsStatus.textContent =
-                "Saved. Consolidation months updated (saved to consolidation.json).";
-            cdsStatus.style.color = "#1b5e20";
-            showSaveToast("Days storage saved");
-            await pullConsolidationFromServer();
-        } catch (err) {
-            console.error(err);
-            cdsStatus.textContent = err.message || "Save failed.";
-            cdsStatus.style.color = "#b00020";
-        }
-    });
-    cdsBtnRow.appendChild(saveCdsBtn);
-    wrap.appendChild(cdsBtnRow);
-
-    for (const inp of wrap.querySelectorAll("input[data-cds-key]")) {
-        inp.addEventListener("input", refreshAllConsolidationMonths);
-    }
-    refreshAllConsolidationMonths();
-
     // --- Cell notes floating modal for Jarvis view ---
     // Track last mouse position for note placement
     let _lastMouseEvt = null;
@@ -2006,17 +1866,10 @@ async function renderControlPanelView() {
             const region = inp.dataset.consolRegion;
             const field = inp.dataset.consolField;
             if (field === "month") {
-                showJarvisDerivation(`[consolidation] "${region}" → month = storage × Days Storage — computed`);
+                showJarvisDerivation(`[consolidation] "${region}" → month = storage × storage_days — computed`);
             } else {
                 showJarvisDerivation(`[consolidation] "${region}" → ${field} — independent value`);
             }
-            return;
-        }
-
-        // Consolidation Days Storage
-        if (inp.dataset.cdsKey) {
-            const k = inp.dataset.cdsKey;
-            showJarvisDerivation(`[consolidation_days_storage] "${k}" — independent value`);
             return;
         }
 
@@ -4064,7 +3917,7 @@ function createUsdColumnDiscussion() {
         'Flatbed, Late Fee — Looked up by Warehouse id in regions_and_ports.csv ("Flat Bed Fees" and "Late Fees").',
         "Transit Truck — Take the FINAL rate from the OTR (OTR_Rates.csv, same as the OTR view) for that warehouse city and export port, then divide that value by 88. If there is no matching OTR lane, Transit Truck is 0.",
         "Total Transit — Flatbed + Late Fee + Transit Truck.",
-        "Consolidation — Consol_Block: per row, Port → consolidation region → bale. TotalStorage (Consol_Strg): same Port → region → month (Storage × Days Storage). Port ‘Weslaco’ uses Houston’s consolidation row. Unmapped ports return 0. Interest (Consol_Interest): (EDF Interest Rate ÷ 100 ÷ 365) × (Daily Spot ÷ 100) × Avg Bale Weight. Total Consol: Consol_Block + TotalStorage + Interest for that row. Outbound — Dray / Ocean: SQLite drayage table (Port→region) → Bale, and OceanBase ÷ 88 for Ocean USD. Total_Out: Dray + Ocean. Documentation — Sight LC: China LC ÷ 20; Forwarding: Jarvis usa_forwarding TOTAL ((COO + FHTO) ÷ 88); Controlling: China USDA_PTS_LB ÷ 20; Insurance: China INS ÷ 20 (all same every row). Total Doc: sum of those four. CIF — Dest Com: China COM ÷ 20; CoF: China COF ÷ 20; Qclaim: China CIQ_QC ÷ 20 (0 if null). Total CIF: sum of those three. Weslaco / Shelby transit — per server implementation.",
+        "Consolidation — Consol_Block: per row, Port → consolidation region → bale. TotalStorage (Consol_Strg): same Port → region → month (Storage × Storage Days per region). Port ‘Weslaco’ uses Houston’s consolidation row. Unmapped ports return 0. Interest (Consol_Interest): (EDF Interest Rate ÷ 100 ÷ 365) × (Daily Spot ÷ 100) × Avg Bale Weight × Storage Days. Total Consol: Consol_Block + TotalStorage + Interest for that row. Outbound — Dray / Ocean: SQLite drayage table (Port→region) → Bale, and OceanBase ÷ 88 for Ocean USD. Total_Out: Dray + Ocean. Documentation — Sight LC: China LC ÷ 20; Forwarding: Jarvis usa_forwarding TOTAL ((COO + FHTO) ÷ 88); Controlling: China USDA_PTS_LB ÷ 20; Insurance: China INS ÷ 20 (all same every row). Total Doc: sum of those four. CIF — Dest Com: China COM ÷ 20; CoF: China COF ÷ 20; Qclaim: China CIQ_QC ÷ 20 (0 if null). Total CIF: sum of those three. Weslaco / Shelby transit — per server implementation.",
     ];
     for (const text of items) {
         const li = document.createElement("li");
@@ -4177,8 +4030,8 @@ function createCifColumnDiscussion() {
         "<p style=’margin:4px 0’><strong>Consolidation section</strong> (averaged from PTS):</p>" +
         "<ul style=’margin:4px 0 8px 20px’>" +
         "<li><strong>Consol_Block</strong> — consolidation[Port region].bale; Weslaco uses Houston; unmapped ports return 0</li>" +
-        "<li><strong>Consol_Strg (TotalStorage)</strong> — consolidation[Port region].month (= Storage × Days Storage from Jarvis)</li>" +
-        "<li><strong>Consol_Interest</strong> — (EDF Interest Rate ÷ 100 ÷ 365) × (Daily Spot ÷ 100) × Avg Bale Weight</li>" +
+        "<li><strong>Consol_Strg (TotalStorage)</strong> — consolidation[Port region].month (= Storage × Storage Days per region)</li>" +
+        "<li><strong>Consol_Interest</strong> — (EDF Interest Rate ÷ 100 ÷ 365) × (Daily Spot ÷ 100) × Avg Bale Weight × Storage Days (per region)</li>" +
         "<li><strong>Total_Consol</strong> — Consol_Block + TotalStorage + Consol_Interest</li>" +
         "</ul>" +
 
@@ -5827,7 +5680,7 @@ function _usdDerivation(row, column) {
     if (column === "Consol_Block") return `consolidation [ Port="${port}" ] . bale`;
     if (column === "Consol_Strg") return `consolidation [ Port="${port}" ] . TotalStorage`;
     if (column === "Consol_Interest") {
-        return `(EDF Interest Rate / 100 / 365) × (Daily Spot / 100) × Avg Bale Weight  [from control_panel]`;
+        return `(EDF Interest Rate / 100 / 365) × (Daily Spot / 100) × Avg Bale Weight × Storage Days [Port="${port}" → region]`;
     }
     if (column === "Total_Consol") return `Consol_Block + TotalStorage + Consol Interest`;
 
@@ -6291,7 +6144,7 @@ const OCEAN_COST_METHODS = ["Lowest", "Avg Cheapest 2", "Avg Cheapest 3"];
  * Returns { value: string, meta: { method, carriers, count, destGroup, limited, cheapGap, highSpread } }
  */
 function _exportOceanTotalPtsForOutboundRow(oceanRawRows, baseGroup, cifFe, abbr, method) {
-    const NA_RESULT = { value: "N/A", meta: null };
+    const NA_RESULT = { value: "", meta: null };
     if (!Array.isArray(oceanRawRows)) return NA_RESULT;
     const country = _exportNormLoose(baseGroup);
     const fe = String(cifFe || "").trim();
@@ -6653,7 +6506,7 @@ function _exportOutboundLogisticsBodyCell(cifByRegion, exportOpts, exportRow, ab
     const baseG = String(exportRow._exportBaseGroup || exportRow.Base || "").trim();
     const cifFe = String(exportRow["CIF FE"] || "").trim();
     if (!baseG || !cifFe) {
-        return "N/A";
+        return "";
     }
     const method = opts.oceanCostMethod || "Lowest";
     const oceanResult = _exportOceanTotalPtsForOutboundRow(
@@ -6668,7 +6521,7 @@ function _exportOutboundLogisticsBodyCell(cifByRegion, exportOpts, exportRow, ab
 
     const oceanPtsStr = String(oceanResult.value ?? "").trim();
     if (!oceanPtsStr || oceanPtsStr.toUpperCase() === "N/A") {
-        return "N/A";
+        return "";
     }
     const oceanN = _exportParseNumericCell(oceanPtsStr);
     const drayN = _exportParseNumericCell(drayStr);
@@ -6676,26 +6529,26 @@ function _exportOutboundLogisticsBodyCell(cifByRegion, exportOpts, exportRow, ab
     const hasDray = String(drayStr).trim() !== "" && Number.isFinite(drayN);
 
     if (!hasOcean && !hasDray) {
-        return "N/A";
+        return "";
     }
     const sum = (hasDray ? drayN : 0) + (hasOcean ? oceanN : 0);
     if (!Number.isFinite(sum)) {
-        return "N/A";
+        return "";
     }
     return _exportWholeNumberString(sum);
 }
 
-/** Export view: numeric CIF / computed values display as whole numbers; invalid → N/A. */
+/** Export view: numeric CIF / computed values display as whole numbers; invalid → blank. */
 function _exportWholeNumberString(raw) {
     if (raw === undefined || raw === null || raw === "") {
         return "";
     }
     if (String(raw).trim().toUpperCase() === "N/A") {
-        return "N/A";
+        return "";
     }
     const n = typeof raw === "number" ? raw : parseFloat(String(raw).replace(/,/g, ""));
     if (!Number.isFinite(n)) {
-        return "N/A";
+        return "";
     }
     return String(Math.round(n));
 }
@@ -6797,7 +6650,7 @@ function _exportCellValueForGroupRegion(cifByRegion, group, abbr) {
         return "";
     }
     if (!cifRow) {
-        return "N/A";
+        return "";
     }
     const raw = cifRow[cifKey];
     if (raw === undefined || raw === null || raw === "") {
@@ -6824,7 +6677,7 @@ function _exportFillTotalTermsCellsForRow(row) {
                 sum += n;
             }
         }
-        row[ttKey] = hasError ? "N/A" : _exportWholeNumberString(sum);
+        row[ttKey] = hasError ? "" : _exportWholeNumberString(sum);
     });
 }
 
@@ -6908,7 +6761,7 @@ function _exportHeaderSampleCellDisplayValue(group, abbr, o) {
         } else {
             samplePts = NaN;
         }
-        return Number.isFinite(samplePts) ? _exportWholeNumberString(samplePts) : "N/A";
+        return Number.isFinite(samplePts) ? _exportWholeNumberString(samplePts) : "";
     }
     if (group === "CIF") {
         const sampleBase = EXPORT_DATA[0]?.base || "";
@@ -6922,7 +6775,7 @@ function _exportHeaderSampleCellDisplayValue(group, abbr, o) {
         } else {
             samplePts = NaN;
         }
-        return Number.isFinite(samplePts) ? _exportWholeNumberString(samplePts) : "N/A";
+        return Number.isFinite(samplePts) ? _exportWholeNumberString(samplePts) : "";
     }
     if (group === "Premium and Discounts") {
         if (_exportRegionColumnDeferred(abbr)) {
@@ -6964,7 +6817,7 @@ function _exportHeaderSampleTotalTermsForAbbr(abbr, o) {
             sum += n;
         }
     }
-    return hasError ? "N/A" : _exportWholeNumberString(sum);
+    return hasError ? "" : _exportWholeNumberString(sum);
 }
 
 /** Premium header reconcile: 0 = match; larger |Δ| = worse. */
@@ -7190,7 +7043,7 @@ function _buildExportRows(cifByRegion, exportOpts) {
                         } else {
                             pts = NaN;
                         }
-                        row[key] = Number.isFinite(pts) ? _exportWholeNumberString(pts) : "N/A";
+                        row[key] = Number.isFinite(pts) ? _exportWholeNumberString(pts) : "";
                     } else if (group === "CIF") {
                         const map = (exportOpts && exportOpts.exportCifPtsByCountryKey) || {};
                         const ck = _exportNormCountryKey(entry.base);
@@ -7204,7 +7057,7 @@ function _buildExportRows(cifByRegion, exportOpts) {
                         } else {
                             pts = NaN;
                         }
-                        row[key] = Number.isFinite(pts) ? _exportWholeNumberString(pts) : "N/A";
+                        row[key] = Number.isFinite(pts) ? _exportWholeNumberString(pts) : "";
                     }
                 });
             });
