@@ -42,6 +42,8 @@ CONTROL_PANEL_DEFAULTS = {
     "Basis": 0.00,
     "EIA FSC": 0.00,
     "Ocean Cost Method": "Lowest",
+    "Origin Storage Days": 30.00,
+    "Cert Days": 14.00,
 }
 
 CONSOLIDATION_DEFAULTS: dict = {
@@ -1473,6 +1475,49 @@ def api_test_cargo_ocean():
     )
 
 
+@app.route("/api/test/eia", methods=["GET"])
+def api_test_eia():
+    """Probe EIA diesel price API (read-only)."""
+    price = _fetch_eia_diesel_price()
+    if price is None:
+        return jsonify({"error": "Could not fetch EIA diesel price"}), 502
+    return jsonify({"ok": True, "diesel_price_per_gallon": price})
+
+
+@app.route("/api/test/ct", methods=["GET"])
+def api_test_ct():
+    """Probe Hartree cotton futures API (read-only)."""
+    import requests as http_requests
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+    from datetime import date, timedelta
+    today = date.today()
+    # Try last 5 business days
+    for i in range(7):
+        d = today - timedelta(days=i)
+        if d.weekday() >= 5:
+            continue
+        as_of = d.isoformat()
+        url = f"https://settles-api.mosaic.hartreepartners.com/settles/api/v1/getFutureCurveSettlement/CT/ICE/{as_of}"
+        try:
+            resp = http_requests.get(url, params={"allow_indicative": True}, verify=False, timeout=30)
+        except Exception as exc:
+            return jsonify({"error": str(exc)}), 502
+        if resp.status_code != 200 or not resp.json():
+            continue
+        curve = resp.json()
+        sample = curve[:6]
+        return jsonify({
+            "ok": True,
+            "as_of_date": as_of,
+            "contract_count": len(curve),
+            "sample": sample,
+            "note": f"Showing first {len(sample)} of {len(curve)} contracts.",
+        })
+    return jsonify({"error": "No recent CT settlement data found"}), 502
+
+
 @app.route("/api/db-tables")
 def db_tables_api():
     conn = db._get_conn()
@@ -2825,7 +2870,8 @@ def _build_usd_rows():
     otr_fsc = _to_float(control_panel.get("Fuel Surcharge"), 0.0)
     otr_final_lookup = _otr_final_lookup_from_db(otr_fsc)
     daily_spot = _active_daily_spot()
-    interest = (edf_rate / 100.0 / 12.0) * ((daily_spot / 100.0) * avg_bale_wt) if edf_rate and daily_spot and avg_bale_wt else 0.0
+    origin_strg_days = _to_float(control_panel.get("Origin Storage Days"), 30.0)
+    interest = (edf_rate / 100.0 / 365.0) * ((daily_spot / 100.0) * avg_bale_wt) * origin_strg_days if edf_rate and daily_spot and avg_bale_wt else 0.0
 
     duplicated_warehouses = {
         "385000", "385001", "631020", "810001", "810002", "810003", "810535",
@@ -2861,8 +2907,11 @@ def _build_usd_rows():
             "Flatbed": flatbed_by_warehouse.get(wh, 0.0),
             "Late Fee": late_fee_by_warehouse.get(wh, 0.0),
         }
+        origin_storage_days = _to_float(control_panel.get("Origin Storage Days"), 30.0)
         if row["Strg"] < 1.0:
-            row["Strg"] = row["Strg"] * 30.0
+            row["Strg"] = row["Strg"] * origin_storage_days
+        else:
+            row["Strg"] = (row["Strg"] / 30.0) * origin_storage_days
         working_rows.append(row)
 
     dup_rows = []

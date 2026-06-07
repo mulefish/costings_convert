@@ -29,6 +29,26 @@ EXTERNAL_APIS: list[dict[str, Any]] = [
         "test_endpoint": "/api/test/sofr",
         "test_method": "GET",
     },
+    {
+        "id": "hartree-ct",
+        "name": "Hartree Cotton Futures (CT/ICE)",
+        "url": "https://settles-api.mosaic.hartreepartners.com/settles/api/v1/getFutureCurveSettlement/CT/ICE/{date}",
+        "method": "GET",
+        "description": "ICE cotton futures settlement curve. Returns contract-level settlement prices by expiration month.",
+        "used_by": ["api/ct.py", "Daily Spot"],
+        "test_endpoint": "/api/test/ct",
+        "test_method": "GET",
+    },
+    {
+        "id": "eia-diesel",
+        "name": "EIA U.S. No 2 Diesel Price",
+        "url": "https://api.eia.gov/v2/petroleum/pri/gnd/data/",
+        "method": "GET",
+        "description": "Weekly U.S. No 2 Diesel retail price. Feeds EIA FSC in control panel for Fuel Surcharge calculation.",
+        "used_by": ["Jarvis control panel", "api/EIA.py", "Fuel Surcharge"],
+        "test_endpoint": "/api/test/eia",
+        "test_method": "GET",
+    },
 ]
 
 # path -> metadata for Flask /api/* routes
@@ -49,9 +69,9 @@ ROUTE_META: dict[str, dict[str, Any]] = {
         "description": "Consolidation bale / wrap / total by region.",
         "used_by": ["Jarvis", "USD", "PTS", "Export"],
     },
-    "/api/consolidation-days-storage": {
+    "/api/fsc-fuel": {
         "group": "Jarvis",
-        "description": "Consolidation days storage parameters.",
+        "description": "FSC fuel price history rows.",
         "used_by": ["Jarvis"],
     },
     "/api/drayage": {
@@ -228,6 +248,74 @@ ROUTE_META: dict[str, dict[str, Any]] = {
         "group": "Database",
         "description": "Search all tables for a string.",
         "used_by": ["Notes"],
+    },
+    "/api/ocean-costing-rules/save": {
+        "group": "Ocean Costing",
+        "description": "Save a single ocean costing rule row.",
+        "used_by": ["Ocean Costing"],
+        "writes_data": True,
+    },
+    "/api/ocean-costing-rules/save-all": {
+        "group": "Ocean Costing",
+        "description": "Bulk-save all ocean costing rules.",
+        "used_by": ["Ocean Costing"],
+        "writes_data": True,
+    },
+    "/api/seam-tariffs/upload": {
+        "group": "Tariffs",
+        "description": "Upload a seam tariffs CSV file.",
+        "used_by": ["Seam Tariffs"],
+        "writes_data": True,
+    },
+    "/api/seam-tariffs/apply": {
+        "group": "Tariffs",
+        "description": "Apply uploaded seam tariffs to database.",
+        "used_by": ["Seam Tariffs"],
+        "writes_data": True,
+    },
+    "/api/seam-tariffs/local-files": {
+        "group": "Tariffs",
+        "description": "List seam tariff CSV files in csv_to_upload.",
+        "used_by": ["Seam Tariffs"],
+    },
+    "/api/seam-tariffs/compare-local": {
+        "group": "Tariffs",
+        "description": "Compare local seam tariff CSV to database.",
+        "used_by": ["Seam Tariffs"],
+    },
+    "/api/seam-tariffs/apply-local": {
+        "group": "Tariffs",
+        "description": "Apply local seam tariff CSV to database.",
+        "used_by": ["Seam Tariffs"],
+        "writes_data": True,
+    },
+    "/api/regions-and-ports/local-files": {
+        "group": "Regions",
+        "description": "List regions and ports CSV files in csv_to_upload.",
+        "used_by": ["Regions and Ports"],
+    },
+    "/api/regions-and-ports/compare-local": {
+        "group": "Regions",
+        "description": "Compare local regions and ports CSV to database.",
+        "used_by": ["Regions and Ports"],
+    },
+    "/api/regions-and-ports/apply-local": {
+        "group": "Regions",
+        "description": "Apply local regions and ports CSV to database.",
+        "used_by": ["Regions and Ports"],
+        "writes_data": True,
+    },
+    "/api/regions-and-ports/edit-cell": {
+        "group": "Regions",
+        "description": "Edit a single cell in regions and ports.",
+        "used_by": ["Regions and Ports"],
+        "writes_data": True,
+    },
+    "/api/regions-and-ports/save-edits": {
+        "group": "Regions",
+        "description": "Save batch edits to regions and ports.",
+        "used_by": ["Regions and Ports"],
+        "writes_data": True,
     },
 }
 
