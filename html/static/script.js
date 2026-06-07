@@ -4981,13 +4981,22 @@ async function renderCifCertTable(config) {
         if (cpRes.ok) cpData = await cpRes.json();
     } catch (_) {}
 
-    // Build columns: same as CIF + Cert Cost section
+    // Build columns: same as CIF but insert Cert Cost before Total Terms
     const cifConfig = getCifViewConfig();
-    const columns = [...cifConfig.columns, "USDA", "ICE", "Total Cert"];
+    const certCostCols = ["USDA", "ICE", "Total Cert"];
+    const totalTermsCols = ["Cash", "Equity"];
+    // Insert cert cost columns before Cash/Equity (Total Terms)
+    const columns = [
+        ...cifConfig.columns.filter(c => !totalTermsCols.includes(c)),
+        ...certCostCols,
+        ...totalTermsCols,
+    ];
     const columnLabels = { ...cifConfig.columnLabels, USDA: "USDA", ICE: "ICE", "Total Cert": "Total Cert" };
+    // Insert Cert Cost group before Total Terms group
     const headerGroups = [
-        ...cifConfig.headerGroups,
-        { label: "Cert Cost", columns: ["USDA", "ICE", "Total Cert"] },
+        ...cifConfig.headerGroups.filter(g => g.label !== "Total Terms"),
+        { label: "Cert Cost", columns: certCostCols },
+        { label: "Total Terms", columns: totalTermsCols },
     ];
 
     // Map cert row name → CIF region for Inland Logistics lookup
@@ -5063,6 +5072,10 @@ async function renderCifCertTable(config) {
         row.USDA = certUsda;
         row.ICE = certBoard;
         row["Total Cert"] = certUsda + certBoard;
+
+        // Total Terms — Cash
+        const cashParts = ["Total Origin", "Total Transit", "Total_Consol", "Total_Out", "Total_Doc", "Total Cert"];
+        row.Cash = cashParts.reduce((sum, k) => sum + (parseFloat(row[k]) || 0), 0);
 
         row._certDelivery = true;
         row._cifRegion = def.cifRegion;
@@ -6404,6 +6417,21 @@ function _certDeliveryDerivation(row, column) {
         const u = parseFloat(v("USDA")) || 0;
         const ice = parseFloat(v("ICE")) || 0;
         return `Total Cert (${region}) = USDA + ICE = ${u} + ${ice} = ${Math.round(u + ice)}`;
+    }
+
+    // Total Terms
+    if (column === "Cash") {
+        const parts = [
+            ["Total Origin", parseFloat(v("Total Origin")) || 0],
+            ["Total Transit", parseFloat(v("Total Transit")) || 0],
+            ["Total Consol", parseFloat(v("Total_Consol")) || 0],
+            ["Total Out", parseFloat(v("Total_Out")) || 0],
+            ["Total Doc", parseFloat(v("Total_Doc")) || 0],
+            ["Total Cert", parseFloat(v("Total Cert")) || 0],
+        ];
+        const vals = parts.map(p => p[1]);
+        const sum = vals.reduce((a, b) => a + b, 0);
+        return `Cash (${region}) = ${parts.map(p => p[0]).join(" + ")} = ${vals.join(" + ")} = ${Math.round(sum)}`;
     }
 
     return `${column} (${region}) = ${v(column)}`;
