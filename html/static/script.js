@@ -4948,7 +4948,7 @@ function renderCifTable(config) {
 function renderCertOverviewTable(rows, cpData) {
     const content = document.getElementById("content");
     const cities = ["Memphis", "Houston", "Savannah", "Dallas"];
-    const columns = ["Cert Days", "Receiving", "Load Out", "Marking", "Per Bale Storage", "Total Storage", "Interest", "Total Carry", "Actual Cities"];
+    const columns = ["Cert Days", "Receiving", "Load Out", "Marking", "Per Bale Storage", "Total Storage $", "Interest", "Total Carry PTS", "Actual Cities"];
     const actualCities = {
         Memphis: "Memphis, West Memphis, Crawfordsville, Olive Branch",
         Houston: "Houston, Pasadena, Galveston, Baytown",
@@ -4970,6 +4970,31 @@ function renderCertOverviewTable(rows, cpData) {
         if (vals.length === 0) return "";
         return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
     }
+
+    const inputRow = document.createElement("div");
+    inputRow.style.cssText = "display:flex;gap:16px;align-items:center;margin-bottom:10px;font-family:Arial,sans-serif;font-size:13px;";
+
+    const delivLabel = document.createElement("label");
+    delivLabel.textContent = "Delivery Storage (months): ";
+    const delivInput = document.createElement("input");
+    delivInput.type = "number";
+    delivInput.step = "0.1";
+    delivInput.value = "0.5";
+    delivInput.style.width = "60px";
+    delivLabel.appendChild(delivInput);
+    inputRow.appendChild(delivLabel);
+
+    const stopLabel = document.createElement("label");
+    stopLabel.textContent = "Stopping Storage (months): ";
+    const stopInput = document.createElement("input");
+    stopInput.type = "number";
+    stopInput.step = "0.1";
+    stopInput.value = "0.5";
+    stopInput.style.width = "60px";
+    stopLabel.appendChild(stopInput);
+    inputRow.appendChild(stopLabel);
+
+    content.appendChild(inputRow);
 
     const table = document.createElement("table");
     table.style.marginBottom = "20px";
@@ -4995,6 +5020,18 @@ function renderCertOverviewTable(rows, cpData) {
         th.style.color = "#fff";
         tr.appendChild(th);
         const matched = cityRows[city];
+        // Pre-compute values needed by multiple columns
+        const perBale = parseFloat(avg(matched, "CertStrg"));
+        const certDays = parseFloat(cpData[certDaysKey] ?? 14);
+        const totalStorage = (!isNaN(perBale) && !isNaN(certDays)) ? perBale * certDays : 0;
+        const dsMonth = cpData["Daily Spot Month"] || "Mar";
+        const dailySpot = parseFloat(cpData[`Daily Spot ${dsMonth}`] || 0);
+        const basis = parseFloat(cpData["Basis"] || 0);
+        const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
+        const interest = (dailySpot + basis) / 365 * edfRate * certDays;
+        const stoppingStorage = parseFloat(stopInput.value) || 0;
+        const totalCarryPts = totalStorage / 20 * stoppingStorage + interest;
+
         for (const col of columns) {
             const td = document.createElement("td");
             if (col === "Cert Days") {
@@ -5015,11 +5052,15 @@ function renderCertOverviewTable(rows, cpData) {
             } else if (col === "Per Bale Storage") {
                 td.className = "td-num";
                 td.textContent = avg(matched, "CertStrg");
-            } else if (col === "Total Storage") {
+            } else if (col === "Total Storage $") {
                 td.className = "td-num";
-                const perBale = parseFloat(avg(matched, "CertStrg"));
-                const days = parseFloat(cpData[certDaysKey] ?? 14);
-                td.textContent = (!isNaN(perBale) && !isNaN(days)) ? (perBale * days).toFixed(2) : "";
+                td.textContent = totalStorage ? totalStorage.toFixed(2) : "";
+            } else if (col === "Interest") {
+                td.className = "td-num";
+                td.textContent = interest ? interest.toFixed(2) : "";
+            } else if (col === "Total Carry PTS") {
+                td.className = "td-num";
+                td.textContent = totalCarryPts ? totalCarryPts.toFixed(2) : "";
             } else {
                 td.className = "td-num";
                 td.textContent = "";
@@ -5052,11 +5093,31 @@ function renderCertOverviewTable(rows, cpData) {
 
         const matched = cityRows[city];
         const field = colToField[col];
-        if (col === "Total Storage") {
+        if (col === "Total Storage $") {
             const perBale = avg(matched, "CertStrg");
             const days = cpData[certDaysKey] ?? 14;
             const total = (!isNaN(parseFloat(perBale)) && !isNaN(parseFloat(days))) ? (parseFloat(perBale) * parseFloat(days)).toFixed(2) : "N/A";
             panel.textContent = `Total Storage (${city}) = Per Bale Storage × Cert Days = ${perBale} × ${days} = ${total}`;
+        } else if (col === "Interest") {
+            const dsMonth = cpData["Daily Spot Month"] || "Mar";
+            const dailySpot = parseFloat(cpData[`Daily Spot ${dsMonth}`] || 0);
+            const basis = parseFloat(cpData["Basis"] || 0);
+            const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
+            const certDays = parseFloat(cpData[certDaysKey] ?? 14);
+            const interest = (dailySpot + basis) / 365 * edfRate * certDays;
+            panel.textContent = `Interest (${city}) = (Daily Spot + Basis) / 365 × EDF Interest Rate × Cert Days = (${dailySpot} + ${basis}) / 365 × ${edfRate} × ${certDays} = ${interest.toFixed(2)}`;
+        } else if (col === "Total Carry PTS") {
+            const perBale = parseFloat(avg(matched, "CertStrg"));
+            const certDays = parseFloat(cpData[certDaysKey] ?? 14);
+            const totalStrg = (!isNaN(perBale) && !isNaN(certDays)) ? perBale * certDays : 0;
+            const dsMonth = cpData["Daily Spot Month"] || "Mar";
+            const dailySpot = parseFloat(cpData[`Daily Spot ${dsMonth}`] || 0);
+            const basis = parseFloat(cpData["Basis"] || 0);
+            const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
+            const interest = (dailySpot + basis) / 365 * edfRate * certDays;
+            const stopStrg = parseFloat(stopInput.value) || 0;
+            const carry = totalStrg / 20 * stopStrg + interest;
+            panel.textContent = `Total Carry PTS (${city}) = Total Storage $ / 20 × Stopping Storage + Interest = ${totalStrg.toFixed(2)} / 20 × ${stopStrg} + ${interest.toFixed(2)} = ${carry.toFixed(2)}`;
         } else if (col === "Cert Days") {
             panel.textContent = `Cert Days (${city}) = control_panel [ "${certDaysKey}" ] = ${cpData[certDaysKey] ?? 14}`;
         } else if (field) {
@@ -5069,6 +5130,25 @@ function renderCertOverviewTable(rows, cpData) {
         } else {
             panel.textContent = `${col} (${city}) — calculation pending`;
         }
+    });
+
+    // Recalculate Total Carry PTS when Stopping Storage changes
+    stopInput.addEventListener("input", () => {
+        const stoppingStorage = parseFloat(stopInput.value) || 0;
+        const certDays = parseFloat(cpData[certDaysKey] ?? 14);
+        const dsMonth = cpData["Daily Spot Month"] || "Mar";
+        const dailySpot = parseFloat(cpData[`Daily Spot ${dsMonth}`] || 0);
+        const basis = parseFloat(cpData["Basis"] || 0);
+        const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
+        const interest = (dailySpot + basis) / 365 * edfRate * certDays;
+        tbody.querySelectorAll('td[data-col="Total Carry PTS"]').forEach((td) => {
+            const city = td.dataset.city;
+            const matched = cityRows[city];
+            const perBale = parseFloat(avg(matched, "CertStrg"));
+            const totalStrg = (!isNaN(perBale) && !isNaN(certDays)) ? perBale * certDays : 0;
+            const carry = totalStrg / 20 * stoppingStorage + interest;
+            td.textContent = carry ? carry.toFixed(2) : "";
+        });
     });
 }
 
