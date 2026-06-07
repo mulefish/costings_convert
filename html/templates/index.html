@@ -27,20 +27,22 @@
         <h1 class="app-brand">Jarvis</h1>
         <nav class="app-nav" id="app_nav" aria-label="Views">
             <button type="button" class="app-nav-btn is-active" data-view="Jarvis">Jarvis</button>
-            <button type="button" class="app-nav-btn" data-view="Notes">Notes</button>
-            <button type="button" class="app-nav-btn" data-view="API Test">API Test</button>
+            <span class="app-nav-sep">|</span>
             <button type="button" class="app-nav-btn" data-view="OTR">OTR</button>
+            <button type="button" class="app-nav-btn" data-view="LC_Bank_Cost">LC_Bank_Cost</button>
             <button type="button" class="app-nav-btn" data-view="Ocean API">Ocean API</button>
             <button type="button" class="app-nav-btn" data-view="Ocean Costing">Ocean Costing</button>
             <button type="button" class="app-nav-btn" data-view="Seam Tariffs">Seam Tariffs</button>
-            <button type="button" class="app-nav-btn" data-view="Cert Tariffs">Cert Tariffs</button>
             <button type="button" class="app-nav-btn" data-view="USD">USD</button>
             <button type="button" class="app-nav-btn" data-view="PTS">PTS</button>
             <button type="button" class="app-nav-btn" data-view="CIF">CIF</button>
             <button type="button" class="app-nav-btn" data-view="Regions and Ports">Regions and Ports</button>
-            <button type="button" class="app-nav-btn" data-view="Documentation">Documentation</button>
             <button type="button" class="app-nav-btn" data-view="Export">Export</button>
-            <button type="button" class="app-nav-btn" data-view="LC_Bank_Cost">LC_Bank_Cost</button>
+            <button type="button" class="app-nav-btn" data-view="Cert Tariffs">Cert Tariffs</button>
+            <span class="app-nav-sep">|</span>
+            <button type="button" class="app-nav-btn" data-view="Documentation">Documentation</button>
+            <button type="button" class="app-nav-btn" data-view="Notes">Notes</button>
+            <button type="button" class="app-nav-btn" data-view="API Test">API Test</button>
         </nav>
     </header>
 	<p class='note'>Global rates and USD inputs: choose <strong>Jarvis</strong>, edit numbers, click <strong>Save</strong> (writes to the SQLite database). In <strong>USD</strong> Outbound, <strong>Ocean base</strong> uses the <strong>drayage</strong> table: each row’s export <strong>Port</strong> maps to a drayage region, then <strong>OceanBase &divide; 88</strong>. Or open <a href="#jarvis">#jarvis</a>.</p>

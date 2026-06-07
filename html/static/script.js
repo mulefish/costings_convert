@@ -198,73 +198,25 @@ async function renderControlPanelView() {
     notesCb.id = "jarvis-show-notes";
     notesCb.style.marginRight = "4px";
     notesCb.style.cursor = "pointer";
+    notesCb.checked = true;
     notesLabel.appendChild(notesCb);
     notesLabel.appendChild(document.createTextNode("Show notes"));
     hRow.appendChild(notesLabel);
-    wrap.appendChild(hRow);
 
-    const hExportSec = document.createElement("h4");
-    hExportSec.style.margin = "14px 0 6px 0";
-    hExportSec.textContent = "Export view — section columns (this browser)";
-    wrap.appendChild(hExportSec);
-    const pExportSec = document.createElement("p");
-    pExportSec.style.fontSize = "12px";
-    pExportSec.style.color = "#555";
-    pExportSec.style.margin = "0 0 8px 0";
-    pExportSec.style.maxWidth = "720px";
-    pExportSec.style.lineHeight = "1.45";
-    pExportSec.textContent =
-        "Checked = show all region columns for that section. Unchecked = shrink to a narrow column. Defaults come from index.html (export_sections_toggle); changes are saved to localStorage only (not the server). Open the Export view to see the effect.";
-    wrap.appendChild(pExportSec);
-    const exportSecToggleStatus = document.createElement("p");
-    exportSecToggleStatus.style.fontSize = "12px";
-    exportSecToggleStatus.style.minHeight = "1.2em";
-    exportSecToggleStatus.style.margin = "0 0 10px 0";
-    wrap.appendChild(exportSecToggleStatus);
-    const exportSecTbl = document.createElement("table");
-    exportSecTbl.setAttribute("aria-label", "Export section column visibility");
-    const expThead = document.createElement("thead");
-    const expTrh = document.createElement("tr");
-    for (const ht of ["Section", "Show columns (open)"]) {
-        const th = document.createElement("th");
-        th.textContent = ht;
-        expTrh.appendChild(th);
-    }
-    expThead.appendChild(expTrh);
-    exportSecTbl.appendChild(expThead);
-    const expTbody = document.createElement("tbody");
-    const exportSecCbByLabel = new Map();
-    const exportSecState = loadExportSectionExpandedFromStorage();
-    EXPORT_CIF_GROUP_LABELS.forEach((label) => {
-        const tr = document.createElement("tr");
-        const tdName = document.createElement("td");
-        tdName.textContent = label;
-        const tdCb = document.createElement("td");
-        tdCb.style.textAlign = "center";
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.checked = !!exportSecState[label];
-        cb.title = "Show full section in Export view";
-        cb.setAttribute("aria-label", `Show columns for ${label}`);
-        cb.addEventListener("change", () => {
-            const next = {};
-            for (const lbl of EXPORT_CIF_GROUP_LABELS) {
-                const box = exportSecCbByLabel.get(lbl);
-                next[lbl] = box ? !!box.checked : true;
-            }
-            persistExportSectionExpandedState(next);
-            exportSecToggleStatus.textContent = "Saved to browser storage. Switch to Export to refresh the table if it is already open.";
-            showSaveToast("Export sections saved");
-            exportSecToggleStatus.style.color = "#1b5e20";
-        });
-        exportSecCbByLabel.set(label, cb);
-        tdCb.appendChild(cb);
-        tr.appendChild(tdName);
-        tr.appendChild(tdCb);
-        expTbody.appendChild(tr);
+    const clearStaleBtn = document.createElement("button");
+    clearStaleBtn.type = "button";
+    clearStaleBtn.textContent = "Clear highlights";
+    clearStaleBtn.style.fontSize = "12px";
+    clearStaleBtn.style.padding = "3px 10px";
+    clearStaleBtn.style.cursor = "pointer";
+    clearStaleBtn.addEventListener("click", () => {
+        _lastStaleSection = null;
+        document.querySelectorAll(".app-nav-btn.is-stale").forEach((b) => b.classList.remove("is-stale"));
+        document.querySelectorAll(".cell-stale").forEach((el) => el.classList.remove("cell-stale"));
     });
-    exportSecTbl.appendChild(expTbody);
-    wrap.appendChild(exportSecTbl);
+    hRow.appendChild(clearStaleBtn);
+
+    wrap.appendChild(hRow);
 
     const status = document.createElement("p");
     status.style.fontSize = "13px";
@@ -556,6 +508,9 @@ async function renderControlPanelView() {
         dsValuesSpan.innerHTML = parts.join(" &nbsp;|&nbsp; ");
     }
     renderDsValues();
+    dsValuesSpan.style.cursor = "pointer";
+    dsValuesSpan.title = "Click for derivation";
+    dsValuesSpan.dataset.key = "Daily Spot Month";
     dsTdR.appendChild(dsValuesSpan);
 
     async function saveDsMonth() {
@@ -582,6 +537,7 @@ async function renderControlPanelView() {
         renderDsValues();
         recomputeCpDerived();
         saveDsMonth();
+        markStaleViews("controlPanel");
     });
 
     dsTr.appendChild(dsTdL);
@@ -655,6 +611,7 @@ async function renderControlPanelView() {
             status.textContent = "Saved.";
             showSaveToast("Control panel saved");
             status.style.color = "#1b5e20";
+            markStaleViews("controlPanel");
         } catch (err) {
             console.error(err);
             status.textContent = err.message || "Save failed.";
@@ -866,6 +823,7 @@ async function renderControlPanelView() {
             consolStatus.textContent = "Consolidation saved.";
             consolStatus.style.color = "#1b5e20";
             showSaveToast("Consolidation saved");
+            markStaleViews("consolidation");
         } catch (err) {
             console.error(err);
             consolStatus.textContent = err.message || "Save failed.";
@@ -1132,6 +1090,7 @@ async function renderControlPanelView() {
             drayageStatus.textContent = "Drayage saved.";
             drayageStatus.style.color = "#1b5e20";
             showSaveToast("Drayage saved");
+            markStaleViews("drayage");
         } catch (err) {
             console.error(err);
             drayageStatus.textContent = err.message || "Save failed.";
@@ -1429,6 +1388,7 @@ async function renderControlPanelView() {
             docCifStatus.textContent = "Document / CIF saved.";
             docCifStatus.style.color = "#1b5e20";
             showSaveToast("Document / CIF saved");
+            markStaleViews("documentCif");
         } catch (err) {
             console.error(err);
             docCifStatus.textContent = err.message || "Save failed.";
@@ -1597,6 +1557,7 @@ async function renderControlPanelView() {
             usaFwdStatus.textContent = "USA forwarding cost saved.";
             usaFwdStatus.style.color = "#1b5e20";
             showSaveToast("USA forwarding cost saved");
+            markStaleViews("usaForwarding");
         } catch (err) {
             console.error(err);
             usaFwdStatus.textContent = err.message || "Save failed.";
@@ -1772,6 +1733,7 @@ async function renderControlPanelView() {
             themesStatus.textContent = `Saved ${payload.count ?? rowsOut.length} theme row(s).`;
             themesStatus.style.color = "#1b5e20";
             showSaveToast("Themes saved");
+            markStaleViews("themes");
             invalidateThemeCountryColorMapCache();
             const reload = await fetch("/api/themes");
             if (reload.ok) {
@@ -1842,14 +1804,18 @@ async function renderControlPanelView() {
 
     // Delegated click handler for cell notes (works for dynamically added rows too)
     wrap.addEventListener("click", (e) => {
-        const inp = e.target.closest("input");
+        const inp = e.target.closest("input") || e.target.closest("select") || e.target.closest("span[data-key]");
         if (!inp) return;
         _lastClickEvt = e;
 
         // Control panel
         if (inp.dataset.key) {
             const k = inp.dataset.key;
-            if (k === "SOFR") {
+            if (k === "Daily Spot Month") {
+                const m = dsSelect.value;
+                const v = data[`Daily Spot ${m}`] || 0;
+                showJarvisDerivation(`[control_panel] "Daily Spot Month" = ${m} → Daily Spot ${m} = ${v} — selects which month's settlement price is active`);
+            } else if (k === "SOFR") {
                 showJarvisDerivation(`[control_panel] "SOFR" — See SOFR.py in /database`);
             } else if (k === "EDF Interest Rate") {
                 showJarvisDerivation(`[control_panel] "EDF Interest Rate" = SOFR + EDF Rate — computed`);
@@ -1935,6 +1901,70 @@ async function renderControlPanelView() {
         }
     });
 
+    // --- Export view — section columns (bottom of page) ---
+    const hExportSec = document.createElement("h4");
+    hExportSec.style.margin = "28px 0 6px 0";
+    hExportSec.textContent = "Export view — section columns (this browser)";
+    wrap.appendChild(hExportSec);
+    const pExportSec = document.createElement("p");
+    pExportSec.style.fontSize = "12px";
+    pExportSec.style.color = "#555";
+    pExportSec.style.margin = "0 0 8px 0";
+    pExportSec.style.maxWidth = "720px";
+    pExportSec.style.lineHeight = "1.45";
+    pExportSec.textContent =
+        "Checked = show all region columns for that section. Unchecked = shrink to a narrow column. Defaults come from index.html (export_sections_toggle); changes are saved to localStorage only (not the server). Open the Export view to see the effect.";
+    wrap.appendChild(pExportSec);
+    const exportSecToggleStatus = document.createElement("p");
+    exportSecToggleStatus.style.fontSize = "12px";
+    exportSecToggleStatus.style.minHeight = "1.2em";
+    exportSecToggleStatus.style.margin = "0 0 10px 0";
+    wrap.appendChild(exportSecToggleStatus);
+    const exportSecTbl = document.createElement("table");
+    exportSecTbl.setAttribute("aria-label", "Export section column visibility");
+    const expThead = document.createElement("thead");
+    const expTrh = document.createElement("tr");
+    for (const ht of ["Section", "Show columns (open)"]) {
+        const th = document.createElement("th");
+        th.textContent = ht;
+        expTrh.appendChild(th);
+    }
+    expThead.appendChild(expTrh);
+    exportSecTbl.appendChild(expThead);
+    const expTbody = document.createElement("tbody");
+    const exportSecCbByLabel = new Map();
+    const exportSecState = loadExportSectionExpandedFromStorage();
+    EXPORT_CIF_GROUP_LABELS.forEach((label) => {
+        const tr = document.createElement("tr");
+        const tdName = document.createElement("td");
+        tdName.textContent = label;
+        const tdCb = document.createElement("td");
+        tdCb.style.textAlign = "center";
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!exportSecState[label];
+        cb.title = "Show full section in Export view";
+        cb.setAttribute("aria-label", `Show columns for ${label}`);
+        cb.addEventListener("change", () => {
+            const next = {};
+            for (const lbl of EXPORT_CIF_GROUP_LABELS) {
+                const box = exportSecCbByLabel.get(lbl);
+                next[lbl] = box ? !!box.checked : true;
+            }
+            persistExportSectionExpandedState(next);
+            exportSecToggleStatus.textContent = "Saved to browser storage. Switch to Export to refresh the table if it is already open.";
+            showSaveToast("Export sections saved");
+            exportSecToggleStatus.style.color = "#1b5e20";
+        });
+        exportSecCbByLabel.set(label, cb);
+        tdCb.appendChild(cb);
+        tr.appendChild(tdName);
+        tr.appendChild(tdCb);
+        expTbody.appendChild(tr);
+    });
+    exportSecTbl.appendChild(expTbody);
+    wrap.appendChild(exportSecTbl);
+
     content.appendChild(wrap);
 }
 
@@ -1950,7 +1980,105 @@ function setActiveViewName(viewName) {
     document.querySelectorAll(".app-nav-btn").forEach((btn) => {
         const v = btn.getAttribute("data-view") || btn.textContent.trim();
         btn.classList.toggle("is-active", v === viewName);
+        if (v === viewName) btn.classList.remove("is-stale");
     });
+}
+
+// --- Stale-view marking: after a Jarvis save, highlight downstream views & cells ---
+const JARVIS_IMPACT = {
+    controlPanel:  ["OTR", "USD", "PTS", "CIF", "Export"],
+    consolidation: ["OTR", "USD", "PTS", "CIF", "Export"],
+    drayage:       ["USD", "PTS", "CIF", "Export"],
+    documentCif:   ["USD", "PTS", "CIF", "Export"],
+    usaForwarding: ["USD", "PTS", "CIF", "Export"],
+    themes:        ["CIF", "Export"],
+    oceanExtract:  ["Export"],
+};
+
+// Which columns in each view are affected by each Jarvis section
+const STALE_COLUMNS = {
+    OTR: {
+        controlPanel:  ["FSC", "Final", "PTS"],
+        consolidation: ["GRI", "Final", "PTS"],
+    },
+    USD: {
+        controlPanel:  ["Interest", "Origin Comm", "Total Equity", "Total Origin",
+                        "Consol_Interest", "Total_Consol", "Transit Truck", "Total Transit"],
+        consolidation: ["Consol_Block", "Consol_Strg", "Consol_Interest", "Total_Consol"],
+        drayage:       ["Dray", "Ocean", "Total_Out"],
+        documentCif:   ["Sight_LC", "Controlling", "Insurance", "Total_Doc",
+                        "Dest_Com", "CoF", "Qclaim", "Total_CIF"],
+        usaForwarding: ["Forwarding", "Total_Doc"],
+    },
+    PTS: {
+        controlPanel:  ["Interest", "Origin Comm", "Total Equity", "Total Origin",
+                        "Consol_Interest", "Total_Consol", "Transit Truck", "Total Transit"],
+        consolidation: ["Consol_Block", "Consol_Strg", "Consol_Interest", "Total_Consol"],
+        drayage:       ["Dray", "Ocean", "Total_Out"],
+        documentCif:   ["Sight_LC", "Controlling", "Insurance", "Total_Doc",
+                        "Dest_Com", "CoF", "Qclaim", "Total_CIF"],
+        usaForwarding: ["Forwarding", "Total_Doc"],
+    },
+    CIF: {
+        controlPanel:  ["Consol_Block", "Consol_Strg", "Consol_Interest", "Total_Consol",
+                        "Dray", "Ocean", "Total_Out",
+                        "Sight_LC", "Forwarding", "Controlling", "Insurance", "Total_Doc",
+                        "Dest_Com", "CoF", "Qclaim", "Total_CIF",
+                        "Cash", "Equity"],
+        consolidation: ["Consol_Block", "Consol_Strg", "Consol_Interest", "Total_Consol"],
+        drayage:       ["Dray", "Ocean", "Total_Out"],
+        documentCif:   ["Sight_LC", "Controlling", "Insurance", "Total_Doc",
+                        "Dest_Com", "CoF", "Qclaim", "Total_CIF"],
+        usaForwarding: ["Forwarding", "Total_Doc"],
+        themes:        ["Region"],
+    },
+    // Export uses group-based matching (data-export-group attribute)
+    Export: {
+        _useGroups: true,
+        controlPanel:  ["Origin Warehouse", "Inland Logistics", "Consolidation",
+                        "Outbound Logistics", "Documentation", "CIF", "Total Terms"],
+        consolidation: ["Consolidation", "Total Terms"],
+        drayage:       ["Outbound Logistics", "Total Terms"],
+        documentCif:   ["Documentation", "CIF", "Total Terms"],
+        usaForwarding: ["Documentation", "Total Terms"],
+        themes:        ["CIF", "Total Terms", "Premium and Discounts"],
+        oceanExtract:  ["Outbound Logistics", "Total Terms"],
+    },
+};
+
+let _lastStaleSection = null;
+
+function markStaleViews(section) {
+    const views = JARVIS_IMPACT[section];
+    if (!views) return;
+    _lastStaleSection = section;
+    document.querySelectorAll(".app-nav-btn").forEach((btn) => {
+        btn.classList.remove("is-stale");
+        const v = btn.getAttribute("data-view") || btn.textContent.trim();
+        if (views.includes(v)) btn.classList.add("is-stale");
+    });
+}
+
+function applyStaleHighlightToView(viewName) {
+    if (!_lastStaleSection) return;
+    const viewMap = STALE_COLUMNS[viewName];
+    if (!viewMap) return;
+    const cols = viewMap[_lastStaleSection];
+    if (!cols || cols.length === 0) return;
+
+    if (viewMap._useGroups) {
+        // Export: highlight by data-export-group
+        const groupSet = new Set(cols);
+        document.querySelectorAll("[data-export-group]").forEach((el) => {
+            if (groupSet.has(el.dataset.exportGroup)) el.classList.add("cell-stale");
+        });
+    } else {
+        // Standard views: highlight by data-col
+        const colSet = new Set(cols);
+        document.querySelectorAll("[data-col]").forEach((el) => {
+            if (colSet.has(el.dataset.col)) el.classList.add("cell-stale");
+        });
+    }
 }
 
 function initAppNav() {
@@ -1982,6 +2110,8 @@ async function select_view() {
     if (notesModal) notesModal.style.display = "none";
 
     if (viewName === "Jarvis") {
+        _lastStaleSection = null;
+        document.querySelectorAll(".app-nav-btn.is-stale").forEach((b) => b.classList.remove("is-stale"));
         await renderControlPanelView();
         return;
     }
@@ -2014,61 +2144,37 @@ async function select_view() {
     if (viewName === "OTR") {
         await loadOtrRows(config);
         renderOtrTable(config);
-        return;
-    }
-
-    if (viewName === "Ocean API") {
+    } else if (viewName === "Ocean API") {
         await loadOceanRows(config);
         renderOceanApiTable(config);
-        return;
-    }
-
-    if (viewName === "Ocean Costing") {
+    } else if (viewName === "Ocean Costing") {
         await loadOceanCostingRows(config);
         renderOceanCostingTable(config);
-        return;
-    }
-
-    if (viewName === "Seam Tariffs") {
+    } else if (viewName === "Seam Tariffs") {
         await loadSeamTariffRows(config);
         renderSeamTariffTable(config);
-        return;
-    }
-    if (viewName === "Cert Tariffs") {
+    } else if (viewName === "Cert Tariffs") {
         await loadCertTariffRows(config);
         renderTariffTable(config);
-        return;
-    }
-    if (viewName === "USD") {
+    } else if (viewName === "USD") {
         await loadUsdRows(config);
         renderUsdTable(config);
-        return;
-    }
-
-    if (viewName === "PTS") {
+    } else if (viewName === "PTS") {
         await loadPtsRows(config);
         renderPtsTable(config);
-        return;
-    }
-
-    if (viewName === "CIF") {
+    } else if (viewName === "CIF") {
         await loadCifRows(config);
         renderCifTable(config);
-        return;
-    }
-
-    if (viewName === "Regions and Ports") {
+    } else if (viewName === "Regions and Ports") {
         await loadRegionsAndPortsRows(config);
         renderRegionsAndPortsTable(config);
-        return;
-    }
-
-    if (viewName === "Export") {
+    } else if (viewName === "Export") {
         await renderExportTable();
-        return;
+    } else {
+        renderBasicTable(config.columns, config.rows);
     }
 
-    renderBasicTable(config.columns, config.rows);
+    applyStaleHighlightToView(viewName);
 }
 
 let oceanExtractEditorGeneration = 0;
@@ -2440,6 +2546,7 @@ async function mountOceanRatesExtractEditor(hostEl) {
             }
             oceanExtractStatus.textContent = `Saved (${payload.inserted ?? 0} inserted, ${payload.updated ?? 0} updated).`;
             oceanExtractStatus.style.color = "#1b5e20";
+            markStaleViews("oceanExtract");
             const reload = await fetch("/api/ocean-rates-extract");
             if (reload.ok) {
                 const data = await reload.json();
@@ -5330,6 +5437,7 @@ function drawTable(hostElement, columns, rows, options = {}) {
             const subRow = document.createElement("tr");
             columns.forEach((column) => {
                 const th = document.createElement("th");
+                th.dataset.col = column;
                 const arrow =
                     sortState.column === column
                         ? (sortState.ascending ? " ▲" : " ▼")
@@ -5377,6 +5485,7 @@ function drawTable(hostElement, columns, rows, options = {}) {
             columns.forEach((column) => {
                 if (column === "_status" || column === "_changed_fields") return;
                 const td = document.createElement("td");
+                td.dataset.col = column;
                 if (customCellRenderer) {
                     const custom = customCellRenderer(column, row, rowIdx);
                     if (custom) {
@@ -5472,6 +5581,7 @@ function buildSingleHeaderRow(thead, columns, sortState, onHeaderClick, columnLa
     const headRow = document.createElement("tr");
     columns.forEach((column) => {
         const th = document.createElement("th");
+        th.dataset.col = column;
         const arrow =
             sortState.column === column
                 ? (sortState.ascending ? " ▲" : " ▼")
@@ -7512,6 +7622,7 @@ async function renderExportTable() {
             EXPORT_REGIONS.forEach((abbr, ri) => {
                 const col = `${group}|${abbr}`;
                 const th = document.createElement("th");
+                th.dataset.exportGroup = group;
                 th.className = "usd-sub-header td-num";
                 const v =
                     group === "Total Terms"
@@ -7561,6 +7672,7 @@ async function renderExportTable() {
             );
             ["Base", "CIF FE"].forEach((col) => {
                 const td = document.createElement("td");
+                td.dataset.col = col;
                 const val = row[col] ?? "";
                 td.textContent = val;
                 const isNumCol =
@@ -7593,6 +7705,8 @@ async function renderExportTable() {
                 EXPORT_REGIONS.forEach((abbr, ri) => {
                     const col = `${group}|${abbr}`;
                     const td = document.createElement("td");
+                    td.dataset.col = col;
+                    td.dataset.exportGroup = group;
                     const val = row[col] ?? "";
                     td.textContent = val;
                     const isNumCol =
