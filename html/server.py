@@ -31,7 +31,8 @@ CONTROL_PANEL_DEFAULTS = {
     "SOFR": 0.00,
     "EDF Rate": 0.00,
     "EDF Interest Rate": 0.00,
-    "Cert Interest": 0.00,
+    "Cert Board": 0.00,
+    "Cert USDA": 0.00,
     "Origin Commission": 0.00,
     "Avg Bale Weight": 500.00,
     "Daily Spot Month": "Mar",
@@ -465,14 +466,10 @@ def _active_daily_spot() -> float:
 def _recompute_control_panel_derived() -> None:
     """Recompute derived control panel values.
     EDF Interest Rate = SOFR + EDF Rate
-    Cert Interest = ((Daily Spot + Basis) / 12) * EDF Interest Rate
     """
     sofr = _to_float(control_panel.get("SOFR"), 0.0)
     edf_rate = _to_float(control_panel.get("EDF Rate"), 0.0)
     control_panel["EDF Interest Rate"] = sofr + edf_rate
-    daily_spot = _active_daily_spot()
-    basis = _to_float(control_panel.get("Basis"), 0.0)
-    control_panel["Cert Interest"] = round(((daily_spot + basis) / 12.0) * control_panel["EDF Interest Rate"], 2)
 
 
 def _reload_control_panel() -> None:
@@ -483,6 +480,8 @@ def _reload_control_panel() -> None:
         for k, v in loaded.items():
             if k not in merged:
                 merged[k] = v
+        for k in _CP_OBSOLETE_KEYS:
+            merged.pop(k, None)
         control_panel = merged
     else:
         control_panel = dict(CONTROL_PANEL_DEFAULTS)
@@ -667,6 +666,9 @@ def _sync_control_panel_from_disk_if_needed() -> None:
     _reload_control_panel()
 
 
+_CP_OBSOLETE_KEYS = {"Cert Interest"}
+
+
 def _init_control_panel() -> None:
     global control_panel
     loaded = db.get_control_panel()
@@ -675,10 +677,12 @@ def _init_control_panel() -> None:
         for k, v in loaded.items():
             if k not in merged:
                 merged[k] = v
+        for k in _CP_OBSOLETE_KEYS:
+            merged.pop(k, None)
         control_panel = merged
     else:
         control_panel = dict(CONTROL_PANEL_DEFAULTS)
-        db.save_control_panel(control_panel)
+    db.save_control_panel(control_panel)
     _recompute_control_panel_derived()
 
 

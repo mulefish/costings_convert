@@ -411,7 +411,7 @@ async function renderControlPanelView() {
     table.appendChild(thead);
     const tbody = document.createElement("tbody");
 
-    const CP_READONLY_KEYS = new Set(["SOFR", "EDF Interest Rate", "Cert Interest", "EIA FSC", "Fuel Surcharge"]);
+    const CP_READONLY_KEYS = new Set(["SOFR", "EDF Interest Rate", "EIA FSC", "Fuel Surcharge"]);
     const DAILY_SPOT_MONTHS = ["Mar", "May", "Jul", "Dec"];
     const DAILY_SPOT_KEYS = new Set(
         ["Daily Spot Month", ...DAILY_SPOT_MONTHS.map(m => `Daily Spot ${m}`)]
@@ -560,10 +560,6 @@ async function renderControlPanelView() {
         };
         const edfInterest = getVal("SOFR") + getVal("EDF Rate");
         setVal("EDF Interest Rate", Math.round(edfInterest * 100) / 100);
-        const dsMonth = dsSelect.value;
-        const activeDailySpot = getVal(`Daily Spot ${dsMonth}`);
-        const certInterest = ((activeDailySpot + getVal("Basis")) / 12) * edfInterest;
-        setVal("Cert Interest", Math.round(certInterest * 100) / 100);
     }
 
     for (const triggerKey of ["SOFR", "EDF Rate", "Basis"]) {
@@ -1820,8 +1816,6 @@ async function renderControlPanelView() {
                 showJarvisDerivation(`[control_panel] "SOFR" — See SOFR.py in /database`);
             } else if (k === "EDF Interest Rate") {
                 showJarvisDerivation(`[control_panel] "EDF Interest Rate" = SOFR + EDF Rate — computed`);
-            } else if (k === "Cert Interest") {
-                showJarvisDerivation(`[control_panel] "Cert Interest" = ((Daily Spot + Basis) / 12) × EDF Interest Rate — computed`);
             } else {
                 showJarvisDerivation(`[control_panel] "${k}" — independent value`);
             }
@@ -4968,12 +4962,24 @@ function renderCifTable(config, onDataChange) {
     });
 }
 
-function renderCifCertTable(config) {
+async function renderCifCertTable(config) {
     const content = document.getElementById("content");
 
     // Remove previous cert table if re-rendering
     const prev = document.getElementById("cif-cert-table-host");
     if (prev) prev.remove();
+
+    // Fetch consolidation data for breaks values and control panel for cert costs
+    let consolData = {};
+    let cpData = {};
+    try {
+        const [consolRes, cpRes] = await Promise.all([
+            fetch("/api/consolidation"),
+            fetch("/api/control-panel"),
+        ]);
+        if (consolRes.ok) consolData = await consolRes.json();
+        if (cpRes.ok) cpData = await cpRes.json();
+    } catch (_) {}
 
     // Build columns: same as CIF + Cert Cost section
     const cifConfig = getCifViewConfig();
@@ -4986,16 +4992,16 @@ function renderCifCertTable(config) {
 
     // Map cert row name → CIF region for Inland Logistics lookup
     const certRowDefs = [
-        { name: "WTX-Dallas Cert-Block Out",     cifRegion: "WTX" },
-        { name: "WTX-Dallas Cert-Break Out",     cifRegion: "WTX" },
-        { name: "WTXH-Houston Cert-Block Out",   cifRegion: "WTXH" },
-        { name: "WTXH-Houston Cert-Break Out",   cifRegion: "WTXH" },
-        { name: "STX-Houston Cert-Block Out",    cifRegion: "STEX" },
-        { name: "STX-Houston Cert-Break Out",    cifRegion: "STEX" },
-        { name: "ME-Memphis Cert-Block Out",     cifRegion: "Memphis Rule 5" },
-        { name: "ME-Memphis Cert-Break Out",     cifRegion: "Memphis Rule 5" },
-        { name: "GA-Savannah Cert-Block Out",    cifRegion: "GA 30 Day" },
-        { name: "GA-Savannah Cert-Break Out",    cifRegion: "GA 30 Day" },
+        { name: "WTX-Dallas Cert-Block Out",     cifRegion: "WTX",             consolRegion: "Dallas" },
+        { name: "WTX-Dallas Cert-Break Out",     cifRegion: "WTX",             consolRegion: "Dallas" },
+        { name: "WTXH-Houston Cert-Block Out",   cifRegion: "WTXH",            consolRegion: "Houston" },
+        { name: "WTXH-Houston Cert-Break Out",   cifRegion: "WTXH",            consolRegion: "Houston" },
+        { name: "STX-Houston Cert-Block Out",    cifRegion: "STEX",            consolRegion: "Houston" },
+        { name: "STX-Houston Cert-Break Out",    cifRegion: "STEX",            consolRegion: "Houston" },
+        { name: "ME-Memphis Cert-Block Out",     cifRegion: "Memphis Rule 5",  consolRegion: "Memphis" },
+        { name: "ME-Memphis Cert-Break Out",     cifRegion: "Memphis Rule 5",  consolRegion: "Memphis" },
+        { name: "GA-Savannah Cert-Block Out",    cifRegion: "GA 30 Day",       consolRegion: "Savannah" },
+        { name: "GA-Savannah Cert-Break Out",    cifRegion: "GA 30 Day",       consolRegion: "Savannah" },
     ];
 
     // Build CIF region lookup
@@ -5040,14 +5046,27 @@ function renderCifCertTable(config) {
             const originParts = ["Recv", "Load", "Compr", "Class", "Mark", "Strg", "ESO", "Interest", "Origin Comm"];
             row["Total Origin"] = originParts.reduce((sum, k) => sum + (parseFloat(row[k]) || 0), 0);
 
-            // Consolidation from CIF
-            row.Consol_Block = parseFloat(src.Consol_Block) || 0;
+            // Consolidation: Break Out rows use breaks * 20 for InAndOut
+            const isBreak = def.name.toLowerCase().includes("break");
+            if (isBreak && consolData[def.consolRegion]) {
+                row.Consol_Block = (parseFloat(consolData[def.consolRegion].breaks) || 0) * 20;
+            } else {
+                row.Consol_Block = parseFloat(src.Consol_Block) || 0;
+            }
             row.Consol_Strg = parseFloat(src.Consol_Strg) || 0;
             row.Consol_Interest = parseFloat(src.Consol_Interest) || 0;
             row.Total_Consol = (row.Consol_Block + row.Consol_Strg + row.Consol_Interest);
         }
+        // Cert Cost section
+        const certUsda = (parseFloat(cpData["Cert USDA"]) || 0) * 20;
+        const certBoard = (parseFloat(cpData["Cert Board"]) || 0) * 20;
+        row.USDA = certUsda;
+        row.ICE = certBoard;
+        row["Total Cert"] = certUsda + certBoard;
+
         row._certDelivery = true;
         row._cifRegion = def.cifRegion;
+        row._consolRegion = def.consolRegion;
         return row;
     });
 
@@ -5152,14 +5171,14 @@ function renderCertOverviewTable(rows, cpData) {
         // Pre-compute values needed by multiple columns
         const perBale = parseFloat(avg(matched, "CertStrg"));
         const certDays = parseFloat(cpData[certDaysKey] ?? 14);
-        const totalStorage = (!isNaN(perBale) && !isNaN(certDays)) ? perBale * certDays : 0;
+        const totalStorage = (!isNaN(perBale) && !isNaN(certDays)) ? (perBale / 30) * certDays : 0;
         const dsMonth = cpData["Daily Spot Month"] || "Mar";
         const dailySpot = parseFloat(cpData[`Daily Spot ${dsMonth}`] || 0);
         const basis = parseFloat(cpData["Basis"] || 0);
         const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
         const interest = (dailySpot + basis) / 365 * edfRate * certDays;
         const stoppingStorage = parseFloat(stopInput.value) || 0;
-        const totalCarryPts = totalStorage / 20 * stoppingStorage + interest;
+        const totalCarryPts = (totalStorage * 20) * stoppingStorage + interest;
 
         for (const col of columns) {
             const td = document.createElement("td");
@@ -5225,8 +5244,10 @@ function renderCertOverviewTable(rows, cpData) {
         if (col === "Total Storage $") {
             const perBale = avg(matched, "CertStrg");
             const days = cpData[certDaysKey] ?? 14;
-            const total = (!isNaN(parseFloat(perBale)) && !isNaN(parseFloat(days))) ? (parseFloat(perBale) * parseFloat(days)).toFixed(2) : "N/A";
-            panel.textContent = `Total Storage (${city}) = Per Bale Storage × Cert Days = ${perBale} × ${days} = ${total}`;
+            const pb = parseFloat(perBale);
+            const d = parseFloat(days);
+            const total = (!isNaN(pb) && !isNaN(d)) ? ((pb / 30) * d).toFixed(2) : "N/A";
+            panel.textContent = `Total Storage (${city}) = (Per Bale Storage / 30) × Cert Days = (${perBale} / 30) × ${days} = ${total}`;
         } else if (col === "Interest") {
             const dsMonth = cpData["Daily Spot Month"] || "Mar";
             const dailySpot = parseFloat(cpData[`Daily Spot ${dsMonth}`] || 0);
@@ -5238,15 +5259,15 @@ function renderCertOverviewTable(rows, cpData) {
         } else if (col === "Total Carry PTS") {
             const perBale = parseFloat(avg(matched, "CertStrg"));
             const certDays = parseFloat(cpData[certDaysKey] ?? 14);
-            const totalStrg = (!isNaN(perBale) && !isNaN(certDays)) ? perBale * certDays : 0;
+            const totalStrg = (!isNaN(perBale) && !isNaN(certDays)) ? (perBale / 30) * certDays : 0;
             const dsMonth = cpData["Daily Spot Month"] || "Mar";
             const dailySpot = parseFloat(cpData[`Daily Spot ${dsMonth}`] || 0);
             const basis = parseFloat(cpData["Basis"] || 0);
             const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
             const interest = (dailySpot + basis) / 365 * edfRate * certDays;
             const stopStrg = parseFloat(stopInput.value) || 0;
-            const carry = totalStrg / 20 * stopStrg + interest;
-            panel.textContent = `Total Carry PTS (${city}) = Total Storage $ / 20 × Stopping Storage + Interest = ${totalStrg.toFixed(2)} / 20 × ${stopStrg} + ${interest.toFixed(2)} = ${carry.toFixed(2)}`;
+            const carry = (totalStrg * 20) * stopStrg + interest;
+            panel.textContent = `Total Carry PTS (${city}) = (Total Storage $ × 20) × Stopping Storage + Interest = (${totalStrg.toFixed(2)} × 20) × ${stopStrg} + ${interest.toFixed(2)} = ${carry.toFixed(2)}`;
         } else if (col === "Cert Days") {
             panel.textContent = `Cert Days (${city}) = control_panel [ "${certDaysKey}" ] = ${cpData[certDaysKey] ?? 14}`;
         } else if (field) {
@@ -5274,8 +5295,8 @@ function renderCertOverviewTable(rows, cpData) {
             const city = td.dataset.city;
             const matched = cityRows[city];
             const perBale = parseFloat(avg(matched, "CertStrg"));
-            const totalStrg = (!isNaN(perBale) && !isNaN(certDays)) ? perBale * certDays : 0;
-            const carry = totalStrg / 20 * stoppingStorage + interest;
+            const totalStrg = (!isNaN(perBale) && !isNaN(certDays)) ? (perBale / 30) * certDays : 0;
+            const carry = (totalStrg * 20) * stoppingStorage + interest;
             td.textContent = carry ? carry.toFixed(2) : "";
         });
     });
@@ -6360,7 +6381,13 @@ function _certDeliveryDerivation(row, column) {
     if (column === "Interest") return `Interest (${region}) = ${v("Interest")}  (from CIF "${cifRegion}" Interest)`;
 
     // Consolidation
-    if (column === "Consol_Block") return `InAndOut (${region}) = ${v("Consol_Block")}  (from CIF "${cifRegion}" Consol_Block)`;
+    if (column === "Consol_Block") {
+        const isBreak = region.toLowerCase().includes("break");
+        if (isBreak) {
+            return `InAndOut (${region}) = breaks × 20 = ${v("Consol_Block")}  (from consolidation "${row._consolRegion || "?"}" breaks)`;
+        }
+        return `InAndOut (${region}) = ${v("Consol_Block")}  (from CIF "${cifRegion}" Consol_Block)`;
+    }
     if (column === "Consol_Strg") return `TotalStorage (${region}) = ${v("Consol_Strg")}  (from CIF "${cifRegion}" Consol_Strg)`;
     if (column === "Consol_Interest") return `Interest (${region}) = ${v("Consol_Interest")}  (from CIF "${cifRegion}" Consol_Interest)`;
     if (column === "Total_Consol") {
@@ -6368,6 +6395,15 @@ function _certDeliveryDerivation(row, column) {
         const cs = parseFloat(v("Consol_Strg")) || 0;
         const ci = parseFloat(v("Consol_Interest")) || 0;
         return `Total Consol (${region}) = InAndOut + TotalStorage + Interest = ${cb} + ${cs} + ${ci} = ${Math.round(cb + cs + ci)}  (from CIF "${cifRegion}")`;
+    }
+
+    // Cert Cost
+    if (column === "USDA") return `USDA (${region}) = Cert USDA × 20 = ${v("USDA")}  (from control_panel "Cert USDA")`;
+    if (column === "ICE") return `ICE (${region}) = Cert Board × 20 = ${v("ICE")}  (from control_panel "Cert Board")`;
+    if (column === "Total Cert") {
+        const u = parseFloat(v("USDA")) || 0;
+        const ice = parseFloat(v("ICE")) || 0;
+        return `Total Cert (${region}) = USDA + ICE = ${u} + ${ice} = ${Math.round(u + ice)}`;
     }
 
     return `${column} (${region}) = ${v(column)}`;

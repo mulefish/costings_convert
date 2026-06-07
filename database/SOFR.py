@@ -56,21 +56,13 @@ def update_sofr_in_db():
     edf_rate = cp.get("EDF Rate", 0.0)
     cp["EDF Interest Rate"] = latest_rate + edf_rate
 
-    # Cert Interest = ((Daily Spot + Basis) / 12) * EDF Interest Rate
-    ds_month = cp.get("Daily Spot Month", "Mar")
-    daily_spot = cp.get(f"Daily Spot {ds_month}", 0.0)
-    if not isinstance(daily_spot, (int, float)):
-        daily_spot = 0.0
-    basis = cp.get("Basis", 0.0)
-    cp["Cert Interest"] = round(((daily_spot + basis) / 12.0) * cp["EDF Interest Rate"], 2)
-
     conn.executemany(
         "INSERT OR REPLACE INTO control_panel (key, value) VALUES (?, ?)",
         [(k, v) for k, v in cp.items()],
     )
     conn.commit()
     conn.close()
-    print(f"[SOFR] Database updated — SOFR={latest_rate}%, EDF Interest Rate={cp['EDF Interest Rate']}%, Cert Interest={cp['Cert Interest']}")
+    print(f"[SOFR] Database updated — SOFR={latest_rate}%, EDF Interest Rate={cp['EDF Interest Rate']}%")
 
 
 if __name__ == "__main__":
