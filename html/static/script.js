@@ -5714,6 +5714,8 @@ function showCellDerivation(row, column, value, rowIdx) {
         derivation = _usdDerivation(row, column);
     } else if (viewName === "CIF") {
         derivation = _cifDerivation(row, column);
+    } else if (viewName === "PTS") {
+        derivation = _usdDerivation(row, column) + "  (PTS = USD × 20)";
     } else {
         derivation = `"${column}" from row ${rowIdx + 1}`;
     }
