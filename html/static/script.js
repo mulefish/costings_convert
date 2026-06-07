@@ -4068,119 +4068,6 @@ function createPtsColumnDiscussion() {
     return details;
 }
 
-/**
- * Notes under the CIF table: PTS columns grouped by region list from Jarvis JSON.
- */
-function createCifColumnDiscussion() {
-    const details = document.createElement("details");
-    details.style.marginTop = "14px";
-    details.style.maxWidth = "960px";
-    details.style.fontSize = "13px";
-    details.style.lineHeight = "1.5";
-    details.style.color = "#222";
-
-    const summary = document.createElement("summary");
-    summary.textContent = "How CIF rows are built";
-    summary.style.cursor = "pointer";
-    summary.style.fontWeight = "600";
-    details.appendChild(summary);
-
-    const box = document.createElement("div");
-    box.style.marginTop = "10px";
-    box.style.padding = "10px 12px";
-    box.style.border = "1px solid #d9d9d9";
-    box.style.borderRadius = "6px";
-    box.style.background = "#f8f9fb";
-
-    box.innerHTML =
-        "<p style=’margin-top:0’><strong>Overview:</strong> CIF is served by GET /api/cif. " +
-        "Row order follows the <code>cif_regions</code> array in <code>usa_forwarding_cost.json</code>. " +
-        "For each region label, every column except Total Terms is the average of that PTS column over rows whose Region matches " +
-        "(Terms = most common). Weslaco and Shelby transit columns are omitted. " +
-        "For <strong>Outbound</strong>, each warehouse’s PTS <strong>Ocean</strong> is 20 × (USD Ocean), and USD Ocean = SQLite <strong>drayage</strong> for that warehouse’s Port → <strong>OceanBase ÷ 88</strong> (same as the USD view); the CIF cell is the mean of those PTS values for the region. " +
-        "The <em>Ignore 0s</em> toggle controls whether zeros are excluded from averages (default: yes).</p>" +
-
-        "<p><strong>WTXH special case:</strong> WTXH has no warehouses assigned in <code>regions_and_ports</code>. " +
-        "The Origin Warehouse columns (Terms through Total Origin) use the <strong>WTX</strong> warehouses as an alias. " +
-        "All other columns (Transit, Consolidation, Outbound, etc.) use WTXH-specific data.</p>" +
-
-        "<p><strong>Houston / Dallas port rows:</strong> Computed directly (not averaged). " +
-        "Consolidation, drayage, ocean, and document costs are looked up by port name, not by averaging PTS rows.</p>" +
-
-        "<h4 style=’margin:12px 0 6px 0;color:#2f5fa7’>Column-by-column formulas</h4>" +
-
-        "<p style=’margin:4px 0’><strong>Origin Warehouse section</strong> (averaged from PTS rows in region):</p>" +
-        "<ul style=’margin:4px 0 8px 20px’>" +
-        "<li><strong>Terms</strong> — Most common Terms value among matching warehouses</li>" +
-        "<li><strong>Recv, Load, Compr, Class, Mark</strong> — From seam_tariffs (per warehouse), averaged across region</li>" +
-        "<li><strong>Strg</strong> — From seam_tariffs; if &lt; 1.0 then × Origin Storage Days; if ≥ 1.0 then ÷ 30 × Origin Storage Days</li>" +
-        "<li><strong>ESO</strong> — From regions_and_ports (per warehouse), averaged</li>" +
-        "<li><strong>Interest</strong> — (EDF Interest Rate ÷ 100 ÷ 12) × (Daily Spot ÷ 100 × Avg Bale Weight); global, same for all rows</li>" +
-        "<li><strong>Origin Comm</strong> — From control_panel; global, same for all rows</li>" +
-        "<li><strong>Total Equity</strong> — Recv + Load + Compr + Class + Mark + Strg + ESO + Interest + Origin Comm</li>" +
-        "<li><strong>Total Origin</strong> — Terms-dependent: T1 = Strg+Int+OC; T2 = Compr+Strg+Int+OC; T3 = Load+Compr+Strg+Class+Int+OC; T4 = Class+Int+OC</li>" +
-        "</ul>" +
-
-        "<p style=’margin:4px 0’><strong>Inland Logistics section</strong> (averaged from PTS):</p>" +
-        "<ul style=’margin:4px 0 8px 20px’>" +
-        "<li><strong>Flatbed</strong> — regions_and_ports &ldquo;Flat Bed Fees&rdquo; column</li>" +
-        "<li><strong>Late Fee</strong> — regions_and_ports &ldquo;Late Fees&rdquo; column</li>" +
-        "<li><strong>Transit Truck</strong> — OTR Final (from otr_rates table for warehouse City → export Port) ÷ 88</li>" +
-        "<li><strong>Total Transit</strong> — Flatbed + Late Fee + Transit Truck</li>" +
-        "</ul>" +
-
-        "<p style=’margin:4px 0’><strong>Consolidation section</strong> (averaged from PTS):</p>" +
-        "<ul style=’margin:4px 0 8px 20px’>" +
-        "<li><strong>Consol_Block</strong> — consolidation[Port region].bale; Weslaco uses Houston; unmapped ports return 0</li>" +
-        "<li><strong>Consol_Strg (TotalStorage)</strong> — consolidation[Port region].month (= Storage × Storage Days per region)</li>" +
-        "<li><strong>Consol_Interest</strong> — (EDF Interest Rate ÷ 100 ÷ 365) × (Daily Spot ÷ 100) × Avg Bale Weight × Storage Days (per region)</li>" +
-        "<li><strong>Total_Consol</strong> — Consol_Block + TotalStorage + Consol_Interest</li>" +
-        "</ul>" +
-
-        "<p style=’margin:4px 0’><strong>Outbound section</strong> (averaged from PTS):</p>" +
-        "<ul style=’margin:4px 0 8px 20px’>" +
-        "<li><strong>Dray</strong> — SQLite drayage table (Port → region) → Bale field</li>" +
-        "<li><strong>Ocean</strong> — SQLite drayage table (Port → region) → OceanBase ÷ 88</li>" +
-        "<li><strong>Total_Out</strong> — Dray + Ocean</li>" +
-        "</ul>" +
-
-        "<p style=’margin:4px 0’><strong>Documentation section</strong> (same for every row — from China document_cif):</p>" +
-        "<ul style=’margin:4px 0 8px 20px’>" +
-        "<li><strong>Sight_LC</strong> — China LC ÷ 20 (LC auto-computed from lc_bank_cost: avg of Rabo, Credit Agricole, Intesa × 0.01 × (Spot + Basis))</li>" +
-        "<li><strong>Forwarding</strong> — usa_forwarding_cost TOTAL = (COO + FHTO) ÷ AVG Shipment</li>" +
-        "<li><strong>Controlling</strong> — China USDA_PTS_LB ÷ 20 (Pts/lb = ceil5(((USD/Bale × 90) ÷ 20) ÷ 22.046 × 100))</li>" +
-        "<li><strong>Insurance</strong> — China INS ÷ 20</li>" +
-        "<li><strong>Total_Doc</strong> — Sight_LC + Forwarding + Controlling + Insurance</li>" +
-        "</ul>" +
-
-        "<p style=’margin:4px 0’><strong>CIF section</strong> (same for every row — from China document_cif):</p>" +
-        "<ul style=’margin:4px 0 8px 20px’>" +
-        "<li><strong>Dest_Commission</strong> — China COM ÷ 20</li>" +
-        "<li><strong>Cost_of_Funds</strong> — China COF ÷ 20</li>" +
-        "<li><strong>Qclaim</strong> — China CIQ_QC ÷ 20 (0 if null)</li>" +
-        "<li><strong>Total_CIF</strong> — Dest_Commission + Cost_of_Funds + Qclaim</li>" +
-        "</ul>" +
-
-        "<p style=’margin:4px 0’><strong>Total Terms</strong>:</p>" +
-        "<ul style=’margin:4px 0 8px 20px’>" +
-        "<li><strong>Cash</strong> — Total Origin + Total Transit + Total_Consol + Total_Out + Total_Doc + Total_CIF</li>" +
-        "<li><strong>Equity</strong> — Total Equity + Total Transit + Total_Consol + Total_Out + Total_Doc + Total_CIF</li>" +
-        "</ul>" +
-
-        "<p><strong>Consolidation port-to-region mapping:</strong></p>" +
-        "<ul style=’margin:4px 0 8px 20px’>" +
-        "<li><strong>WTX</strong> → all Port=Dallas (52 warehouses) → Dallas consol rates</li>" +
-        "<li><strong>STEX</strong> → all Port=Houston (28) → Houston consol rates</li>" +
-        "<li><strong>Memphis Rule 5</strong> → Port=Memphis (64) + Port=Houston (9) → mixed Memphis/Houston rates</li>" +
-        "<li><strong>Eastern Rule 5</strong> → Port=Savannah (71) + Port=Memphis (8) → mixed Savannah/Memphis rates</li>" +
-        "<li><strong>GA 30 Day</strong> → all Port=Savannah (68) → Savannah consol rates</li>" +
-        "<li><strong>Southwest</strong> → all Port=Los Angeles (12) → no consol region match (falls back to Control Panel defaults)</li>" +
-        "</ul>" +
-        "<p>Regions with mixed Ports (Eastern Rule 5, Memphis Rule 5) average different consol rates together.</p>";
-
-    details.appendChild(box);
-    return details;
-}
 
 function renderOtrTable(config) {
     const content = document.getElementById("content");
@@ -4914,7 +4801,6 @@ function renderCifTable(config, onDataChange) {
     tableHost.style.overflowX = "auto";
     content.appendChild(tableHost);
 
-    content.appendChild(createCifColumnDiscussion());
 
     const headerGroups = config.headerGroups || null;
     const sortState = { column: null, ascending: true };
@@ -5063,7 +4949,13 @@ async function renderCifCertTable(config) {
                 row.Consol_Block = parseFloat(src.Consol_Block) || 0;
             }
             row.Consol_Strg = parseFloat(src.Consol_Strg) || 0;
-            row.Consol_Interest = parseFloat(src.Consol_Interest) || 0;
+            // Consol_Interest from Cert Overview: (Daily Spot + Basis) / 365 × EDF Interest Rate × Cert Days
+            const _dsMonth = cpData["Daily Spot Month"] || "Mar";
+            const _dailySpot = parseFloat(cpData[`Daily Spot ${_dsMonth}`] || 0);
+            const _basis = parseFloat(cpData["Basis"] || 0);
+            const _edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
+            const _certDays = parseFloat(cpData["Cert Days"] ?? 14);
+            row.Consol_Interest = Math.round(((_dailySpot + _basis) / 365 * _edfRate * _certDays) * 100) / 100;
             row.Total_Consol = (row.Consol_Block + row.Consol_Strg + row.Consol_Interest);
         }
         // Cert Cost section
@@ -5104,6 +4996,91 @@ async function renderCifCertTable(config) {
         });
     };
     draw();
+
+    // ── Stop table ──────────────────────────────────────────
+    const prevStop = document.getElementById("cif-stop-table-host");
+    if (prevStop) prevStop.remove();
+
+    // Fetch cert tariff rows to compute per-city Total Storage $
+    let certTariffRows = [];
+    try {
+        const ctRes = await fetch("/api/cert-tariffs");
+        if (ctRes.ok) {
+            const ctPayload = await ctRes.json();
+            certTariffRows = Array.isArray(ctPayload.rows) ? ctPayload.rows : (Array.isArray(ctPayload) ? ctPayload : []);
+        }
+    } catch (_) {}
+
+    const stopActualCities = {
+        Memphis: "Memphis, West Memphis, Crawfordsville, Olive Branch",
+        Houston: "Houston, Pasadena, Galveston, Baytown",
+        Dallas: "Desoto, Dallas, Grand Prairie, Arlington, Lancaster, Ft Worth, Fort Worth",
+        Savannah: "Savannah, Garden City, Rincon, Statesboro, Pooler",
+    };
+    const stopCityRows = {};
+    for (const [city, list] of Object.entries(stopActualCities)) {
+        const names = list.split(",").map(s => s.trim().toUpperCase());
+        stopCityRows[city] = certTariffRows.filter(r => names.includes(String(r.City || "").trim().toUpperCase()));
+    }
+    function stopAvg(arr, key) {
+        const vals = arr.map(r => parseFloat(r[key])).filter(v => !isNaN(v));
+        if (vals.length === 0) return 0;
+        return vals.reduce((a, b) => a + b, 0) / vals.length;
+    }
+    const certDays = parseFloat(cpData["Cert Days"] ?? 14);
+
+    const stopRowDefs = [
+        { name: "Memphis Stop",  city: "Memphis",  cifRegion: "Memphis Rule 5" },
+        { name: "Houston Stop",  city: "Houston",  cifRegion: "WTXH" },
+        { name: "Dallas Stop",   city: "Dallas",   cifRegion: "WTX" },
+        { name: "Savannah Stop", city: "Savannah", cifRegion: "GA 30 Day" },
+    ];
+
+    const stopRows = stopRowDefs.map((def, i) => {
+        const row = {};
+        for (const col of columns) row[col] = "";
+        row.Row = i + 1;
+        row.Region = def.name;
+        row._stopTable = true;
+        row._stopCity = def.city;
+        row._cifRegion = def.cifRegion;
+
+        // Consol_Strg = (avg CertStrg / 30) * Cert Days * 20
+        const perBale = stopAvg(stopCityRows[def.city], "CertStrg");
+        const totalStorageDollar = (perBale / 30) * certDays;
+        row.Consol_Strg = Math.round(totalStorageDollar * 20 * 100) / 100;
+
+        // Consol_Interest from Cert Overview: (Daily Spot + Basis) / 365 × EDF Interest Rate × Cert Days
+        const dsMonth = cpData["Daily Spot Month"] || "Mar";
+        const dailySpot = parseFloat(cpData[`Daily Spot ${dsMonth}`] || 0);
+        const basis = parseFloat(cpData["Basis"] || 0);
+        const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
+        row.Consol_Interest = Math.round(((dailySpot + basis) / 365 * edfRate * certDays) * 100) / 100;
+
+        return row;
+    });
+
+    const stopHost = document.createElement("div");
+    stopHost.id = "cif-stop-table-host";
+    stopHost.style.overflowX = "auto";
+    stopHost.style.marginTop = "24px";
+    content.appendChild(stopHost);
+
+    const stopSortState = { column: null, ascending: true };
+    const drawStop = () => {
+        const sorted = sortRows(stopRows, stopSortState);
+        drawTable(stopHost, columns, sorted, {
+            sortState: stopSortState,
+            headerGroups,
+            columnLabels,
+            tableClass: "usd-table",
+            onHeaderClick: (column) => {
+                toggleSort(stopSortState, column);
+                drawStop();
+            },
+        });
+    };
+    drawStop();
 }
 
 function renderCertOverviewTable(rows, cpData) {
@@ -6087,6 +6064,9 @@ function showCellDerivation(row, column, value, rowIdx) {
         }
     } else if (viewName === "USD") {
         derivation = _usdDerivation(row, column);
+    } else if (viewName === "CIF" && row._stopTable) {
+        derivation = _stopTableDerivation(row, column);
+        _lastCifDeriv = { row, column, value, rowIdx };
     } else if (viewName === "CIF" && row._certDelivery) {
         derivation = _certDeliveryDerivation(row, column);
         _lastCifDeriv = { row, column, value, rowIdx };
@@ -6347,6 +6327,21 @@ function _cifDerivationCalc(row, column) {
 /**
  * Derivation notes for the Cert Delivery table (below CIF).
  */
+function _stopTableDerivation(row, column) {
+    const region = String(row.Region ?? "").trim();
+    const city = row._stopCity || "?";
+    const v = (k) => row[k] ?? "";
+
+    if (column === "Consol_Strg") {
+        return `TotalStorage (${region}) = (avg CertStrg / 30) × Cert Days × 20 = ${v("Consol_Strg")}  (from cert_tariffs "${city}" warehouses)`;
+    }
+    if (column === "Consol_Interest") {
+        return `Interest (${region}) = (Daily Spot + Basis) / 365 × EDF Interest Rate × Cert Days = ${v("Consol_Interest")}  (from Cert Overview)`;
+    }
+
+    return `${column} (${region}) = ${v(column)}`;
+}
+
 function _certDeliveryDerivation(row, column) {
     const region = String(row.Region ?? "").trim();
     const cifRegion = row._cifRegion || "?";
@@ -6402,7 +6397,7 @@ function _certDeliveryDerivation(row, column) {
         return `InAndOut (${region}) = ${v("Consol_Block")}  (from CIF "${cifRegion}" Consol_Block)`;
     }
     if (column === "Consol_Strg") return `TotalStorage (${region}) = ${v("Consol_Strg")}  (from CIF "${cifRegion}" Consol_Strg)`;
-    if (column === "Consol_Interest") return `Interest (${region}) = ${v("Consol_Interest")}  (from CIF "${cifRegion}" Consol_Interest)`;
+    if (column === "Consol_Interest") return `Interest (${region}) = (Daily Spot + Basis) / 365 × EDF Interest Rate × Cert Days = ${v("Consol_Interest")}  (from Cert Overview)`;
     if (column === "Total_Consol") {
         const cb = parseFloat(v("Consol_Block")) || 0;
         const cs = parseFloat(v("Consol_Strg")) || 0;

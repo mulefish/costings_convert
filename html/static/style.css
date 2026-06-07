@@ -311,10 +311,12 @@ th.cell-stale {
     height: auto;
 }
 
-/* Align CIF and Cert Delivery table Region columns */
+/* Align CIF, Cert Delivery and Stop table Region columns */
 #cif-table-host td[data-col="Region"],
 #cif-table-host th[data-col="Region"],
 #cif-cert-table-host td[data-col="Region"],
-#cif-cert-table-host th[data-col="Region"] {
+#cif-cert-table-host th[data-col="Region"],
+#cif-stop-table-host td[data-col="Region"],
+#cif-stop-table-host th[data-col="Region"] {
     min-width: 13em;
 }
