@@ -5031,7 +5031,7 @@ async function renderCifCertTable(config) {
 
     const stopRowDefs = [
         { name: "Memphis Stop",  city: "Memphis",  cifRegion: "Memphis Rule 5" },
-        { name: "Houston Stop",  city: "Houston",  cifRegion: "WTXH" },
+        { name: "Houston Stop",  city: "Houston",  cifRegion: "STEX" },
         { name: "Dallas Stop",   city: "Dallas",   cifRegion: "WTX" },
         { name: "Savannah Stop", city: "Savannah", cifRegion: "GA 30 Day" },
     ];
@@ -5056,6 +5056,36 @@ async function renderCifCertTable(config) {
         const basis = parseFloat(cpData["Basis"] || 0);
         const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
         row.Consol_Interest = Math.round(((dailySpot + basis) / 365 * edfRate * certDays) * 100) / 100;
+
+        // Outbound and CIF sections from CIF table
+        const stopSrc = cifByRegion[def.cifRegion];
+        if (stopSrc) {
+            row.Dray = parseFloat(stopSrc.Dray) || 0;
+            row.Ocean = parseFloat(stopSrc.Ocean) || 0;
+            row.Total_Out = (row.Dray + row.Ocean);
+
+            row.Sight_LC = parseFloat(stopSrc.Sight_LC) || 0;
+            row.Forwarding = parseFloat(stopSrc.Forwarding) || 0;
+            row.Controlling = parseFloat(stopSrc.Controlling) || 0;
+            row.Insurance = parseFloat(stopSrc.Insurance) || 0;
+            row.Total_Doc = (row.Sight_LC + row.Forwarding + row.Controlling + row.Insurance);
+
+            row.Dest_Commission = parseFloat(stopSrc.Dest_Commission) || 0;
+            row.Cost_of_Funds = parseFloat(stopSrc.Cost_of_Funds) || 0;
+            row.Qclaim = parseFloat(stopSrc.Qclaim) || 0;
+            row.Total_CIF = (row.Dest_Commission + row.Cost_of_Funds + row.Qclaim);
+        }
+
+        // Cert Cost section
+        const certUsda = (parseFloat(cpData["Cert USDA"]) || 0) * 20;
+        const certBoard = (parseFloat(cpData["Cert Board"]) || 0) * 20;
+        row.USDA = certUsda;
+        row.ICE = certBoard;
+        row["Total Cert"] = certUsda + certBoard;
+
+        // Total Terms — Cash
+        const cashParts = ["Total Origin", "Total Transit", "Total_Consol", "Total_Out", "Total_Doc", "Total Cert"];
+        row.Cash = cashParts.reduce((sum, k) => sum + (parseFloat(row[k]) || 0), 0);
 
         return row;
     });
@@ -6337,6 +6367,65 @@ function _stopTableDerivation(row, column) {
     }
     if (column === "Consol_Interest") {
         return `Interest (${region}) = (Daily Spot + Basis) / 365 × EDF Interest Rate × Cert Days = ${v("Consol_Interest")}  (from Cert Overview)`;
+    }
+
+    const cifRegion = row._cifRegion || "?";
+
+    // Documentation
+    if (column === "Sight_LC") return `Sight LC (${region}) = ${v("Sight_LC")}  (from CIF "${cifRegion}")`;
+    if (column === "Forwarding") return `Forwarding (${region}) = ${v("Forwarding")}  (from CIF "${cifRegion}")`;
+    if (column === "Controlling") return `Controlling (${region}) = ${v("Controlling")}  (from CIF "${cifRegion}")`;
+    if (column === "Insurance") return `Insurance (${region}) = ${v("Insurance")}  (from CIF "${cifRegion}")`;
+    if (column === "Total_Doc") {
+        const sl = parseFloat(v("Sight_LC")) || 0;
+        const fw = parseFloat(v("Forwarding")) || 0;
+        const ct = parseFloat(v("Controlling")) || 0;
+        const ins = parseFloat(v("Insurance")) || 0;
+        return `Total Doc (${region}) = Sight LC + Forwarding + Controlling + Insurance = ${sl} + ${fw} + ${ct} + ${ins} = ${Math.round(sl + fw + ct + ins)}  (from CIF "${cifRegion}")`;
+    }
+
+    // Outbound
+    if (column === "Dray") return `Dray (${region}) = ${v("Dray")}  (from CIF "${cifRegion}")`;
+    if (column === "Ocean") return `Ocean (${region}) = ${v("Ocean")}  (from CIF "${cifRegion}")`;
+    if (column === "Total_Out") {
+        const d = parseFloat(v("Dray")) || 0;
+        const o = parseFloat(v("Ocean")) || 0;
+        return `Total Out (${region}) = Dray + Ocean = ${d} + ${o} = ${Math.round(d + o)}  (from CIF "${cifRegion}")`;
+    }
+
+    // CIF section
+    if (column === "Dest_Commission") return `Dest Commission (${region}) = ${v("Dest_Commission")}  (from CIF "${cifRegion}")`;
+    if (column === "Cost_of_Funds") return `Cost of Funds (${region}) = ${v("Cost_of_Funds")}  (from CIF "${cifRegion}")`;
+    if (column === "Qclaim") return `Qclaim (${region}) = ${v("Qclaim")}  (from CIF "${cifRegion}")`;
+    if (column === "Total_CIF") {
+        const dc = parseFloat(v("Dest_Commission")) || 0;
+        const cof = parseFloat(v("Cost_of_Funds")) || 0;
+        const qc = parseFloat(v("Qclaim")) || 0;
+        return `Total CIF (${region}) = Dest Commission + Cost of Funds + Qclaim = ${dc} + ${cof} + ${qc} = ${Math.round(dc + cof + qc)}  (from CIF "${cifRegion}")`;
+    }
+
+    // Cert Cost
+    if (column === "USDA") return `USDA (${region}) = Cert USDA × 20 = ${v("USDA")}  (from control_panel "Cert USDA")`;
+    if (column === "ICE") return `ICE (${region}) = Cert Board × 20 = ${v("ICE")}  (from control_panel "Cert Board")`;
+    if (column === "Total Cert") {
+        const u = parseFloat(v("USDA")) || 0;
+        const ice = parseFloat(v("ICE")) || 0;
+        return `Total Cert (${region}) = USDA + ICE = ${u} + ${ice} = ${Math.round(u + ice)}`;
+    }
+
+    // Total Terms
+    if (column === "Cash") {
+        const parts = [
+            ["Total Origin", parseFloat(v("Total Origin")) || 0],
+            ["Total Transit", parseFloat(v("Total Transit")) || 0],
+            ["Total Consol", parseFloat(v("Total_Consol")) || 0],
+            ["Total Out", parseFloat(v("Total_Out")) || 0],
+            ["Total Doc", parseFloat(v("Total_Doc")) || 0],
+            ["Total Cert", parseFloat(v("Total Cert")) || 0],
+        ];
+        const vals = parts.map(p => p[1]);
+        const sum = vals.reduce((a, b) => a + b, 0);
+        return `Cash (${region}) = ${parts.map(p => p[0]).join(" + ")} = ${vals.join(" + ")} = ${Math.round(sum)}`;
     }
 
     return `${column} (${region}) = ${v(column)}`;
