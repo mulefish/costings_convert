@@ -2165,6 +2165,7 @@ async function select_view() {
     } else if (viewName === "CIF") {
         await loadCifRows(config);
         renderCifTable(config);
+        renderCifCertTable(config);
     } else if (viewName === "Regions and Ports") {
         await loadRegionsAndPortsRows(config);
         renderRegionsAndPortsTable(config);
@@ -4890,8 +4891,22 @@ function renderCifTable(config) {
     zeroToggle.appendChild(zeroCheckbox);
     zeroToggle.appendChild(document.createTextNode("Ignore 0s in averages"));
 
+    const detailsLabel = document.createElement("label");
+    detailsLabel.style.fontSize = "12px";
+    detailsLabel.style.display = "flex";
+    detailsLabel.style.alignItems = "center";
+    detailsLabel.style.gap = "4px";
+    detailsLabel.style.cursor = "pointer";
+    const cifDetailsCb = document.createElement("input");
+    cifDetailsCb.type = "checkbox";
+    cifDetailsCb.id = "cif-details-cb";
+    cifDetailsCb.style.cursor = "pointer";
+    detailsLabel.appendChild(cifDetailsCb);
+    detailsLabel.appendChild(document.createTextNode("Formula / Calculation"));
+
     controls.appendChild(searchInput);
     controls.appendChild(zeroToggle);
+    controls.appendChild(detailsLabel);
     controls.appendChild(exportBtn);
     controls.style.display = "flex";
     controls.style.alignItems = "center";
@@ -4942,6 +4957,88 @@ function renderCifTable(config) {
         draw();
     });
 
+    draw();
+
+    cifDetailsCb.addEventListener("change", () => {
+        if (_lastCifDeriv) {
+            showCellDerivation(_lastCifDeriv.row, _lastCifDeriv.column, _lastCifDeriv.value, _lastCifDeriv.rowIdx);
+        }
+    });
+}
+
+function renderCifCertTable(config) {
+    const content = document.getElementById("content");
+
+    // Build columns: same as CIF + Cert Cost section
+    const cifConfig = getCifViewConfig();
+    const columns = [...cifConfig.columns, "USDA", "ICE", "Total Cert"];
+    const columnLabels = { ...cifConfig.columnLabels, USDA: "USDA", ICE: "ICE", "Total Cert": "Total Cert" };
+    const headerGroups = [
+        ...cifConfig.headerGroups,
+        { label: "Cert Cost", columns: ["USDA", "ICE", "Total Cert"] },
+    ];
+
+    // Map cert row name → CIF region for Inland Logistics lookup
+    const certRowDefs = [
+        { name: "WTX-Dallas Cert-Block Out",     cifRegion: "WTX" },
+        { name: "WTX-Dallas Cert-Break Out",     cifRegion: "WTX" },
+        { name: "WTX-Houston Cert-Block Out",    cifRegion: "WTX" },
+        { name: "WTX-Houston Cert-Break Out",    cifRegion: "WTX" },
+        { name: "STX-Houston Cert-Block Out",    cifRegion: "STEX" },
+        { name: "STX-Houston Cert-Break Out",    cifRegion: "STEX" },
+        { name: "ME-Memphis Cert-Block Out",     cifRegion: "Memphis Rule 5" },
+        { name: "ME-Memphis Cert-Break Out",     cifRegion: "Memphis Rule 5" },
+        { name: "GA-Savannah Cert-Block Out",    cifRegion: "GA 30 Day" },
+        { name: "GA-Savannah Cert-Break Out",    cifRegion: "GA 30 Day" },
+    ];
+
+    // Build CIF region lookup
+    const cifByRegion = {};
+    for (const r of (config.rows || [])) {
+        const rg = String(r.Region || "").trim();
+        if (rg) cifByRegion[rg] = r;
+    }
+
+    const rows = certRowDefs.map((def, i) => {
+        const row = {};
+        for (const col of columns) row[col] = "";
+        row.Row = i + 1;
+        row.Region = def.name;
+
+        // Pull Inland Logistics from the matched CIF region
+        const src = cifByRegion[def.cifRegion];
+        if (src) {
+            const fb = parseFloat(src.Flatbed) || 0;
+            const lf = parseFloat(src["Late Fee"]) || 0;
+            const tt = parseFloat(src["Transit Truck"]) || 0;
+            row.Flatbed = fb;
+            row["Late Fee"] = lf;
+            row["Transit Truck"] = tt;
+            row["Total Transit"] = fb + lf + tt;
+        }
+        return row;
+    });
+
+    const tableHost = document.createElement("div");
+    tableHost.id = "cif-cert-table-host";
+    tableHost.style.overflowX = "auto";
+    tableHost.style.marginTop = "24px";
+    content.appendChild(tableHost);
+
+    const sortState = { column: null, ascending: true };
+    const draw = () => {
+        const sortedRows = sortRows(rows, sortState);
+        drawTable(tableHost, columns, sortedRows, {
+            sortState,
+            headerGroups,
+            columnLabels,
+            tableClass: "usd-table",
+            onHeaderClick: (column) => {
+                toggleSort(sortState, column);
+                draw();
+            },
+        });
+    };
     draw();
 }
 
@@ -5856,6 +5953,8 @@ function isNumericValue(value) {
     return Number.isFinite(parsed);
 }
 
+let _lastCifDeriv = null;
+
 function showCellDerivation(row, column, value, rowIdx) {
     const panel = document.getElementById("cell-derivation");
     if (!panel) return;
@@ -5923,7 +6022,10 @@ function showCellDerivation(row, column, value, rowIdx) {
     } else if (viewName === "USD") {
         derivation = _usdDerivation(row, column);
     } else if (viewName === "CIF") {
-        derivation = _cifDerivation(row, column);
+        const cifCb = document.getElementById("cif-details-cb");
+        const details = cifCb && cifCb.checked;
+        derivation = details ? _cifDerivationCalc(row, column) : _cifDerivation(row, column);
+        _lastCifDeriv = { row, column, value, rowIdx };
     } else if (viewName === "PTS") {
         derivation = _usdDerivation(row, column) + "  (PTS = USD × 20)";
     } else {
@@ -6078,6 +6180,99 @@ function _cifDerivation(row, column) {
         `CIF aggregate for Region "${region}": mean of PTS column "${column}" over warehouses with that Region ` +
         `(Origin columns on WTXH use WTX warehouses only). GET /api/cif — server.py _build_cif_rows, _cif_pts_average_numeric.`
     );
+}
+
+/**
+ * CIF derivation with actual values (Calculation mode).
+ */
+function _cifDerivationCalc(row, column) {
+    const region = String(row.Region ?? "").trim();
+    const v = (k) => row[k] ?? "";
+
+    // Identity
+    if (column === "Row" || column === "Region") return `${column} = ${v(column)}`;
+
+    // Origin Warehouse
+    const originFields = ["Terms", "Recv", "Load", "Compr", "Class", "Mark", "Strg", "ESO", "Interest", "Origin Comm"];
+    if (originFields.includes(column)) return `${column} (${region}) = ${v(column)}`;
+
+    if (column === "Total Equity") {
+        const parts = ["Recv", "Load", "Compr", "Class", "Mark", "Strg", "ESO", "Interest", "Origin Comm"];
+        const vals = parts.map(k => parseFloat(v(k)) || 0);
+        const sum = vals.reduce((a, b) => a + b, 0);
+        return `Total Equity (${region}) = ${parts.join(" + ")} = ${vals.join(" + ")} = ${Math.round(sum)}`;
+    }
+    if (column === "Total Origin") {
+        return `Total Origin (${region}) = ${v("Total Origin")}  (depends on Terms=${v("Terms")})`;
+    }
+
+    // Inland Logistics
+    if (column === "Flatbed") return `Flatbed (${region}) = ${v("Flatbed")}`;
+    if (column === "Late Fee") return `Late Fee (${region}) = ${v("Late Fee")}`;
+    if (column === "Transit Truck") return `Transit Truck (${region}) = ${v("Transit Truck")}`;
+    if (column === "Total Transit") {
+        const fb = parseFloat(v("Flatbed")) || 0;
+        const lf = parseFloat(v("Late Fee")) || 0;
+        const tt = parseFloat(v("Transit Truck")) || 0;
+        const sum = fb + lf + tt;
+        return `Total Transit (${region}) = Flatbed + Late Fee + Transit Truck = ${fb} + ${lf} + ${tt} = ${Math.round(sum)}`;
+    }
+
+    // Consolidation
+    if (column === "Consol_Block") return `Consol InAndOut (${region}) = ${v("Consol_Block")}`;
+    if (column === "Consol_Strg") return `Consol TotalStorage (${region}) = ${v("Consol_Strg")}`;
+    if (column === "Consol_Interest") return `Consol Interest (${region}) = ${v("Consol_Interest")}`;
+    if (column === "Total_Consol") {
+        const cb = parseFloat(v("Consol_Block")) || 0;
+        const cs = parseFloat(v("Consol_Strg")) || 0;
+        const ci = parseFloat(v("Consol_Interest")) || 0;
+        return `Total Consol (${region}) = InAndOut + TotalStorage + Interest = ${cb} + ${cs} + ${ci} = ${Math.round(cb + cs + ci)}`;
+    }
+
+    // Outbound
+    if (column === "Dray") return `Dray (${region}) = ${v("Dray")}`;
+    if (column === "Ocean") return `Ocean (${region}) = ${v("Ocean")}`;
+    if (column === "Total_Out") {
+        const d = parseFloat(v("Dray")) || 0;
+        const o = parseFloat(v("Ocean")) || 0;
+        return `Total Out (${region}) = Dray + Ocean = ${d} + ${o} = ${Math.round(d + o)}`;
+    }
+
+    // Documentation
+    if (column === "Sight_LC") return `Sight LC (${region}) = ${v("Sight_LC")}`;
+    if (column === "Forwarding") return `Forwarding (${region}) = ${v("Forwarding")}`;
+    if (column === "Controlling") return `Controlling (${region}) = ${v("Controlling")}`;
+    if (column === "Insurance") return `Insurance (${region}) = ${v("Insurance")}`;
+    if (column === "Total_Doc") {
+        const sl = parseFloat(v("Sight_LC")) || 0;
+        const fw = parseFloat(v("Forwarding")) || 0;
+        const ct = parseFloat(v("Controlling")) || 0;
+        const ins = parseFloat(v("Insurance")) || 0;
+        return `Total Doc (${region}) = Sight LC + Forwarding + Controlling + Insurance = ${sl} + ${fw} + ${ct} + ${ins} = ${Math.round(sl + fw + ct + ins)}`;
+    }
+
+    // CIF
+    if (column === "Dest_Commission") return `Dest Com (${region}) = ${v("Dest_Commission")}`;
+    if (column === "Cost_of_Funds") return `CoF (${region}) = ${v("Cost_of_Funds")}`;
+    if (column === "Qclaim") return `Qclaim (${region}) = ${v("Qclaim")}`;
+    if (column === "Total_CIF") {
+        const dc = parseFloat(v("Dest_Commission")) || 0;
+        const cf = parseFloat(v("Cost_of_Funds")) || 0;
+        const qc = parseFloat(v("Qclaim")) || 0;
+        return `Total CIF (${region}) = Dest Com + CoF + Qclaim = ${dc} + ${cf} + ${qc} = ${Math.round(dc + cf + qc)}`;
+    }
+
+    // Total Terms
+    if (column === "Cash") {
+        const tc = parseFloat(v("Total_Consol")) || 0;
+        const to = parseFloat(v("Total_Out")) || 0;
+        const td = parseFloat(v("Total_Doc")) || 0;
+        const tcif = parseFloat(v("Total_CIF")) || 0;
+        return `Cash (${region}) = Total Consol + Total Out + Total Doc + Total CIF = ${tc} + ${to} + ${td} + ${tcif} = ${Math.round(tc + to + td + tcif)}`;
+    }
+    if (column === "Equity") return `Equity (${region}) = ${v("Equity")}`;
+
+    return `${column} (${region}) = ${v(column)}`;
 }
 
 /* ── Export view ───────────────────────────────────────────── */

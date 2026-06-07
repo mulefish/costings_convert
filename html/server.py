@@ -2724,6 +2724,19 @@ def _build_cif_rows(ignore_zeros: bool = True, included: set | None = None) -> l
                 row[key] = round(_cif_pts_average_numeric(origin_matches, key, ignore_zeros))
             else:
                 row[key] = round(_cif_pts_average_numeric(matches, key, ignore_zeros))
+        # Recompute totals from averaged components so sums are consistent
+        row["Total Equity"] = round(sum(row.get(k, 0) for k in (
+            "Recv", "Load", "Compr", "Class", "Mark", "Strg", "ESO", "Interest", "Origin Comm")))
+        row["Total Transit"] = round(sum(row.get(k, 0) for k in (
+            "Flatbed", "Late Fee", "Transit Truck")))
+        row["Total_Consol"] = round(sum(row.get(k, 0) for k in (
+            "Consol_Block", "Consol_Strg", "Consol_Interest")))
+        row["Total_Out"] = round(sum(row.get(k, 0) for k in ("Dray", "Ocean")))
+        row["Total_Doc"] = round(sum(row.get(k, 0) for k in (
+            "Sight_LC", "Forwarding", "Controlling", "Insurance")))
+        row["Total_CIF"] = round(sum(row.get(k, 0) for k in (
+            "Dest_Commission", "Cost_of_Funds", "Qclaim")))
+
         cash_eq = _cif_cash_equity_from_row(row, bool(matches) or bool(origin_matches))
         row["Cash"], row["Equity"] = round(cash_eq[0]), round(cash_eq[1])
         rows_out.append(row)
