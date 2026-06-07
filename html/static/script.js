@@ -627,6 +627,7 @@ async function renderControlPanelView() {
         ["month", "TotalStorage"],
         ["otr_gri", "OTR GRI"],
         ["storage_days", "Storage Days"],
+        ["breaks", "Breaks"],
     ];
     const h2 = document.createElement("h3");
     h2.style.marginTop = "28px";
@@ -766,7 +767,7 @@ async function renderControlPanelView() {
                     continue;
                 }
                 const inner = payload[region];
-                for (const field of ["bale", "storage", "month", "otr_gri", "storage_days"]) {
+                for (const field of ["bale", "storage", "month", "otr_gri", "storage_days", "breaks"]) {
                     const inp = tr.querySelector(`input[data-consol-field="${field}"]`);
                     if (
                         inp != null &&
@@ -2164,8 +2165,7 @@ async function select_view() {
         renderPtsTable(config);
     } else if (viewName === "CIF") {
         await loadCifRows(config);
-        renderCifTable(config);
-        renderCifCertTable(config);
+        renderCifTable(config, () => renderCifCertTable(config));
     } else if (viewName === "Regions and Ports") {
         await loadRegionsAndPortsRows(config);
         renderRegionsAndPortsTable(config);
@@ -4871,7 +4871,7 @@ function renderPtsTable(config) {
     draw();
 }
 
-function renderCifTable(config) {
+function renderCifTable(config, onDataChange) {
     const content = document.getElementById("content");
     const controls = document.createElement("div");
     const searchInput = document.createElement("input");
@@ -4955,9 +4955,11 @@ function renderCifTable(config) {
     zeroCheckbox.addEventListener("change", async () => {
         await loadCifRows(config, zeroCheckbox.checked);
         draw();
+        if (onDataChange) onDataChange();
     });
 
     draw();
+    if (onDataChange) onDataChange();
 
     cifDetailsCb.addEventListener("change", () => {
         if (_lastCifDeriv) {
@@ -4968,6 +4970,10 @@ function renderCifTable(config) {
 
 function renderCifCertTable(config) {
     const content = document.getElementById("content");
+
+    // Remove previous cert table if re-rendering
+    const prev = document.getElementById("cif-cert-table-host");
+    if (prev) prev.remove();
 
     // Build columns: same as CIF + Cert Cost section
     const cifConfig = getCifViewConfig();
@@ -4982,8 +4988,8 @@ function renderCifCertTable(config) {
     const certRowDefs = [
         { name: "WTX-Dallas Cert-Block Out",     cifRegion: "WTX" },
         { name: "WTX-Dallas Cert-Break Out",     cifRegion: "WTX" },
-        { name: "WTX-Houston Cert-Block Out",    cifRegion: "WTX" },
-        { name: "WTX-Houston Cert-Break Out",    cifRegion: "WTX" },
+        { name: "WTXH-Houston Cert-Block Out",   cifRegion: "WTXH" },
+        { name: "WTXH-Houston Cert-Break Out",   cifRegion: "WTXH" },
         { name: "STX-Houston Cert-Block Out",    cifRegion: "STEX" },
         { name: "STX-Houston Cert-Break Out",    cifRegion: "STEX" },
         { name: "ME-Memphis Cert-Block Out",     cifRegion: "Memphis Rule 5" },
@@ -5015,7 +5021,33 @@ function renderCifCertTable(config) {
             row["Late Fee"] = lf;
             row["Transit Truck"] = tt;
             row["Total Transit"] = fb + lf + tt;
+
+            // Compression for all except ME and GA
+            if (def.cifRegion !== "Memphis Rule 5" && def.cifRegion !== "GA 30 Day") {
+                row.Compr = parseFloat(src.Compr) || 0;
+            }
+
+            // Load Out for STX
+            if (def.cifRegion === "STEX") {
+                row.Load = parseFloat(src.Load) || 0;
+            }
+
+            // Storage and Interest for all regions
+            row.Strg = parseFloat(src.Strg) || 0;
+            row.Interest = parseFloat(src.Interest) || 0;
+
+            // Total Origin = sum of origin columns (excluding Terms)
+            const originParts = ["Recv", "Load", "Compr", "Class", "Mark", "Strg", "ESO", "Interest", "Origin Comm"];
+            row["Total Origin"] = originParts.reduce((sum, k) => sum + (parseFloat(row[k]) || 0), 0);
+
+            // Consolidation from CIF
+            row.Consol_Block = parseFloat(src.Consol_Block) || 0;
+            row.Consol_Strg = parseFloat(src.Consol_Strg) || 0;
+            row.Consol_Interest = parseFloat(src.Consol_Interest) || 0;
+            row.Total_Consol = (row.Consol_Block + row.Consol_Strg + row.Consol_Interest);
         }
+        row._certDelivery = true;
+        row._cifRegion = def.cifRegion;
         return row;
     });
 
@@ -6021,6 +6053,9 @@ function showCellDerivation(row, column, value, rowIdx) {
         }
     } else if (viewName === "USD") {
         derivation = _usdDerivation(row, column);
+    } else if (viewName === "CIF" && row._certDelivery) {
+        derivation = _certDeliveryDerivation(row, column);
+        _lastCifDeriv = { row, column, value, rowIdx };
     } else if (viewName === "CIF") {
         const cifCb = document.getElementById("cif-details-cb");
         const details = cifCb && cifCb.checked;
@@ -6271,6 +6306,69 @@ function _cifDerivationCalc(row, column) {
         return `Cash (${region}) = Total Consol + Total Out + Total Doc + Total CIF = ${tc} + ${to} + ${td} + ${tcif} = ${Math.round(tc + to + td + tcif)}`;
     }
     if (column === "Equity") return `Equity (${region}) = ${v("Equity")}`;
+
+    return `${column} (${region}) = ${v(column)}`;
+}
+
+/**
+ * Derivation notes for the Cert Delivery table (below CIF).
+ */
+function _certDeliveryDerivation(row, column) {
+    const region = String(row.Region ?? "").trim();
+    const cifRegion = row._cifRegion || "?";
+    const v = (k) => row[k] ?? "";
+
+    if (column === "Row" || column === "Region") return `${column} = ${v(column)}`;
+
+    const originParts = ["Recv", "Load", "Compr", "Class", "Mark", "Strg", "ESO", "Interest", "Origin Comm"];
+
+    if (column === "Total Origin") {
+        const vals = originParts.map(k => parseFloat(v(k)) || 0);
+        const nonZero = originParts.filter((k, i) => vals[i] !== 0);
+        const nonZeroVals = vals.filter(x => x !== 0);
+        const sum = vals.reduce((a, b) => a + b, 0);
+        return `Total Origin (${region}) = ${nonZero.join(" + ")} = ${nonZeroVals.join(" + ")} = ${Math.round(sum)}  (sum of all origin columns from CIF "${cifRegion}")`;
+    }
+
+    if (column === "Total Transit") {
+        const fb = parseFloat(v("Flatbed")) || 0;
+        const lf = parseFloat(v("Late Fee")) || 0;
+        const tt = parseFloat(v("Transit Truck")) || 0;
+        return `Total Transit (${region}) = Flatbed + Late Fee + Transit Truck = ${fb} + ${lf} + ${tt} = ${Math.round(fb + lf + tt)}  (from CIF "${cifRegion}")`;
+    }
+
+    const inlandCols = ["Flatbed", "Late Fee", "Transit Truck"];
+    if (inlandCols.includes(column)) {
+        return `${column} (${region}) = ${v(column)}  (from CIF "${cifRegion}" ${column})`;
+    }
+
+    if (column === "Compr") {
+        if (cifRegion === "Memphis Rule 5" || cifRegion === "GA 30 Day") {
+            return `Compression (${region}) — not applicable for ${cifRegion}`;
+        }
+        return `Compression (${region}) = ${v("Compr")}  (from CIF "${cifRegion}" Compr)`;
+    }
+
+    if (column === "Load") {
+        if (cifRegion === "STEX") {
+            return `Load Out (${region}) = ${v("Load")}  (from CIF "${cifRegion}" Load)`;
+        }
+        return `Load Out (${region}) — only pulled for STX regions`;
+    }
+
+    if (column === "Strg") return `Storage (${region}) = ${v("Strg")}  (from CIF "${cifRegion}" Strg)`;
+    if (column === "Interest") return `Interest (${region}) = ${v("Interest")}  (from CIF "${cifRegion}" Interest)`;
+
+    // Consolidation
+    if (column === "Consol_Block") return `InAndOut (${region}) = ${v("Consol_Block")}  (from CIF "${cifRegion}" Consol_Block)`;
+    if (column === "Consol_Strg") return `TotalStorage (${region}) = ${v("Consol_Strg")}  (from CIF "${cifRegion}" Consol_Strg)`;
+    if (column === "Consol_Interest") return `Interest (${region}) = ${v("Consol_Interest")}  (from CIF "${cifRegion}" Consol_Interest)`;
+    if (column === "Total_Consol") {
+        const cb = parseFloat(v("Consol_Block")) || 0;
+        const cs = parseFloat(v("Consol_Strg")) || 0;
+        const ci = parseFloat(v("Consol_Interest")) || 0;
+        return `Total Consol (${region}) = InAndOut + TotalStorage + Interest = ${cb} + ${cs} + ${ci} = ${Math.round(cb + cs + ci)}  (from CIF "${cifRegion}")`;
+    }
 
     return `${column} (${region}) = ${v(column)}`;
 }

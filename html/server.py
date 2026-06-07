@@ -47,12 +47,12 @@ CONTROL_PANEL_DEFAULTS = {
 }
 
 CONSOLIDATION_DEFAULTS: dict = {
-    "Dallas": {"bale": 2.7, "storage": 0.12, "month": 1.68, "otr_gri": 0, "storage_days": 0},
-    "Houston": {"bale": 2.7, "storage": 0.12, "month": 1.68, "otr_gri": 0, "storage_days": 0},
-    "Savannah": {"bale": 2.6, "storage": 0.12, "month": 1.68, "otr_gri": 0, "storage_days": 0},
-    "Memphis": {"bale": 2.5, "storage": 0.08, "month": 1.12, "otr_gri": 0, "storage_days": 0},
-    "Shelby": {"bale": 2.2, "storage": 0.037, "month": 0.51, "otr_gri": 0, "storage_days": 0},
-    "CIL(MX)": {"bale": 2.6, "storage": 0.08, "month": 1.12, "otr_gri": 0, "storage_days": 0},
+    "Dallas": {"bale": 2.7, "storage": 0.12, "month": 1.68, "otr_gri": 0, "storage_days": 0, "breaks": 0},
+    "Houston": {"bale": 2.7, "storage": 0.12, "month": 1.68, "otr_gri": 0, "storage_days": 0, "breaks": 0},
+    "Savannah": {"bale": 2.6, "storage": 0.12, "month": 1.68, "otr_gri": 0, "storage_days": 0, "breaks": 0},
+    "Memphis": {"bale": 2.5, "storage": 0.08, "month": 1.12, "otr_gri": 0, "storage_days": 0, "breaks": 0},
+    "Shelby": {"bale": 2.2, "storage": 0.037, "month": 0.51, "otr_gri": 0, "storage_days": 0, "breaks": 0},
+    "CIL(MX)": {"bale": 2.6, "storage": 0.08, "month": 1.12, "otr_gri": 0, "storage_days": 0, "breaks": 0},
 }
 
 

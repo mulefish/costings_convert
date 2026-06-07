@@ -37,6 +37,7 @@ def _ensure_schema(conn: sqlite3.Connection) -> None:
     _ensure_document_cif_usda_columns(conn)
     _ensure_consolidation_otr_gri_column(conn)
     _ensure_consolidation_storage_days_column(conn)
+    _ensure_consolidation_breaks_column(conn)
     _ensure_drayage_gri_column(conn)
     _ensure_cif_regions_drop_brz_aus(conn)
     _ensure_lc_bank_cost_seeded(conn)
@@ -58,6 +59,7 @@ CREATE TABLE IF NOT EXISTS consolidation (
     month     REAL NOT NULL DEFAULT 0,
     otr_gri       REAL NOT NULL DEFAULT 0,
     storage_days  REAL NOT NULL DEFAULT 0,
+        breaks        REAL NOT NULL DEFAULT 0,
     is_active INTEGER NOT NULL DEFAULT 1
 );
 
@@ -414,6 +416,18 @@ def _ensure_consolidation_storage_days_column(conn: sqlite3.Connection) -> None:
     cols = {row[1] for row in conn.execute("PRAGMA table_info(consolidation)").fetchall()}
     if "storage_days" not in cols:
         conn.execute("ALTER TABLE consolidation ADD COLUMN storage_days REAL NOT NULL DEFAULT 0")
+        conn.commit()
+
+
+def _ensure_consolidation_breaks_column(conn: sqlite3.Connection) -> None:
+    """Add consolidation.breaks for DBs created before that column existed."""
+    if not conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='consolidation'"
+    ).fetchone():
+        return
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(consolidation)").fetchall()}
+    if "breaks" not in cols:
+        conn.execute("ALTER TABLE consolidation ADD COLUMN breaks REAL NOT NULL DEFAULT 0")
         conn.commit()
 
 
@@ -1023,17 +1037,17 @@ def save_control_panel(data: dict) -> None:
 
 def get_consolidation() -> dict:
     conn = _get_conn()
-    rows = conn.execute("SELECT region, bale, storage, month, otr_gri, storage_days FROM consolidation").fetchall()
-    return {r["region"]: {"bale": r["bale"], "storage": r["storage"], "month": r["month"], "otr_gri": r["otr_gri"], "storage_days": r["storage_days"]} for r in rows}
+    rows = conn.execute("SELECT region, bale, storage, month, otr_gri, storage_days, breaks FROM consolidation").fetchall()
+    return {r["region"]: {"bale": r["bale"], "storage": r["storage"], "month": r["month"], "otr_gri": r["otr_gri"], "storage_days": r["storage_days"], "breaks": r["breaks"]} for r in rows}
 
 
 def save_consolidation(data: dict) -> None:
     conn = _get_conn()
     conn.execute("DELETE FROM consolidation")
     conn.executemany(
-        "INSERT INTO consolidation (region, bale, storage, month, otr_gri, storage_days) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO consolidation (region, bale, storage, month, otr_gri, storage_days, breaks) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
-            (region, inner.get("bale", 0), inner.get("storage", 0), inner.get("month", 0), inner.get("otr_gri", 0), inner.get("storage_days", 0))
+            (region, inner.get("bale", 0), inner.get("storage", 0), inner.get("month", 0), inner.get("otr_gri", 0), inner.get("storage_days", 0), inner.get("breaks", 0))
             for region, inner in data.items()
             if isinstance(inner, dict)
         ],
