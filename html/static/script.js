@@ -6360,7 +6360,7 @@ function _exportParseNumericCell(s) {
  * Human-readable derivation for Export view cells (click-to-explain panel).
  * @param {object} ctx — { cifByRegion, oceanCostingRows, documentCifRows, usaFwd, documentationPtsByCountryKey, exportCifPtsByCountryKey, headerSampleOpts? }
  */
-function _exportCellDerivation(row, column, rowIdx, ctx) {
+function _exportCellDerivation(row, column, rowIdx, ctx, details) {
     const cifByRegion = (ctx && ctx.cifByRegion) || {};
     const oceanRows = (ctx && ctx.oceanCostingRows) || [];
     const documentCifRows = (ctx && ctx.documentCifRows) || [];
@@ -6404,7 +6404,7 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
             return "Documentation: Base (country) is blank on this row.";
         }
         if (!_exportDocumentCifFindRow(baseG, documentCifRows)) {
-            return `Documentation: no document_cif row for country "${baseG}" (after canonical name match). Cell = N/A.`;
+            return `Documentation: no document_cif row for country "${baseG}". Cell = N/A.`;
         }
         const lc = _exportDocCifFloatForCountry(baseG, "LC", documentCifRows);
         const ins = _exportDocCifFloatForCountry(baseG, "INS", documentCifRows);
@@ -6421,14 +6421,10 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         const pts = fromApi
             ? ctx.documentationPtsByCountryKey[ck]
             : _exportDocumentationTotalDocPts(baseG, documentCifRows, usaFwd);
-        const src = fromApi
-            ? "GET /api/export/documentation-totals (LC, INS, USDA_PTS_LB from document_cif + USA forwarding TOTAL)"
-            : "computed in browser from GET /api/document-cif + GET /api/usa-forwarding-cost";
-        return (
-            `Documentation Total Doc (PTS, rounded) = ${pts}. ` +
-            `Country="${baseG}": LC=${lc}, Pts/lb=${ptsLb}, INS=${ins}; USA forwarding TOTAL=${fwd}. ` +
-            `Source: ${src}. Same value for all region columns (${abbr}).`
-        );
+        if (!details) {
+            return `Documentation (${abbr}): Sight_LC + Forwarding + Controlling + Insurance = Total Doc  [Country="${baseG}"]`;
+        }
+        return `Documentation (${abbr}): LC=${lc}, Pts/lb=${ptsLb}, INS=${ins}, Forwarding=${fwd} → Total Doc=${pts}  [Country="${baseG}"]`;
     }
 
     if (group === "CIF") {
@@ -6437,7 +6433,7 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
             return "CIF: Base (country) is blank on this row.";
         }
         if (!_exportDocumentCifFindRow(baseG, documentCifRows)) {
-            return `CIF: no document_cif row for country "${baseG}" (after canonical name match). Cell = N/A.`;
+            return `CIF: no document_cif row for country "${baseG}". Cell = N/A.`;
         }
         const com = _exportDocCifFloatForCountry(baseG, "COM", documentCifRows);
         const cof = _exportDocCifFloatForCountry(baseG, "COF", documentCifRows);
@@ -6451,76 +6447,54 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         const pts = fromApi
             ? ctx.exportCifPtsByCountryKey[ck]
             : _exportCifSectionTotalPts(baseG, documentCifRows);
-        const src = fromApi
-            ? "GET /api/export/cif-totals (COM, COF, CIQ_QC from document_cif only; USA forwarding is in Documentation only)"
-            : "computed in browser from GET /api/document-cif (COM, COF, CIQ_QC only)";
-        return (
-            `CIF Total CIF (PTS, rounded) = ${pts}. ` +
-            `Country="${baseG}": COM=${com}, COF=${cof}, CIQ_QC=${ciq} (no USA forwarding TOTAL — already in Documentation). ` +
-            `Source: ${src}. Same value for all region columns (${abbr}).`
-        );
+        if (!details) {
+            return `CIF (${abbr}): COM + COF + CIQ_QC = Total CIF  [Country="${baseG}"]`;
+        }
+        return `CIF (${abbr}): COM=${com} + COF=${cof} + CIQ_QC=${ciq} = Total CIF=${pts}  [Country="${baseG}"]`;
     }
 
     if (group === "Total Terms") {
-        if (rowIdx < 0 && ctx && ctx.headerSampleOpts) {
-            const o = ctx.headerSampleOpts;
-            const parts = [];
-            let sum = 0;
-            let hasError = false;
-            for (const g of EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS) {
-                const h = _exportHeaderSampleCellDisplayValue(g, abbr, o);
-                const str = String(h ?? "").trim();
-                if (str === "N/A") {
-                    hasError = true;
-                    parts.push(`${g}=N/A`);
-                    break;
-                }
-                const n = _exportParseNumericCell(str);
-                const add = Number.isFinite(n) ? n : 0;
-                sum += add;
-                parts.push(`${g}=${str === "" ? "0" : str}`);
-            }
-            if (hasError) {
-                return `Total Terms (${abbr}) — header sample: ${parts.join(", ")} → N/A because a contributing header cell is N/A.`;
-            }
-            return (
-                `Total Terms (${abbr}) — Export header row 3: sum of the values shown in that row for each section at ${abbr} ` +
-                `(same rules as those headers, e.g. Outbound = GET /api/cif Total_Out for the region, not row-specific dray+ocean). ` +
-                `${EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS.join(", ")}: ${parts.join(" + ")} = ${_exportWholeNumberString(sum)}.`
-            );
-        }
-        const parts = [];
+        // Collect parts for both header-sample and body rows
+        const isHeader = rowIdx < 0 && ctx && ctx.headerSampleOpts;
+        const formulaParts = [];
+        const valueParts = [];
         let sum = 0;
         let hasError = false;
         for (const g of EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS) {
-            const k = `${g}|${abbr}`;
-            const cell = row[k];
-            const str = cell === undefined || cell === null ? "" : String(cell).trim();
+            let str;
+            if (isHeader) {
+                const h = _exportHeaderSampleCellDisplayValue(g, abbr, ctx.headerSampleOpts);
+                str = String(h ?? "").trim();
+            } else {
+                const cell = row[`${g}|${abbr}`];
+                str = cell === undefined || cell === null ? "" : String(cell).trim();
+            }
             if (str === "N/A") {
                 hasError = true;
-                parts.push(`${g}=N/A`);
-            } else {
-                const n = _exportParseNumericCell(str);
-                const add = Number.isFinite(n) ? n : 0;
-                sum += add;
-                parts.push(`${g}=${str === "" ? "0" : str}`);
+                formulaParts.push(g);
+                valueParts.push("N/A");
+                break;
             }
+            const n = _exportParseNumericCell(str);
+            const add = Number.isFinite(n) ? n : 0;
+            sum += add;
+            formulaParts.push(g);
+            valueParts.push(str === "" ? "0" : str);
         }
         if (hasError) {
-            return `Total Terms (${abbr}): ${parts.join(", ")} → N/A because a contributing cell is N/A.`;
+            return `Total Terms (${abbr}): ${details ? valueParts.join(", ") : formulaParts.join(", ")} → N/A (a contributing cell is N/A).`;
         }
-        return (
-            `Total Terms (${abbr}): sum of this row for region ${abbr} — ` +
-            `${EXPORT_GROUPS_SUMMED_INTO_TOTAL_TERMS.join(", ")}: ` +
-            `${parts.join(" + ")} = ${_exportWholeNumberString(sum)} (rounded whole).`
-        );
+        if (!details) {
+            return `Total Terms (${abbr}): ${formulaParts.join(" + ")} = Total Terms`;
+        }
+        return `Total Terms (${abbr}): ${valueParts.join(" + ")} = ${_exportWholeNumberString(sum)}`;
     }
 
     if (group === "Premium and Discounts") {
         if (_exportRegionColumnDeferred(abbr)) {
-            return `Premium and Discounts (${abbr}): intentionally blank for EMOT and ME (no reconcile in these columns).`;
+            return `Premium and Discounts (${abbr}): intentionally blank for EMOT and ME.`;
         }
-        const cifRegion = EXPORT_REGION_TO_CIF[abbr];
+        const cifRegion2 = EXPORT_REGION_TO_CIF[abbr];
         let ttStr;
         if (rowIdx < 0 && ctx && ctx.headerSampleOpts) {
             ttStr = _exportHeaderSampleTotalTermsForAbbr(abbr, ctx.headerSampleOpts);
@@ -6528,32 +6502,23 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
             ttStr = row[`Total Terms|${abbr}`] ?? "";
         }
         const cifN = _exportCifTotalTermsCashNumber(cifByRegion, abbr);
-        const cifLabel = cifRegion ? `GET /api/cif [ Region="${cifRegion}" ] . Cash (Total Terms)` : "CIF region";
         if (String(ttStr).trim() === "N/A") {
-            return (
-                `Premium and Discounts (${abbr}): Export Total Terms is N/A, so reconcile is omitted — cell is blank. ` +
-                `Fix the contributing section(s) for Total Terms (${abbr}) first; Premium is round(Export Total Terms − CIF Cash) when Total Terms is numeric.`
-            );
+            return `Premium and Discounts (${abbr}): Export Total Terms is N/A — cell is blank.`;
         }
         if (!Number.isFinite(cifN)) {
-            return `Premium and Discounts (${abbr}): no numeric CIF Cash for ${cifLabel}; cell blank.`;
+            return `Premium and Discounts (${abbr}): no CIF Cash for region; cell blank.`;
         }
         const exN = _exportParseNumericCell(ttStr);
         const ex = Number.isFinite(exN) ? exN : 0;
         const rawDiff = Math.round(ex - cifN);
         const diff = _exportPremiumDiscountsReconcileDisplay(abbr, cifN, ex);
         const isMr5 = String(abbr ?? "").trim() === "MR5";
-        const mr5Note = isMr5
-            ? ` MR5 rule: cell = raw reconcile (${rawDiff}) + 1 = ${diff}.`
-            : "";
-        const tail = isMr5
-            ? "MR5: add 1 to raw reconcile for the displayed cell."
-            : "0 means Export Total Terms matches CIF Total Terms Cash for this region.";
-        return (
-            `Premium and Discounts (${abbr}): reconcile — ${cifLabel} = ${Math.round(cifN)}; ` +
-            `Export Total Terms (${abbr}) = ${ex}. Raw round(Export Total Terms − CIF Cash) = ${rawDiff}; ` +
-            `cell = ${diff}.${mr5Note} ${tail}`
-        );
+        if (!details) {
+            const mr5Suffix = isMr5 ? " + 1 (MR5 rule)" : "";
+            return `Premium (${abbr}): round(Export Total Terms − CIF Cash)${mr5Suffix} = Reconcile`;
+        }
+        const mr5Note = isMr5 ? ` + 1 (MR5)` : "";
+        return `Premium (${abbr}): round(${ex} − ${Math.round(cifN)})${mr5Note} = ${diff}`;
     }
 
     if (_exportRegionColumnDeferred(abbr) && group !== "Documentation" && group !== "CIF") {
@@ -6564,28 +6529,31 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
         const baseG = String(row._exportBaseGroup || row.Base || "").trim();
         const cifFe = String(row["CIF FE"] || "").trim();
         if (!baseG || !cifFe) {
-            return "ERROR: Base (country) or CIF FE (city) is blank on this row; cannot match Ocean Costing.";
+            return "Outbound: Base or CIF FE is blank on this row.";
         }
         const hub = _exportOceanHubPortNorm(abbr);
         const drayStr = _exportCifDrayForAbbr(cifByRegion, abbr);
         const meta = (row._outboundMeta && row._outboundMeta[abbr]) || null;
-        const loc = `Country="${baseG}", Destination="${cifFe}", hub="${hub || "?"}"`;
         if (!meta) {
-            return `ERROR: no matching ocean rates for ${loc}. Cell = N/A.`;
+            return `Outbound (${abbr}): no matching ocean rates. Cell = N/A.`;
+        }
+        if (!details) {
+            const drayN = _exportParseNumericCell(drayStr);
+            const hasD = Number.isFinite(drayN);
+            return `Outbound (${abbr}): CIF Dray + Ocean (${meta.method}) = Total  [Country="${baseG}", Dest="${cifFe}", Hub="${hub || "?"}"]`;
         }
         const drayN = _exportParseNumericCell(drayStr);
         const hasD = Number.isFinite(drayN);
         const bits = [];
-        bits.push(`Method: ${meta.method} | Group: ${meta.destGroup}`);
-        bits.push(`Rates found: ${meta.count} | Carriers used: ${meta.carriers.join(", ") || "none"} | All carriers: ${meta.allCarriers.join(", ") || "none"}`);
-        bits.push(`Ocean Freight (${meta.method}): $${meta.selectedFreight} → Ocean Total: $${meta.oceanTotal}`);
+        bits.push(`Outbound (${abbr}): ${meta.method} | ${meta.destGroup}`);
+        bits.push(`Carriers: ${meta.carriers.join(", ") || "none"} | Freight: $${meta.selectedFreight} → Ocean Total: $${meta.oceanTotal}`);
         if (hasD) {
             bits.push(`CIF Dray: ${drayStr}`);
         }
         const warnings = [];
-        if (meta.limited) warnings.push("LIMITED DATA (fewer rates than method requires)");
-        if (meta.cheapGap) warnings.push("CHEAP GAP (lowest rate >15% below next)");
-        if (meta.highSpread) warnings.push("HIGH SPREAD (max/min ratio > 2x)");
+        if (meta.limited) warnings.push("LIMITED DATA");
+        if (meta.cheapGap) warnings.push("CHEAP GAP (>15%)");
+        if (meta.highSpread) warnings.push("HIGH SPREAD (>2x)");
         if (warnings.length) {
             bits.push(`Warnings: ${warnings.join(", ")}`);
         }
@@ -6593,16 +6561,55 @@ function _exportCellDerivation(row, column, rowIdx, ctx) {
     }
 
     if (group === "Outbound Logistics") {
-        return `GET /api/cif [ Region="${cifRegion}" ] . Total_Out (${abbr}).`;
+        const cifRow = cifRegion ? cifByRegion[cifRegion] : null;
+        if (!details) {
+            return `Outbound (${abbr}): Dray + Ocean = Total_Out  [Region="${cifRegion}"]`;
+        }
+        if (!cifRow) return `No CIF row for Region="${cifRegion}".`;
+        return `Outbound (${abbr}): ${cifRow.Dray ?? ""} + ${cifRow.Ocean ?? ""} = ${cifRow.Total_Out ?? ""}  [Region="${cifRegion}"]`;
     }
 
     if (EXPORT_BODY_POPULATED_GROUPS.has(group)) {
-        const field = cifKey || column;
-        return `GET /api/cif [ Region="${cifRegion}" ] . "${field}" (${group}: PTS averages for that region).`;
+        const cifRow = cifRegion ? cifByRegion[cifRegion] : null;
+        return _exportGroupDerivation(group, details ? cifRow : null, cifRegion, abbr);
     }
 
     const field = cifKey || "?";
-    return `GET /api/cif [ Region="${cifRegion}" ] . "${field}" (${group}).`;
+    const cifRow = cifRegion ? cifByRegion[cifRegion] : null;
+    if (!details) {
+        return `${group} (${abbr}): ${field}  [Region="${cifRegion}"]`;
+    }
+    if (!cifRow) return `No CIF row for Region="${cifRegion}".`;
+    return `${group} (${abbr}): ${cifRow[field] ?? ""}  [Region="${cifRegion}"]`;
+}
+
+/** When cifRow is provided, show values only. When null, show variable names only. */
+function _exportGroupDerivation(group, cifRow, cifRegion, abbr) {
+    const f = (k) => cifRow ? String(cifRow[k] ?? "") : k;
+    const FORMULAS = {
+        "Origin Warehouse": {
+            parts: ["Recv", "Load", "Compr", "Class", "Mark", "Strg", "ESO", "Interest", "Origin Comm"],
+            total: "Total Origin",
+            label: "Origin",
+        },
+        "Inland Logistics": {
+            parts: ["Flatbed", "Late Fee", "Transit Truck"],
+            total: "Total Transit",
+            label: "Inland",
+        },
+        Consolidation: {
+            parts: ["Consol_Block", "Consol_Strg", "Consol_Interest"],
+            total: "Total_Consol",
+            label: "Consolidation",
+        },
+    };
+    const spec = FORMULAS[group];
+    if (spec) {
+        const expr = spec.parts.map(f).join(" + ");
+        return `${spec.label} (${abbr}): ${expr} = ${f(spec.total)}  [Region="${cifRegion}"]`;
+    }
+    const field = _exportCifFieldForGroup(group);
+    return `${group} (${abbr}): ${f(field)}  [Region="${cifRegion}"]`;
 }
 
 function _exportOutboundLogisticsBodyCell(cifByRegion, exportOpts, exportRow, abbr) {
@@ -7439,9 +7446,12 @@ async function renderExportTable() {
 
     _logExportViewDiagnostics(derivationCtx, rows, columns, derivationCtx.headerSampleOpts);
 
+    let _lastDeriv = null;
     function showExportDerivation(row, column, value, rowIdx) {
+        _lastDeriv = { row, column, value, rowIdx };
         const disp = value === "" || value === undefined ? '""' : String(value);
-        const explain = _exportCellDerivation(row, column, rowIdx, derivationCtx);
+        const details = detailsCb.checked;
+        const explain = _exportCellDerivation(row, column, rowIdx, derivationCtx, details);
         derivPanel.style.color = "#222";
         const headerNote = rowIdx < 0 ? "[Header sample — first Export data row] " : "";
         derivPanel.textContent = `${headerNote}${column} = ${disp}  ←  ${explain}`;
@@ -7490,6 +7500,25 @@ async function renderExportTable() {
     });
     methodLabel.appendChild(methodSelect);
     controls.appendChild(methodLabel);
+
+    const detailsLabel = document.createElement("label");
+    detailsLabel.style.display = "flex";
+    detailsLabel.style.alignItems = "center";
+    detailsLabel.style.gap = "4px";
+    detailsLabel.style.fontSize = "13px";
+    detailsLabel.style.cursor = "pointer";
+    detailsLabel.style.userSelect = "none";
+    const detailsCb = document.createElement("input");
+    detailsCb.type = "checkbox";
+    detailsCb.style.cursor = "pointer";
+    detailsLabel.appendChild(detailsCb);
+    detailsLabel.appendChild(document.createTextNode("Formula / Calculation"));
+    detailsCb.addEventListener("change", () => {
+        if (_lastDeriv) {
+            showExportDerivation(_lastDeriv.row, _lastDeriv.column, _lastDeriv.value, _lastDeriv.rowIdx);
+        }
+    });
+    controls.appendChild(detailsLabel);
 
     methodSelect.addEventListener("change", async () => {
         oceanCostMethod = methodSelect.value;
