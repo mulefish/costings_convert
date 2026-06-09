@@ -418,7 +418,7 @@ async function renderControlPanelView() {
     );
     const CP_HIDDEN_KEYS = new Set([
         "Daily Spot",  // legacy single key
-        "Ocean GRI", "OTR FSC Multiplier", "OTR GRI", "Buffer",
+        "Ocean GRI", "OTR FSC Multiplier", "OTR GRI",
         "InAndOut", "TotalStorage", "Avg Purchase Price",
         "OTR Buffer (USD)", "Ocean Cost Method",
     ]);
@@ -844,6 +844,58 @@ async function renderControlPanelView() {
     hdray.style.marginBottom = "8px";
     hdray.textContent = "Drayage";
     wrap.appendChild(hdray);
+
+    // Ocean Cost Method dropdown
+    const oceanMethodRow = document.createElement("div");
+    oceanMethodRow.style.cssText = "display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;";
+    const oceanMethodLabel = document.createElement("label");
+    oceanMethodLabel.style.fontWeight = "600";
+    oceanMethodLabel.textContent = "Ocean Cost Method:";
+    const oceanMethodSelect = document.createElement("select");
+    oceanMethodSelect.style.cssText = "padding:4px 8px;font-size:13px;";
+    OCEAN_COST_METHODS.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        if (m === (data["Ocean Cost Method"] || "Lowest")) opt.selected = true;
+        oceanMethodSelect.appendChild(opt);
+    });
+    oceanMethodRow.appendChild(oceanMethodLabel);
+    oceanMethodRow.appendChild(oceanMethodSelect);
+    wrap.appendChild(oceanMethodRow);
+
+    async function applyOceanMethod(method) {
+        try {
+            const res = await fetch(`/api/ocean-base-by-method?method=${encodeURIComponent(method)}`);
+            if (!res.ok) return;
+            const bases = await res.json();
+            const tbody = document.getElementById("jarvis-drayage-tbody");
+            if (!tbody) return;
+            for (const tr of tbody.querySelectorAll("tr")) {
+                const regionInp = tr.querySelector('input[data-drayage-field="__region__"]');
+                const oceanInp = tr.querySelector('input[data-drayage-field="OceanBase"]');
+                if (!regionInp || !oceanInp) continue;
+                const region = regionInp.value.trim();
+                if (region in bases) {
+                    oceanInp.value = bases[region];
+                }
+            }
+        } catch (e) {
+            console.error("[Ocean Cost Method] fetch failed", e);
+        }
+        // Save method to control panel
+        try {
+            await fetch("/api/control-panel", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ "Ocean Cost Method": method }),
+            });
+        } catch (_) {}
+    }
+
+    oceanMethodSelect.addEventListener("change", () => {
+        applyOceanMethod(oceanMethodSelect.value);
+    });
 
     const pdray = document.createElement("p");
     pdray.style.fontSize = "13px";
@@ -2159,7 +2211,7 @@ async function select_view() {
         renderPtsTable(config);
     } else if (viewName === "CIF") {
         await loadCifRows(config);
-        renderCifTable(config, () => renderCifCertTable(config));
+        await renderCifTable(config, () => renderCifCertTable(config));
     } else if (viewName === "Regions and Ports") {
         await loadRegionsAndPortsRows(config);
         renderRegionsAndPortsTable(config);
@@ -2684,9 +2736,11 @@ async function renderApiTestView() {
     wrap.appendChild(panel);
 
     let selected = null;
+    let selectedResultCell = null;
 
-    function showPanel(item, kind) {
+    function showPanel(item, kind, resultCell) {
         selected = { item, kind };
+        selectedResultCell = resultCell || null;
         panel.style.display = "block";
         resultPre.textContent = "";
         statusEl.textContent = "";
@@ -2794,10 +2848,19 @@ async function renderApiTestView() {
                 { status: resp.status, ok: resp.ok, body: payload },
                 120000,
             );
+            if (selectedResultCell) {
+                const passed = resp.status === 200 && payload != null;
+                selectedResultCell.style.background = passed ? "#4caf50" : "#e53935";
+                selectedResultCell.textContent = passed ? "Pass" : "Fail";
+            }
         } catch (err) {
             statusEl.textContent = err.message;
             statusEl.style.color = "#b71c1c";
             resultPre.textContent = String(err);
+            if (selectedResultCell) {
+                selectedResultCell.style.background = "#e53935";
+                selectedResultCell.textContent = "Fail";
+            }
         } finally {
             if (slow) {
                 hideProgressModal();
@@ -2839,10 +2902,11 @@ async function renderApiTestView() {
             `<td style="border:1px solid #ddd;padding:6px 8px;">${_apiTestEscapeHtml(api.name)}</td>` +
             `<td style="border:1px solid #ddd;padding:6px 8px;font-family:monospace;font-size:11px;">${_apiTestEscapeHtml(api.method)} ${_apiTestEscapeHtml(api.url)}</td>` +
             `<td style="border:1px solid #ddd;padding:6px 8px;">${_apiTestEscapeHtml((api.used_by || []).join(", "))}</td>` +
+            `<td class="api-result-cell" style="border:1px solid #ddd;padding:6px 8px;background:#f5e642;text-align:center;width:60px;"></td>` +
             `<td style="border:1px solid #ddd;padding:6px 8px;"><button type="button" class="api-test-pick" data-kind="external" data-idx="${idx}" style="font-size:11px;padding:4px 10px;cursor:pointer;">Test</button></td>` +
             "</tr>";
     });
-    extHost.appendChild(makeTable(["Name", "Endpoint", "Used by", ""], extRows));
+    extHost.appendChild(makeTable(["Name", "Endpoint", "Used by", "Results", ""], extRows));
     wrap.appendChild(extHost);
 
     const intHost = document.createElement("div");
@@ -2864,11 +2928,12 @@ async function renderApiTestView() {
             `<td style="border:1px solid #ddd;padding:6px 8px;">${_apiTestEscapeHtml((api.methods || []).join(", "))}${writeBadge}</td>` +
             `<td style="border:1px solid #ddd;padding:6px 8px;">${_apiTestEscapeHtml(api.group)}</td>` +
             `<td style="border:1px solid #ddd;padding:6px 8px;">${_apiTestEscapeHtml((api.used_by || []).join(", ") || "-")}</td>` +
+            `<td class="api-result-cell" style="border:1px solid #ddd;padding:6px 8px;background:#f5e642;text-align:center;width:60px;"></td>` +
             `<td style="border:1px solid #ddd;padding:6px 8px;"><button type="button" class="api-test-pick" data-kind="internal" data-idx="${idx}" style="font-size:11px;padding:4px 10px;cursor:pointer;">Test</button></td>` +
             "</tr>";
     });
     intHost.appendChild(
-        makeTable(["Path", "Methods", "Group", "Used by", ""], intRows),
+        makeTable(["Path", "Methods", "Group", "Used by", "Results", ""], intRows),
     );
     wrap.appendChild(intHost);
 
@@ -2885,10 +2950,12 @@ async function renderApiTestView() {
         }
         const kind = btn.getAttribute("data-kind");
         const idx = Number(btn.getAttribute("data-idx"));
+        const tr = btn.closest("tr");
+        const resultCell = tr ? tr.querySelector(".api-result-cell") : null;
         if (kind === "external" && externalList[idx]) {
-            showPanel(externalList[idx], "external");
+            showPanel(externalList[idx], "external", resultCell);
         } else if (kind === "internal" && internalList[idx]) {
-            showPanel(internalList[idx], "internal");
+            showPanel(internalList[idx], "internal", resultCell);
         }
         panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
@@ -4752,13 +4819,50 @@ function renderPtsTable(config) {
     draw();
 }
 
-function renderCifTable(config, onDataChange) {
+async function renderCifTable(config, onDataChange) {
     const content = document.getElementById("content");
     const controls = document.createElement("div");
     const searchInput = document.createElement("input");
     const exportBtn = makeExportCsvButton();
 
     searchInput.placeholder = "Search Region";
+
+    // Cert Days input + save
+    let cpCertDays = 14;
+    try {
+        const cpRes = await fetch("/api/control-panel");
+        if (cpRes.ok) {
+            const cp = await cpRes.json();
+            cpCertDays = parseFloat(cp["Cert Days"]) || 14;
+        }
+    } catch (_) {}
+    const certDaysLabel = document.createElement("label");
+    certDaysLabel.style.cssText = "font-size:12px;display:flex;align-items:center;gap:4px;";
+    certDaysLabel.textContent = "Cert Days: ";
+    const certDaysInput = document.createElement("input");
+    certDaysInput.type = "number";
+    certDaysInput.step = "1";
+    certDaysInput.value = cpCertDays;
+    certDaysInput.style.width = "50px";
+    certDaysLabel.appendChild(certDaysInput);
+    const certDaysSaveBtn = document.createElement("button");
+    certDaysSaveBtn.textContent = "Save";
+    certDaysSaveBtn.style.cssText = "padding:3px 10px;font-size:12px;cursor:pointer;";
+    certDaysSaveBtn.addEventListener("click", async () => {
+        try {
+            const res = await fetch("/api/control-panel", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ "Cert Days": parseFloat(certDaysInput.value) || 14 }),
+            });
+            if (res.ok) {
+                certDaysSaveBtn.textContent = "Saved";
+                setTimeout(() => { certDaysSaveBtn.textContent = "Save"; }, 1500);
+            }
+        } catch (e) {
+            console.error("Failed to save Cert Days", e);
+        }
+    });
 
     const zeroToggle = document.createElement("label");
     zeroToggle.style.fontSize = "12px";
@@ -4785,6 +4889,8 @@ function renderCifTable(config, onDataChange) {
     detailsLabel.appendChild(cifDetailsCb);
     detailsLabel.appendChild(document.createTextNode("Formula / Calculation"));
 
+    controls.appendChild(certDaysLabel);
+    controls.appendChild(certDaysSaveBtn);
     controls.appendChild(searchInput);
     controls.appendChild(zeroToggle);
     controls.appendChild(detailsLabel);
@@ -4956,7 +5062,7 @@ async function renderCifCertTable(config) {
             const _edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
             const _certDays = parseFloat(cpData["Cert Days"] ?? 14);
             row.Consol_Interest = Math.round(((_dailySpot + _basis) / 365 * _edfRate * _certDays) * 100) / 100;
-            row.Total_Consol = (row.Consol_Block + row.Consol_Strg + row.Consol_Interest);
+            row.Total_Consol = Math.round((row.Consol_Block + row.Consol_Strg + row.Consol_Interest) * 100) / 100;
         }
         // Cert Cost section
         const certUsda = (parseFloat(cpData["Cert USDA"]) || 0) * 20;
@@ -4967,7 +5073,7 @@ async function renderCifCertTable(config) {
 
         // Total Terms — Cash
         const cashParts = ["Total Origin", "Total Transit", "Total_Consol", "Total_Out", "Total_Doc", "Total Cert"];
-        row.Cash = cashParts.reduce((sum, k) => sum + (parseFloat(row[k]) || 0), 0);
+        row.Cash = Math.round(cashParts.reduce((sum, k) => sum + (parseFloat(row[k]) || 0), 0) * 100) / 100;
 
         row._certDelivery = true;
         row._cifRegion = def.cifRegion;
@@ -5057,6 +5163,9 @@ async function renderCifCertTable(config) {
         const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
         row.Consol_Interest = Math.round(((dailySpot + basis) / 365 * edfRate * certDays) * 100) / 100;
 
+        // Total Consol = Consol_Strg + Consol_Interest
+        row.Total_Consol = Math.round((row.Consol_Strg + row.Consol_Interest) * 100) / 100;
+
         // Outbound and CIF sections from CIF table
         const stopSrc = cifByRegion[def.cifRegion];
         if (stopSrc) {
@@ -5076,16 +5185,14 @@ async function renderCifCertTable(config) {
             row.Total_CIF = (row.Dest_Commission + row.Cost_of_Funds + row.Qclaim);
         }
 
-        // Cert Cost section
-        const certUsda = (parseFloat(cpData["Cert USDA"]) || 0) * 20;
-        const certBoard = (parseFloat(cpData["Cert Board"]) || 0) * 20;
-        row.USDA = certUsda;
-        row.ICE = certBoard;
-        row["Total Cert"] = certUsda + certBoard;
+        // Cert Cost section — left blank for stoppage (calculations TBD)
+        row.USDA = "";
+        row.ICE = "";
+        row["Total Cert"] = "";
 
         // Total Terms — Cash
-        const cashParts = ["Total Origin", "Total Transit", "Total_Consol", "Total_Out", "Total_Doc", "Total Cert"];
-        row.Cash = cashParts.reduce((sum, k) => sum + (parseFloat(row[k]) || 0), 0);
+        const cashParts = ["Total Origin", "Total Transit", "Total_Consol", "Total_Out", "Total_Doc", "Total_CIF"];
+        row.Cash = Math.round(cashParts.reduce((sum, k) => sum + (parseFloat(row[k]) || 0), 0) * 100) / 100;
 
         return row;
     });
@@ -5139,31 +5246,6 @@ function renderCertOverviewTable(rows, cpData) {
         return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2);
     }
 
-    const inputRow = document.createElement("div");
-    inputRow.style.cssText = "display:flex;gap:16px;align-items:center;margin-bottom:10px;font-family:Arial,sans-serif;font-size:13px;";
-
-    const delivLabel = document.createElement("label");
-    delivLabel.textContent = "Delivery Storage (months): ";
-    const delivInput = document.createElement("input");
-    delivInput.type = "number";
-    delivInput.step = "0.1";
-    delivInput.value = "0.5";
-    delivInput.style.width = "60px";
-    delivLabel.appendChild(delivInput);
-    inputRow.appendChild(delivLabel);
-
-    const stopLabel = document.createElement("label");
-    stopLabel.textContent = "Stopping Storage (months): ";
-    const stopInput = document.createElement("input");
-    stopInput.type = "number";
-    stopInput.step = "0.1";
-    stopInput.value = "0.5";
-    stopInput.style.width = "60px";
-    stopLabel.appendChild(stopInput);
-    inputRow.appendChild(stopLabel);
-
-    content.appendChild(inputRow);
-
     const table = document.createElement("table");
     table.style.marginBottom = "20px";
     const thead = document.createElement("thead");
@@ -5197,8 +5279,7 @@ function renderCertOverviewTable(rows, cpData) {
         const basis = parseFloat(cpData["Basis"] || 0);
         const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
         const interest = (dailySpot + basis) / 365 * edfRate * certDays;
-        const stoppingStorage = parseFloat(stopInput.value) || 0;
-        const totalCarryPts = (totalStorage * 20) * stoppingStorage + interest;
+        const totalCarryPts = (totalStorage * 20) + interest;
 
         for (const col of columns) {
             const td = document.createElement("td");
@@ -5285,9 +5366,8 @@ function renderCertOverviewTable(rows, cpData) {
             const basis = parseFloat(cpData["Basis"] || 0);
             const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
             const interest = (dailySpot + basis) / 365 * edfRate * certDays;
-            const stopStrg = parseFloat(stopInput.value) || 0;
-            const carry = (totalStrg * 20) * stopStrg + interest;
-            panel.textContent = `Total Carry PTS (${city}) = (Total Storage $ × 20) × Stopping Storage + Interest = (${totalStrg.toFixed(2)} × 20) × ${stopStrg} + ${interest.toFixed(2)} = ${carry.toFixed(2)}`;
+            const carry = (totalStrg * 20) + interest;
+            panel.textContent = `Total Carry PTS (${city}) = (Total Storage $ × 20) + Interest = (${totalStrg.toFixed(2)} × 20) + ${interest.toFixed(2)} = ${carry.toFixed(2)}`;
         } else if (col === "Cert Days") {
             panel.textContent = `Cert Days (${city}) = control_panel [ "${certDaysKey}" ] = ${cpData[certDaysKey] ?? 14}`;
         } else if (field) {
@@ -5302,24 +5382,6 @@ function renderCertOverviewTable(rows, cpData) {
         }
     });
 
-    // Recalculate Total Carry PTS when Stopping Storage changes
-    stopInput.addEventListener("input", () => {
-        const stoppingStorage = parseFloat(stopInput.value) || 0;
-        const certDays = parseFloat(cpData[certDaysKey] ?? 14);
-        const dsMonth = cpData["Daily Spot Month"] || "Mar";
-        const dailySpot = parseFloat(cpData[`Daily Spot ${dsMonth}`] || 0);
-        const basis = parseFloat(cpData["Basis"] || 0);
-        const edfRate = parseFloat(cpData["EDF Interest Rate"] || 0);
-        const interest = (dailySpot + basis) / 365 * edfRate * certDays;
-        tbody.querySelectorAll('td[data-col="Total Carry PTS"]').forEach((td) => {
-            const city = td.dataset.city;
-            const matched = cityRows[city];
-            const perBale = parseFloat(avg(matched, "CertStrg"));
-            const totalStrg = (!isNaN(perBale) && !isNaN(certDays)) ? (perBale / 30) * certDays : 0;
-            const carry = (totalStrg * 20) * stoppingStorage + interest;
-            td.textContent = carry ? carry.toFixed(2) : "";
-        });
-    });
 }
 
 function renderTariffTable(config) {
@@ -6404,14 +6466,10 @@ function _stopTableDerivation(row, column) {
         return `Total CIF (${region}) = Dest Commission + Cost of Funds + Qclaim = ${dc} + ${cof} + ${qc} = ${Math.round(dc + cof + qc)}  (from CIF "${cifRegion}")`;
     }
 
-    // Cert Cost
-    if (column === "USDA") return `USDA (${region}) = Cert USDA × 20 = ${v("USDA")}  (from control_panel "Cert USDA")`;
-    if (column === "ICE") return `ICE (${region}) = Cert Board × 20 = ${v("ICE")}  (from control_panel "Cert Board")`;
-    if (column === "Total Cert") {
-        const u = parseFloat(v("USDA")) || 0;
-        const ice = parseFloat(v("ICE")) || 0;
-        return `Total Cert (${region}) = USDA + ICE = ${u} + ${ice} = ${Math.round(u + ice)}`;
-    }
+    // Cert Cost — left blank for stoppage (TBD)
+    if (column === "USDA") return `USDA (${region}) — not calculated for stoppage`;
+    if (column === "ICE") return `ICE (${region}) — not calculated for stoppage`;
+    if (column === "Total Cert") return `Total Cert (${region}) — not calculated for stoppage`;
 
     // Total Terms
     if (column === "Cash") {
@@ -6421,11 +6479,11 @@ function _stopTableDerivation(row, column) {
             ["Total Consol", parseFloat(v("Total_Consol")) || 0],
             ["Total Out", parseFloat(v("Total_Out")) || 0],
             ["Total Doc", parseFloat(v("Total_Doc")) || 0],
-            ["Total Cert", parseFloat(v("Total Cert")) || 0],
+            ["Total CIF", parseFloat(v("Total_CIF")) || 0],
         ];
         const vals = parts.map(p => p[1]);
         const sum = vals.reduce((a, b) => a + b, 0);
-        return `Cash (${region}) = ${parts.map(p => p[0]).join(" + ")} = ${vals.join(" + ")} = ${Math.round(sum)}`;
+        return `Cash (${region}) = ${parts.map(p => p[0]).join(" + ")} = ${vals.join(" + ")} = ${sum.toFixed(2)}`;
     }
 
     return `${column} (${region}) = ${v(column)}`;
@@ -8178,14 +8236,37 @@ async function renderExportTable() {
         exportCellOpts.oceanCostMethod = oceanCostMethod;
         // Save to control panel
         try {
-            const cp = await (await fetch("/api/control-panel")).json();
-            cp["Ocean Cost Method"] = oceanCostMethod;
             await fetch("/api/control-panel", {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(cp),
+                body: JSON.stringify({ "Ocean Cost Method": oceanCostMethod }),
             });
         } catch (e) { console.error("[Ocean Cost Method] save failed", e); }
+        // Update drayage OceanBase per region
+        try {
+            const obRes = await fetch(`/api/ocean-base-by-method?method=${encodeURIComponent(oceanCostMethod)}`);
+            if (obRes.ok) {
+                const bases = await obRes.json();
+                const drayRes = await fetch("/api/drayage");
+                if (drayRes.ok) {
+                    const dray = await drayRes.json();
+                    let changed = false;
+                    for (const [region, val] of Object.entries(bases)) {
+                        if (region in dray) {
+                            dray[region].OceanBase = val;
+                            changed = true;
+                        }
+                    }
+                    if (changed) {
+                        await fetch("/api/drayage", {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(dray),
+                        });
+                    }
+                }
+            }
+        } catch (e) { console.error("[Ocean Cost Method] drayage update failed", e); }
         // Rebuild rows with new method
         rows = _buildExportRows(cifByRegion, exportCellOpts);
         redrawExportBody();

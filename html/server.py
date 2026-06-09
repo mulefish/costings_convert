@@ -666,7 +666,7 @@ def _sync_control_panel_from_disk_if_needed() -> None:
     _reload_control_panel()
 
 
-_CP_OBSOLETE_KEYS = {"Cert Interest"}
+_CP_OBSOLETE_KEYS = {"Cert Interest", "Delivery Storage", "Stopping Storage"}
 
 
 def _init_control_panel() -> None:
@@ -1296,6 +1296,9 @@ def control_panel_api():
             if payload[key] in DAILY_SPOT_MONTHS:
                 control_panel[key] = payload[key]
             continue
+        if key == "Ocean Cost Method":
+            control_panel[key] = str(payload[key]).strip()
+            continue
         try:
             control_panel[key] = float(payload[key])
         except (TypeError, ValueError):
@@ -1390,6 +1393,54 @@ def drayage_api():
     drayage.update(clean)
     _persist_drayage()
     return jsonify(drayage)
+
+
+@app.route("/api/ocean-base-by-method")
+def ocean_base_by_method():
+    """Compute OceanBase per drayage region using the requested Ocean Cost Method.
+
+    Returns {region: oceanBase} where oceanBase is the raw dollar value (before /88).
+    """
+    method = request.args.get("method", "Lowest").strip()
+    if method not in ("Lowest", "Avg Cheapest 2", "Avg Cheapest 3"):
+        method = "Lowest"
+
+    _reload_drayage()
+    _reload_document_cif()
+    raw_ocean = db.get_ocean_rates_extract_row_dicts()
+    ctx = _ocean_build_context()
+    port_lookup = ctx["port_lookup"]
+    country_lookup = ctx["country_lookup"]
+
+    # Collect ocean freight values per port (drayage region)
+    freight_by_port: dict[str, list[float]] = {}
+    for raw in raw_ocean:
+        unorig = str(raw.get("unOrig", "")).strip().upper()
+        undest = str(raw.get("unDest", "")).strip().upper()
+        country_code = db.country_code_from_undest(undest)
+        port = port_lookup.get(unorig, "")
+        if not port:
+            continue
+        prepaid = db.get_dthc_prepaid_by_country_code(country_code, "Yes")
+        freight = db.ocean_freight_from_extract_row(raw, prepaid)
+        if freight <= 0:
+            continue
+        freight_by_port.setdefault(port, []).append(freight)
+
+    result = {}
+    for port, freights in freight_by_port.items():
+        freights.sort()
+        if method == "Avg Cheapest 2":
+            pool = freights[:2]
+            selected = sum(pool) / len(pool)
+        elif method == "Avg Cheapest 3":
+            pool = freights[:3]
+            selected = sum(pool) / len(pool)
+        else:
+            selected = freights[0]
+        result[port] = round(selected, 2)
+
+    return jsonify(result)
 
 
 @app.route("/api/notes", methods=["GET", "POST"])
